@@ -162,6 +162,61 @@ function buildCurve(name, m) {
   return g[name];
 }
 
+/* ── 소매 곡선 재적합 (세그먼트별 장력) ───────────────────────────────
+   통과점은 제도 규칙(대각선 수선의 1/2)이라 건드리지 않고, 그 사이 곡률만 맞춘다. */
+function calibrateSleeve(m) {
+  if (!TGT) { console.log('  (긴소매 정답지가 없어 건너뜀)'); return; }
+  var SL = [
+    { key: 'capBack',    gt: TGT.curves.capBack },
+    { key: 'capFront',   gt: TGT.curves.capFront },
+    { key: 'tightUnder', gt: TGT.curves.underFront, pick: 'underFront' }
+  ];
+  SL.forEach(function (item) {
+    var gp = item.gt.pts.map(function (p) { return [p[0], p[1]]; });
+    var gLen = item.gt.arc;
+    var C = E.CAL[item.key];
+    var pick = item.pick || item.key;
+    var build = function () {
+      return E.draftLady1(m, { seam: 0, sleeveType: 'tight' }).sleeve[pick];
+    };
+    var cost = function () { return fitCost(gp, gLen, build()); };
+    /* 조정 대상 — 세그먼트별 장력 t[i][j] 와 **내부 앵커의 접선 회전** r[i] */
+    var knobs = [];
+    C.t.forEach(function (pair, i) {
+      knobs.push({ get: function () { return C.t[i][0]; }, set: function (v) { C.t[i][0] = v; }, lo: 0.02, hi: 2.5, st: 1 });
+      knobs.push({ get: function () { return C.t[i][1]; }, set: function (v) { C.t[i][1] = v; }, lo: 0.02, hi: 2.5, st: 1 });
+    });
+    C.r.forEach(function (v, i) {
+      if (i === 0 || i === C.r.length - 1) return;          // 양 끝 접선은 제도 규칙 (수평) — 고정
+      knobs.push({ get: function () { return C.r[i]; }, set: function (v2) { C.r[i] = v2; }, lo: -35, hi: 35, st: 40 });
+    });
+    var best = cost();
+    for (var step = 0.20; step > 1e-6; step *= 0.55) {
+      for (var pass = 0; pass < 60; pass++) {
+        var improved = false;
+        for (var q = 0; q < knobs.length; q++) {
+          var kn = knobs[q];
+          for (var sgn = 0; sgn < 2; sgn++) {
+            var d = (sgn ? -step : step) * kn.st, save = kn.get();
+            var nv = save + d;
+            if (nv < kn.lo || nv > kn.hi) continue;
+            kn.set(nv);
+            var c = cost();
+            if (c < best - 1e-10) { best = c; improved = true; }
+            else kn.set(save);
+          }
+        }
+        if (!improved) break;
+      }
+    }
+    var poly = sampleSegs(build(), 0.02);
+    console.log('  ' + item.key.padEnd(11) +
+                ' 최대편차 ' + f2(Math.max(devTo(gp, poly), devTo(poly, gp))) + ' cm' +
+                ' · 길이 ' + f2(E.util.polyLen(poly)) + ' (도면 ' + f2(gLen) + ')' +
+                ' · 자기교차 ' + selfIntersections(poly));
+  });
+}
+
 function calibrate() {
   var m = E.measuresForSize('66호');
   console.log('\n곡선 재적합 (66호 DXF 기준)\n');
@@ -218,13 +273,23 @@ function calibrate() {
                 ' · 자기교차 ' + selfIntersections(poly) +
                 (best === Infinity ? '   ← 고리 없는 해를 못 찾음!' : ''));
   });
+  console.log('');
+  calibrateSleeve(m);
+
   /* ── engine.js 의 CAL 블록을 실제로 갈아 끼운다 ──
      출력만 하고 붙여넣기를 잊으면 "적합했는데 편차가 그대로"인 사고가 난다. */
+  var arrRow = function (name) {
+    var C = E.CAL[name];
+    return '    ' + name + (name.length < 9 ? ' '.repeat(9 - name.length) : '') + ': { t: [' +
+      C.t.map(function (t) { return '[' + t[0].toFixed(4) + ', ' + t[1].toFixed(4) + ']'; }).join(', ') +
+      '], r: [' + C.r.map(function (v) { return v.toFixed(3); }).join(', ') + '] }';
+  };
   var block = '  var CAL = {\n' + Object.keys(SPECS).map(function (name) {
     var C = E.CAL[name];
     var body = SPECS[name].map(function (k) { return k + ': ' + C[k].toFixed(6); }).join(', ');
     return '    ' + name + (name.length < 9 ? ' '.repeat(9 - name.length) : '') + ': { ' + body + ' }';
-  }).join(',\n') + '\n  };';
+  }).concat(TGT ? ['capBack', 'capFront', 'tightUnder'].map(arrRow) : [])
+    .join(',\n') + '\n  };';
 
   var file = path.join(HERE, 'engine.js');
   var src = fs.readFileSync(file, 'utf8');
@@ -332,8 +397,76 @@ function sectionSleeve(m, d) {
   void want;
 }
 
+/* ══ 타이트 긴소매 (교재 48P) ══════════════════════════════════════════ */
+var TGT = (function () {
+  var f = path.join(HERE, 'dxf-tight-sleeve-groundtruth.json');
+  return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
+})();
+
+function sectionTight(m) {
+  if (!TGT) { console.log('\n[5] 타이트 긴소매 — 정답지 없음, 건너뜀'); return; }
+  console.log('\n[5] 타이트 긴소매 — 도면 대조 (48P)');
+  var d = E.draftLady1(m, { seam: 0, sleeveType: 'tight' });
+  var s = d.sleeve;
+
+  /* 제도점 */
+  var want = [
+    ['소매산 정점',   s.apex,     [TGT.ref.apexShift, 0]],
+    ['뒤 소매통',     s.bicepB,   TGT.curves.capBack.start],
+    ['앞 소매통',     s.bicepF,   TGT.curves.capFront.end],
+    ['앞 소맷부리',   s.hemF,     TGT.curves.underFront.end],
+    ['뒤 소맷부리',   s.hemB,     TGT.curves.hem.start],
+    ['앞 밑선 들임',  s.underMid, [16.0162 - 1.5, 22.999]]
+  ];
+  want.forEach(function (w) {
+    var e = V.dist(w[1], w[2]);
+    var tol = (w[0] === '뒤 소맷부리') ? 0.08 : TOL_PT;
+    ok(e <= tol, w[0], '편차 ' + f2(e) + '  엔진(' + f2(w[1][0]) + ', ' + f2(w[1][1]) + ')' +
+       (tol !== TOL_PT ? '  ※ 허용 ' + tol : ''));
+  });
+
+  /* 곡선 */
+  [['capBack', s.capBack], ['capFront', s.capFront], ['underFront', s.underFront]].forEach(function (c) {
+    var g = TGT.curves[c[0]];
+    var gp = g.pts.map(function (p) { return [p[0], p[1]]; });
+    var poly = sampleSegs(c[1], 0.02);
+    var dev = Math.max(devTo(gp, poly), devTo(poly, gp));
+    var si = selfIntersections(poly), L = E.util.polyLen(poly);
+    /* 소매 곡선 허용 0.12 — 통과점(대각선 수선의 1/2)·곡선길이·양 끝 접선은 정확히
+       맞고, 남는 것은 통과점 사이의 곡률뿐이다. 앵커를 더 넣어 0.08~0.11 까지 좁혔고
+       그 아래는 도면 스플라인의 개별 정점을 따라 그리는 일이 된다. */
+    ok(dev <= 0.12, c[0] + ' 편차', f2(dev) + ' cm (허용 0.12)');
+    ok(si === 0, c[0] + ' 자기교차 없음', String(si));
+    ok(Math.abs(L - g.arc) <= 0.12, c[0] + ' 곡선길이', f2(L) + '  도면 ' + f2(g.arc));
+  });
+
+  /* 봉제 정합 — 소매산은 암홀보다 이세분만큼 길고, 밑선은 뒤가 길어 이세처리한다 */
+  var M = d.measures;
+  ok(M.sleeveCapEase > 0.8 && M.sleeveCapEase <= 3.0, '소매산 이세분 (0.8 ~ 3.0)',
+     f2(M.sleeveCapEase));
+  var underDiff = s.underLenB - s.underLenF;
+  ok(underDiff > 0 && underDiff <= 1.2, '밑선 뒤−앞 이세 (0 ~ 1.2)',
+     '뒤 ' + f2(s.underLenB) + ' / 앞 ' + f2(s.underLenF) + '  차 ' + f2(underDiff) +
+     '  (도면 ' + f2(47.80 - 47.237) + ')');
+  note('팔꿈치선 ' + f2(s.elbowY) + ' (도면 32.314) · 반소매 기준선 ' + f2(s.insetY) + ' (도면 22.999)');
+
+  /* 전 호수에서 형상이 깨지지 않는지 */
+  E.SIZES.forEach(function (sz) {
+    var dd = E.draftLady1(E.measuresForSize(sz), { seam: 0, sleeveType: 'tight' });
+    var ss = dd.sleeve, bad = [];
+    if (!(ss.cuffW > 8 && ss.cuffW < 40)) bad.push('소맷부리 ' + f2(ss.cuffW));
+    if (ss.hemF[0] >= ss.bicepF[0]) bad.push('소맷부리가 소매통보다 넓음');
+    if (selfIntersections(sampleSegs(ss.underFront, 0.05))) bad.push('앞 밑선 자기교차');
+    var pc = dd.pieces.filter(function (p) { return p.id === 'sleeve'; })[0];
+    if (!pc || pc.outline.length < 200) bad.push('외곽선 이상');
+    ok(bad.length === 0, sz + ' 긴소매',
+       '길이 ' + f2(ss.sleeveLen) + ' · 소맷부리 ' + f2(ss.cuffW) + ' · 이세분 ' + f2(ss.capEase) +
+       (bad.length ? '  → ' + bad.join(', ') : ''));
+  });
+}
+
 function sectionSizes() {
-  console.log('\n[5] 전 호수 (44~88호) 정상 제도');
+  console.log('\n[6] 전 호수 (44~88호) 정상 제도');
   E.SIZES.forEach(function (sz) {
     var m = E.measuresForSize(sz);
     var d, err = null;
@@ -357,7 +490,7 @@ function sectionSizes() {
 }
 
 function sectionSeam() {
-  console.log('\n[6] 부위별 시접 — 골선·다트 시접 0 강제');
+  console.log('\n[7] 부위별 시접 — 골선·다트 시접 0 강제');
   var m = E.measuresForSize('66호');
   var d = E.draftLady1(m, { seam: { neck: 1, shoulder: 1, armhole: 1, side: 1.5, hem: 3, sleeveHem: 2.5, fold: 2, dart: 2 } });
   d.pieces.forEach(function (p) {
@@ -378,6 +511,7 @@ if (process.argv.indexOf('--calibrate') >= 0) {
   sectionCurves(m);
   sectionSew(m, d);
   sectionSleeve(m, d);
+  sectionTight(m);
   sectionSizes();
   sectionSeam();
   console.log('\n' + (fails.length ? '실패 ' + fails.length + '건:\n  - ' + fails.join('\n  - ')

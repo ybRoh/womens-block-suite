@@ -112,7 +112,7 @@
     if (!E || typeof E.draftNoDart !== 'function' || !state.m) return null;
     try {
       var sp = splitMeasures();
-      var d = E.draftNoDart(sp.m, { seam: {}, shoulderEase: SHOULDER_EASE, capReduce: state.capReduce });
+      var d = E.draftNoDart(sp.m, { seam: {}, shoulderEase: SHOULDER_EASE, capReduce: state.capReduce, sleeveType: state.sleeveType });
       var merged = collectSeamByRole(d);
       return (merged && Object.keys(merged).length) ? merged : null;
     } catch (e) { return null; }
@@ -226,11 +226,11 @@
   function probeEngineDefault(m, key) {
     var E = ENG();
     if (!E || typeof E.draftNoDart !== 'function') return null;
-    var ck = key + '@' + m.B;
+    var ck = key + '@' + m.B + '@' + state.sleeveType;
     if (_probeCache[ck] !== undefined) return _probeCache[ck];
     var v = null;
     try {
-      var d = E.draftNoDart(m, { seam: 0, shoulderEase: SHOULDER_EASE, capReduce: state.capReduce });
+      var d = E.draftNoDart(m, { seam: 0, shoulderEase: SHOULDER_EASE, capReduce: state.capReduce, sleeveType: state.sleeveType });
       v = (d && d.measures) ? num(d.measures[key]) : null;
     } catch (e) { v = null; }
     _probeCache[ck] = v;
@@ -298,6 +298,8 @@
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     capReduce: 0,          // SPEC §3.4 개정: 기본 0
+    sleeveType: 'short',   // 'short' 반소매 · 'tight' 타이트 긴소매 (SPEC §21)
+    cuffW: null,           // 소맷부리 — null 이면 엔진 기본값
     printMode: 'a4',
     rollWidthMm: 594,
     overlapMm: 10,
@@ -333,9 +335,11 @@
       seam: seamOpt,
       shoulderEase: SHOULDER_EASE,
       capReduce: state.capReduce,
+      sleeveType: state.sleeveType,
       size: state.size
     };
     for (var ok in sp.opt) if (sp.opt.hasOwnProperty(ok)) opt[ok] = sp.opt[ok];
+    if (state.sleeveType === 'tight' && state.cuffW !== null) opt.cuffW = state.cuffW;
     try {
       var d = E.draftNoDart(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftNoDart 가 pieces 를 반환하지 않았습니다.');
@@ -900,6 +904,50 @@
     els.seamAppliedBody.innerHTML = rows.join(' · ') || '—';
   }
 
+  /** 소매 종류를 바꾼다 — 소매길이는 **그 종류의 엔진 기본값**으로 되돌린다.
+   *  안 그러면 반소매의 23 이 긴소매(59.7)를 덮어써 짧은 긴소매가 그려진다. */
+  function applySleeveType(t) {
+    state.sleeveType = t;
+    state.cuffW = null;
+    var std = stdMeasures(state.size);
+    if (std && isFinite(std.sleeveLen) && state.m) state.m.sleeveLen = std.sleeveLen;
+    refreshCustomFlag();
+    buildFields();
+    recompute(false);
+  }
+
+  /** 소매 종류 셀렉트·소맷부리 칸을 엔진 정보로 맞춘다 (숫자는 전부 엔진에서 온다) */
+  function syncSleeve() {
+    var E = ENG();
+    if (!els.sleeveType) els.sleeveType = $('ndSleeveType');
+    if (!els.cuffRow) els.cuffRow = $('ndCuffRow');
+    if (!els.cuffW) els.cuffW = $('ndCuffW');
+    if (!els.sleeveHint) els.sleeveHint = $('ndSleeveHint');
+    if (!els.sleeveType || !E || !E.SLEEVE_TYPE) return;
+    var keys = E.SLEEVE_TYPES || Object.keys(E.SLEEVE_TYPE);
+    if (keys.indexOf(state.sleeveType) < 0) state.sleeveType = keys[0];
+    if (els.sleeveType.options.length !== keys.length) {
+      els.sleeveType.innerHTML = keys.map(function (k) {
+        return '<option value="' + esc(k) + '">' + esc(E.SLEEVE_TYPE[k].name) + '</option>';
+      }).join('');
+    }
+    els.sleeveType.value = state.sleeveType;
+
+    var tight = state.sleeveType === 'tight';
+    if (els.cuffRow) els.cuffRow.hidden = !tight;
+    if (tight && els.cuffW) {
+      var d = state.draft, slv = d && d.sleeve;
+      if (state.cuffW === null && slv && isFinite(slv.cuffW)) els.cuffW.value = f1(slv.cuffW);
+      else if (state.cuffW !== null) els.cuffW.value = f1(state.cuffW);
+    }
+    if (els.sleeveHint) {
+      els.sleeveHint.innerHTML = tight
+        ? '앞 밑선은 <b>반소매 밑단 들임 지점</b>(앞반폭 − 1.5)을 지나 소맷부리까지 들어옵니다. ' +
+          '뒤 밑선은 직선이고 앞보다 길어 <b>이세처리</b>합니다. 소매산 정점은 앞으로 <b>0.6</b> 이동합니다.'
+        : '밑단은 좌우 <b>1.5</b> 씩 들이고 2등분점에서 끝까지 <b>0.5</b> 내려갑니다.';
+    }
+  }
+
   function syncFields() {
     if (!state.m) return;
     var std = stdMeasures(state.size) || {};
@@ -1092,7 +1140,9 @@
       : '—';
     els.footSeam.textContent = '시접 ' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset) +
       ' (' + seamRoleDefs().map(function (r) { return f1(state.seam[r.key] || 0); }).join('/') + ', 골선 0)' +
-      ' · capReduce ' + state.capReduce.toFixed(1);
+      ' · capReduce ' + state.capReduce.toFixed(1) +
+      (state.draft && state.draft.measures && state.draft.measures.sleeveTypeName
+        ? ' · ' + state.draft.measures.sleeveTypeName : '');
     var bb = (state.draft && state.layout) ? state.layout.bbox : null;
     els.footBox.textContent = bb ? ('전체 ' + f1(bb.w) + ' × ' + f1(bb.h) + ' cm') : '—';
 
@@ -1122,6 +1172,7 @@
       state.layout = layoutPieces(d);
       if (refit || state.autoFit) fitView(); else renderSvg();
       syncFields();
+      syncSleeve();
       renderSummary();
       renderFoot();
     });
@@ -1207,7 +1258,7 @@
   function PDFM() { return global.NoDartPDF; }
 
   function pdfFileName() {
-    return '숙녀복기본원형1_' + state.size +
+    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'tight' ? '긴소매' : '반소매') +
       '_' + (state.printMode === 'roll' ? '롤지' + state.rollWidthMm + 'mm' : 'A4분할') +
       '_시접' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset).replace(/\s+/g, '') +
       '_1대1.pdf';
@@ -1264,7 +1315,7 @@
   }
 
   function dxfFileName() {
-    return '숙녀복기본원형1_' + state.size +
+    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'tight' ? '긴소매' : '반소매') +
       '_시접' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset).replace(/\s+/g, '') +
       '_' + ($('ndDxfUnit') ? $('ndDxfUnit').value : 'cm') + '.dxf';
   }
@@ -1356,6 +1407,19 @@
       recompute(false);
     });
 
+    /* 소매 종류·소맷부리는 **위임**으로 받는다. els 캐시 시점에 요소가 없어도
+       (마크업이 나중에 채워져도) 확실히 동작한다. */
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t || !t.id) return;
+      if (t.id === 'ndSleeveType') {
+        applySleeveType(t.value);
+      } else if (t.id === 'ndCuffW') {
+        var v = parseFloat(t.value);
+        state.cuffW = (isFinite(v) && v > 0) ? v : null;
+        recompute(false);
+      }
+    });
     els.capReduce.addEventListener('input', function () {
       state.capReduce = parseFloat(els.capReduce.value) || 0;
       els.capReduceVal.textContent = state.capReduce.toFixed(1);
@@ -1488,6 +1552,8 @@
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
       capReduce: $('ndCapReduce'), capReduceVal: $('ndCapReduceVal'),
+      sleeveType: $('ndSleeveType'), cuffRow: $('ndCuffRow'), cuffW: $('ndCuffW'),
+      sleeveHint: $('ndSleeveHint'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
@@ -1521,6 +1587,7 @@
     state.seamPreset = detectPreset(state.seam);
     els.capReduce.value = state.capReduce;
     els.capReduceVal.textContent = state.capReduce.toFixed(1);
+    syncSleeve();
 
     buildFields();
     buildSeamRoles();
@@ -1597,10 +1664,19 @@
         seam: copyObj(state.seam || {}), seamPreset: state.seamPreset, capReduce: state.capReduce,
         printMode: state.printMode, rollWidthMm: state.rollWidthMm, overlapMm: state.overlapMm,
         calibMm: state.calibMm, engineOk: state.engineOk, lastError: state.lastError,
+        sleeveType: state.sleeveType, cuffW: state.cuffW,
         zoom: state.view.s / PX_PER_CM
       };
     },
     getDraft: function () { return state.draft; },
+    /** 소매 종류를 코드로 바꿉니다 ('short' | 'tight') */
+    setSleeveType: function (t) {
+      var E = ENG();
+      var keys = (E && E.SLEEVE_TYPES) || ['short'];
+      if (keys.indexOf(t) < 0) { toast('알 수 없는 소매 종류: ' + t); return false; }
+      applySleeveType(t);
+      return true;
+    },
     easeGrade: easeGrade,
     SIDE_WARN_CM: SIDE_WARN_CM
   };
