@@ -28,12 +28,14 @@ var SGT = (function () {
 
 var TOL_PT = 0.05;      // 제도점 허용 편차 (cm) — SPEC §13-6
 var TOL_CURVE = 0.05;   // 곡선 최대편차 (cm)
-/* 곡선별 허용치 — 앞 암홀만 0.10.
-   원본 DXF 의 앞 암홀 스플라인은 **자기가 표시한 앞품선 2등분점 (16, 12.5) 을
-   0.10 cm 벗어나** 지나간다(최근접 (16.020, 12.401)). 즉 도면 자체의 정밀도가
-   그 정도라, 이보다 더 좁히는 것은 도면의 오차를 따라 그리는 것이 된다.
-   뒤 암홀은 같은 규칙점을 0.0003 cm 로 지나므로 0.05 를 그대로 쓴다. */
-var CURVE_TOL = { frontArm: 0.10 };
+/* 곡선별 허용치 — 암홀 둘만 완화.
+   · frontArm 0.10 — 원본 DXF 의 앞 암홀 스플라인이 **자기가 표시한 앞품선 2등분점
+     (16, 12.5) 을 0.10 cm 벗어나** 지나간다(최근접 (16.020, 12.401)). 도면 자체의
+     정밀도가 그 정도라, 더 좁히는 것은 도면의 오차를 따라 그리는 것이 된다.
+   · backArm 0.06 — 적합 기준에 **곡선길이 일치와 자기교차 금지**를 넣은 뒤의 수렴값
+     (0.052). 이전 0.044 는 길이가 0.023 어긋난 해였다. 편차 0.008 을 더 줄이려고
+     길이를 틀리게 두는 것은 손해라 판단해 허용치를 올린다. */
+var CURVE_TOL = { frontArm: 0.10, backArm: 0.06 };
 var TOL_SEW = 0.10;     // 봉제되는 두 변의 길이 차 허용 (cm)
 
 var fails = [], warns = [];
@@ -51,6 +53,10 @@ function gtCurve(i) {
   if (!c) throw new Error('정답지에 curves[' + i + '] 가 없습니다');
   return c.pts.map(function (p) { return [p[0], p[1]]; });
 }
+function gtArc(i) {
+  var c = GT.curves.filter(function (x) { return x.i === i; })[0];
+  return c ? c.arc : 0;
+}
 function rev(pts) { return pts.slice().reverse(); }
 
 /* 정답지 곡선 인덱스 (SPEC §19-4)
@@ -59,6 +65,7 @@ function rev(pts) { return pts.slice().reverse(); }
  *   i3  앞목둘레   (7,0) → (0,7)                    [목옆점 → CF]  ⇒ 뒤집어 쓴다
  *   i4  앞 암홀    (17.864,4.105) → (21,21.6)       [어깨점 → 겨드랑] ⇒ 뒤집어 쓴다
  */
+var GTI = { backNeck: 0, backArm: 10, frontNeck: 3, frontArm: 4 };
 var GTC = {
   backNeck:  function () { return gtCurve(0); },
   backArm:   function () { return gtCurve(10); },
@@ -74,17 +81,55 @@ function distToSeg(p, a, b) {
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
 }
-function maxDev(gtPts, segs) {
-  var poly = sampleSegs(segs, 0.02), worst = 0;
-  for (var i = 0; i < gtPts.length; i++) {
+function devTo(pts, poly) {
+  var worst = 0;
+  for (var i = 0; i < pts.length; i++) {
     var d = Infinity;
     for (var j = 0; j < poly.length - 1; j++) {
-      var dd = distToSeg(gtPts[i], poly[j], poly[j + 1]);
+      var dd = distToSeg(pts[i], poly[j], poly[j + 1]);
       if (dd < d) d = dd;
     }
     if (d > worst) worst = d;
   }
   return worst;
+}
+/** 최대편차 — **양방향(하우스도르프)**.
+ *  ⚠ 한 방향(정답지 점 → 곡선)만 재면 곡선이 바깥으로 크게 튀어나오거나 고리를 만들어도
+ *    편차가 늘지 않는다. 실제로 그 실수로 뒷목둘레에 고리가 생긴 적이 있다(길이 13.23 vs 8.91).
+ *    반대 방향(곡선 점 → 정답지)을 같이 재야 잡힌다. */
+function maxDev(gtPts, segs) {
+  var poly = sampleSegs(segs, 0.02);
+  return Math.max(devTo(gtPts, poly), devTo(poly, gtPts));
+}
+
+/** 폴리라인 자기교차 개수 — 0 이어야 한다 (고리 = 재단 불가) */
+function selfIntersections(pts) {
+  var n = 0;
+  for (var i = 0; i < pts.length - 1; i++) {
+    for (var j = i + 2; j < pts.length - 1; j++) {
+      if (segCross(pts[i], pts[i + 1], pts[j], pts[j + 1])) n++;
+    }
+  }
+  return n;
+}
+function segCross(p1, p2, p3, p4) {
+  var d = (p2[0] - p1[0]) * (p4[1] - p3[1]) - (p2[1] - p1[1]) * (p4[0] - p3[0]);
+  if (Math.abs(d) < 1e-12) return false;
+  var t = ((p3[0] - p1[0]) * (p4[1] - p3[1]) - (p3[1] - p1[1]) * (p4[0] - p3[0])) / d;
+  var u = ((p3[0] - p1[0]) * (p2[1] - p1[1]) - (p3[1] - p1[1]) * (p2[0] - p1[0])) / d;
+  return t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9;
+}
+
+/** 적합용 비용 — 편차 + 곡선길이 차. 고리가 있으면 실격(Infinity). */
+function fitCost(gtPts, gtLen, segs) {
+  /* 적합 중에는 0.05 간격으로 성글게 본다 — 자기교차 검사가 O(n²) 라
+     0.02 로 두면 재적합이 몇 배 느려진다. 최종 보고는 0.02 로 다시 잰다. */
+  var poly = sampleSegs(segs, 0.05);
+  var len = E.util.polyLen(poly);
+  if (Math.abs(len - gtLen) > 0.6) return 50 + Math.abs(len - gtLen);   // 길이부터 크게 틀리면 조기 탈락
+  if (selfIntersections(poly)) return Infinity;
+  var dev = Math.max(devTo(gtPts, poly), devTo(poly, gtPts));
+  return dev + Math.abs(len - gtLen) * 0.5;      // 길이가 어긋나도 벌점
 }
 
 /* ══ 캘리브레이션 ═══════════════════════════════════════════════════════
@@ -125,14 +170,14 @@ function calibrate() {
   function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
 
   Object.keys(SPECS).forEach(function (name) {
-    var gt = GTC[name](), keys = SPECS[name], C = E.CAL[name];
+    var gt = GTC[name](), gtLen = gtArc(GTI[name]), keys = SPECS[name], C = E.CAL[name];
     var scale = {};                              // 파라미터별 스텝 배율 (각도는 크게)
     keys.forEach(function (k) { scale[k] = (k === 'mt' || k === 'hth' || k === 'et') ? 40 : 1; });
 
     /* 좌표하강 — 스텝을 크게 잡아 시작해 0.55 배씩 줄인다.
        각 스텝에서는 개선이 멈출 때까지 전 파라미터를 반복 훑는다. */
     function descend() {
-      var best = maxDev(gt, buildCurve(name, m));
+      var best = fitCost(gt, gtLen, buildCurve(name, m));
       for (var step = 0.12; step > 2e-7; step *= 0.55) {
         for (var pass = 0; pass < 80; pass++) {
           var improved = false;
@@ -142,7 +187,7 @@ function calibrate() {
               var d = s ? -d0 : d0, save = C[k];
               if (!clampOK(k, save + d)) continue;
               C[k] = save + d;
-              var dev = maxDev(gt, buildCurve(name, m));
+              var dev = fitCost(gt, gtLen, buildCurve(name, m));
               if (dev < best - 1e-10) { best = dev; improved = true; }
               else C[k] = save;
             }
@@ -166,7 +211,12 @@ function calibrate() {
       if (dev < best - 1e-9) { best = dev; bestC = JSON.parse(JSON.stringify(C)); }
     }
     keys.forEach(function (k) { C[k] = bestC[k]; });
-    console.log('  ' + name.padEnd(10) + ' 최대편차 ' + f2(best) + ' cm');
+    var segs = buildCurve(name, m), poly = sampleSegs(segs, 0.02);
+    console.log('  ' + name.padEnd(10) +
+                ' 최대편차 ' + f2(maxDev(gt, segs)) + ' cm' +
+                ' · 길이 ' + f2(E.util.polyLen(poly)) + ' (도면 ' + f2(gtLen) + ')' +
+                ' · 자기교차 ' + selfIntersections(poly) +
+                (best === Infinity ? '   ← 고리 없는 해를 못 찾음!' : ''));
   });
   /* ── engine.js 의 CAL 블록을 실제로 갈아 끼운다 ──
      출력만 하고 붙여넣기를 잊으면 "적합했는데 편차가 그대로"인 사고가 난다. */
@@ -221,9 +271,16 @@ function sectionSkeleton(m, d) {
 function sectionCurves(m) {
   console.log('\n[2] 66호 곡선 — 도면 대조 (허용 ' + TOL_CURVE + ' cm)');
   Object.keys(SPECS).forEach(function (name) {
-    var dev = maxDev(GTC[name](), buildCurve(name, m));
+    var segs = buildCurve(name, m), poly = sampleSegs(segs, 0.02);
+    var dev = maxDev(GTC[name](), segs);
     var tol = CURVE_TOL[name] || TOL_CURVE;
-    ok(dev <= tol, name, '최대편차 ' + f2(dev) + ' cm (허용 ' + tol + ')');
+    ok(dev <= tol, name + ' 편차', f2(dev) + ' cm (허용 ' + tol + ')');
+    /* 고리(자기교차)와 길이 폭주는 편차만 봐서는 안 잡힌다 — 따로 본다 */
+    var si = selfIntersections(poly);
+    ok(si === 0, name + ' 자기교차 없음', si ? si + '곳 — 고리가 생겨 재단 불가' : '0');
+    var L = E.util.polyLen(poly), gl = gtArc(GTI[name]);
+    ok(Math.abs(L - gl) <= 0.10, name + ' 곡선길이',
+       f2(L) + '  도면 ' + f2(gl) + '  차 ' + f2(Math.abs(L - gl)));
   });
   var g = E.geom(m, {});
   var A = E.util.sLen(g.backArm), F = E.util.sLen(g.frontArm);
