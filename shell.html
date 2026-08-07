@@ -1,0 +1,83 @@
+<!-- 런처 셸 — 상단 탭으로 원형별 앱을 iframe 으로 로드합니다.
+     build.py 가 이 파일을 읽어 개별 버전(src=)과 포터블 버전(srcdoc=)을 만듭니다.
+     ⚠ 아래 <!--APPS--> 자리에 build.py 가 탭 버튼과 iframe 을 채웁니다. -->
+<div class="suite">
+  <header class="suitebar">
+    <div class="suitebrand">
+      <h1>여성복 원형</h1>
+      <span class="suitesub">문화식 자동 제도 · 44~88호 · 1:1 출력</span>
+    </div>
+    <nav class="suitetabs" id="suiteTabs" role="tablist" aria-label="원형 선택"><!--TABS--></nav>
+  </header>
+  <div class="suitestage" id="suiteStage"><!--FRAMES--></div>
+</div>
+
+<style>
+  :root { color-scheme: light; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #eef2f6;
+         font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  .suite { display: flex; flex-direction: column; height: 100vh; }
+
+  .suitebar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+              padding: 10px 18px; background: #fff; border-bottom: 1px solid #dfe5ec; }
+  .suitebrand h1 { margin: 0; font-size: 17px; color: #2c3e50; letter-spacing: -.2px; }
+  .suitesub { font-size: 12px; color: #8996a4; }
+
+  .suitetabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .suitetab { appearance: none; border: 1px solid #d7dee6; background: #f7f9fb; color: #45505c;
+              font: inherit; font-size: 14px; padding: 7px 16px; border-radius: 8px; cursor: pointer; }
+  .suitetab:hover { background: #eef3f8; }
+  .suitetab.is-on { background: #2c3e50; border-color: #2c3e50; color: #fff; font-weight: 600; }
+  .suitetab[data-ready="0"]::after { content: "준비 중"; margin-left: 8px; font-size: 11px; opacity: .65; }
+
+  .suitestage { position: relative; flex: 1 1 auto; min-height: 0; }
+  .suiteframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  .suiteframe[hidden] { display: none; }
+
+  /* 인쇄 — 활성 앱 iframe 만 남기고 셸 전체를 숨깁니다.
+     각 앱은 자기 안에서 @page 와 1:1 배율을 스스로 처리합니다. */
+  @media print {
+    body { background: #fff; }
+    .suitebar { display: none !important; }
+    .suite, .suitestage { display: block !important; height: auto !important; }
+    .suiteframe { position: static !important; height: auto !important; }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var tabs = document.getElementById('suiteTabs');
+  var stage = document.getElementById('suiteStage');
+  if (!tabs || !stage) return;
+
+  function frames() { return stage.querySelectorAll('.suiteframe'); }
+  function show(id) {
+    Array.prototype.forEach.call(tabs.querySelectorAll('.suitetab'), function (b) {
+      var on = b.dataset.app === id;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(frames(), function (f) { f.hidden = f.dataset.app !== id; });
+    try { location.hash = id; } catch (e) { /* file:// 에서 막히면 무시 */ }
+  }
+
+  tabs.addEventListener('click', function (e) {
+    var b = e.target.closest('.suitetab');
+    if (b) show(b.dataset.app);
+  });
+
+  /* 인쇄는 각 앱 iframe 안에서 일어납니다. 셸에서 Ctrl+P 를 누르면
+     보이는 앱에 인쇄를 위임해야 1:1 @page 규칙이 적용됩니다. */
+  window.addEventListener('beforeprint', function () {
+    var f = stage.querySelector('.suiteframe:not([hidden])');
+    if (!f) return;
+    try { f.contentWindow.focus(); } catch (e) { /* 크로스오리진이면 무시 */ }
+  });
+
+  var first = tabs.querySelector('.suitetab');
+  var want = (location.hash || '').replace('#', '');
+  show(tabs.querySelector('.suitetab[data-app="' + want + '"]') ? want : (first && first.dataset.app));
+})();
+</script>
