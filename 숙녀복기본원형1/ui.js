@@ -339,7 +339,9 @@
       size: state.size
     };
     for (var ok in sp.opt) if (sp.opt.hasOwnProperty(ok)) opt[ok] = sp.opt[ok];
-    if (state.sleeveType === 'tight' && state.cuffW !== null) opt.cuffW = state.cuffW;
+    /* 소맷부리 입력 — 타이트 긴소매와 2장소매 둘 다 총둘레 하나로 받는다.
+       2장소매는 큰/작은 몫을 절개점 대칭이 정하므로 입력은 역시 하나면 된다. */
+    if ((state.sleeveType === 'tight' || state.sleeveType === 'two') && state.cuffW !== null) opt.cuffW = state.cuffW;
     try {
       var d = E.draftNoDart(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftNoDart 가 pieces 를 반환하지 않았습니다.');
@@ -935,8 +937,8 @@
 
     var tight = state.sleeveType === 'tight';
     var two = state.sleeveType === 'two';
-    if (els.cuffRow) els.cuffRow.hidden = !tight;   // 2장소매는 소맷부리가 두 몫이라 입력을 두지 않는다
-    if (tight && els.cuffW) {
+    if (els.cuffRow) els.cuffRow.hidden = !(tight || two);
+    if ((tight || two) && els.cuffW) {
       var d = state.draft, slv = d && d.sleeve;
       if (state.cuffW === null && slv && isFinite(slv.cuffW)) els.cuffW.value = f1(slv.cuffW);
       else if (state.cuffW !== null) els.cuffW.value = f1(state.cuffW);
@@ -944,7 +946,9 @@
     if (els.sleeveHint) {
       els.sleeveHint.innerHTML = two
         ? '<b>큰소매 + 작은소매 2조각</b>입니다. 뒤 소매산의 <b>x = −AH/4</b> 지점에서 갈라지고, ' +
-          '두 절개변은 길이가 같아 서로 봉제됩니다. 소맷부리는 큰소매 몫 + 작은소매 몫 (도면 (23~25)+(4~5)).'
+          '두 절개변은 <b>절개점 수직선에 대칭</b>이라 길이가 저절로 같아 서로 봉제됩니다. ' +
+          '소맷부리는 <b>총둘레</b>만 입력하면 큰/작은 몫이 대칭에서 나옵니다. ' +
+          '밑단에는 <b>트임(2.2 × 9)</b>이 두 조각 모두 붙습니다 — 서로 겹쳐 닫힙니다.'
         : tight
         ? '앞 밑선은 <b>반소매 밑단 들임 지점</b>(앞반폭 − 1.5)을 지나 소맷부리까지 들어옵니다. ' +
           '뒤 밑선은 직선이고 앞보다 길어 <b>이세처리</b>합니다. 소매산 정점은 앞으로 <b>0.6</b> 이동합니다.'

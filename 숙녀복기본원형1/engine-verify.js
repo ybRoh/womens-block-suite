@@ -607,7 +607,46 @@ function sectionTwo(m) {
   })();
 
   note('소맷부리 큰 ' + f2(s.cuffBig) + ' + 작은 ' + f2(s.cuffUnder) + ' = ' + f2(s.cuffW) +
-       '  (도면 표기 (23~25)+(4~5))');
+       '  (트임 덧단 ' + f2(s.ventW) + ' 는 서로 겹치므로 제외 · 도면 표기 (23~25)+(4~5))');
+
+  /* ★ 절개변이 절개점 수직선에 대칭인가 — 이것이 두 변 길이가 같은 진짜 이유 */
+  ok(Math.abs((s.bigHemB[0] + s.undHemF[0]) / 2 - s.splitX) <= 0.01, '절개선 대칭 (밑단 끝이 절개점 기준 대칭)',
+     '큰 ' + f2(s.bigHemB[0]) + ' · 작은 ' + f2(s.undHemF[0]) + ' · 절개 ' + f2(s.splitX) +
+     '  (도면 −5.586 / −15.836 / −10.711)');
+
+  /* ── 소맷부리 트임 (도면 2.2 · 9 · 2) ── */
+  [['큰소매', s.ventBig, WGT.curves.bigVent, WGT.curves.bigBack.end],
+   ['작은소매', s.ventUnd, WGT.curves.underVent, WGT.curves.underBack.end]].forEach(function (w) {
+    var v = w[1], g = w[2];
+    ok(Math.abs(v.len - E.K.ventLen) <= 0.05, w[0] + ' 트임 길이 9', f2(v.len) + '  (도면 ' + f2(g.arc) + ')');
+    ok(Math.abs(V.dist(v.hem, v.hemOut) - E.K.ventW) <= 0.01 &&
+       Math.abs(V.dist(v.top, v.topOut) - E.K.ventW) <= 0.01,
+       w[0] + ' 트임 너비 2.2 (위·아래 같음)',
+       f2(V.dist(v.top, v.topOut)) + ' / ' + f2(V.dist(v.hem, v.hemOut)));
+    ok(V.dist(v.topOut, g.start) <= 0.12, w[0] + ' 트임 위 모서리 = 도면',
+       '엔진(' + f2(v.topOut[0]) + ', ' + f2(v.topOut[1]) + ')  도면(' + f2(g.start[0]) + ', ' + f2(g.start[1]) + ')');
+    ok(V.dist(v.hemOut, g.end) <= 0.12, w[0] + ' 트임 밑단 모서리 = 도면',
+       '엔진(' + f2(v.hemOut[0]) + ', ' + f2(v.hemOut[1]) + ')  도면(' + f2(g.end[0]) + ', ' + f2(g.end[1]) + ')');
+    /* ★ 내미는 방향은 그 9 cm 구간의 **현에 수직**이어야 한다 (도면이 그렇다).
+       비스듬하면 접었을 때 덧단이 절개선에 안 겹친다. */
+    var ch = V.norm(V.sub(v.hem, v.top));
+    var perp = Math.abs(ch[0] * v.vec[0] + ch[1] * v.vec[1]);
+    ok(perp <= 0.02, w[0] + ' 트임 방향 (절개선 현에 수직)', '내적 ' + f2(perp));
+    /* 미터 접음선 — 트임 위 모서리 ↔ 절개선 위 2.0 지점 */
+    ok(Math.abs(V.dist(v.top, v.mitreOn) - E.K.ventMitre) <= 0.05, w[0] + ' 미터 기준점 2',
+       '절개선 위 ' + f2(V.dist(v.top, v.mitreOn)));
+    ok(Math.abs(V.dist(v.topOut, v.mitreOn) - 2.974) <= 0.15, w[0] + ' 미터 접음선',
+       f2(V.dist(v.topOut, v.mitreOn)) + '  (도면 2.974)');
+  });
+
+  /* 트임이 조각을 파먹지 않는가 — 두 조각 외곽선 자기교차 0 (성글게 재표본해 O(n²) 을 줄인다) */
+  ['sleeveBig', 'sleeveUnder'].forEach(function (id) {
+    var pc = d.pieces.filter(function (p) { return p.id === id; })[0];
+    var thin = pc.outline.filter(function (q, i) { return i % 8 === 0; });
+    thin.push(pc.outline[0]);
+    ok(selfIntersections(thin) === 0, pc.name + ' 외곽선 자기교차 없음(트임 포함)',
+       String(selfIntersections(thin)));
+  });
 
   /* 곡선 매끄러움 · 고리 */
   [['큰소매 뒤 절개선', s.bigBack], ['작은소매 절개선', s.undBack],
@@ -651,6 +690,19 @@ function sectionContinuity() {
         ok(worst <= TOL_GAP, st + " · " + p.name + " 외곽선 연속",
            "최대 벌어짐 " + f2(worst) + (worst > TOL_GAP ? "  (" + where + ")" : ""));
       });
+  });
+
+  /* ★ 조각을 쪼개면 주석·제도선이 딸려오지 않는다 — 2장소매가 실제로 그랬다
+     (계산식이 전부 piece:'sleeve' 에 걸려 있어 큰/작은소매에 하나도 안 붙었다). */
+  console.log('\n[9] 조각별 제도선·계산식 — 빈 조각이 없는가');
+  E.SLEEVE_TYPES.forEach(function (st) {
+    var d = E.draftLady1(E.measuresForSize('66호'), { seam: 0, sleeveType: st });
+    var notes = d.meta.formulaNotes;
+    d.pieces.forEach(function (p) {
+      var n = notes.filter(function (x) { return x.piece === p.id || x.piece === 'both'; }).length;
+      ok(n > 0 && p.internal.length > 0, st + ' · ' + p.name + ' 제도선·계산식 있음',
+         '계산식 ' + n + '개 · 제도선 ' + p.internal.length + '개 · 너치 ' + p.notches.length + '개');
+    });
   });
 }
 
