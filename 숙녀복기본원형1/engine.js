@@ -846,7 +846,12 @@
 
     var backOutX = -(halfB + K.twoSideOff);
     var frontInX = halfF - K.twoSideOff;
-    var topY = ptOnSegsAtX(cg.capFront, frontInX)[1];
+    /* ★ 큰소매 앞 소매산은 **소매통 끝이 아니라 frontInX 에서 끝난다** (도면 capFront
+       (0.6,0)→(13.017,12.138), 호 18.163). 여기서 자르지 않고 소매통까지 그리면
+       앞 밑선 시작점과 3 cm 어긋나 외곽선에 계단이 생긴다. 앞에서 덜어낸 몫은
+       작은소매가 뒤쪽 undCapOut(3.07)으로 받는다. */
+    var capBigFront = splitSegsAtX(cg.capFront, frontInX).head;
+    var topY = capBigFront[capBigFront.length - 1][1];
     var hemY = sleeveLen, hemLowY = sleeveLen + K.twoHemDrop;
 
     var bigHemF = [halfF - K.twoFrontHemIn, hemY];
@@ -875,7 +880,12 @@
       endTan([0, 1], CAL.twoFront.k0), null);
     var undOuter = splineSegs([[backOutX, topY], [backOutX - K.twoBackElbowOut, elbowY], undHemB],
       endTan([0, 1], CAL.twoFront.k0), null);
-    var undCapOut = splineSegs([[backOutX, topY], cg.bicepB], endTan([1, -1], 0.8), null);
+    /* 소매통 연결 — 뒤로 3 cm 내민 지점에서 소매통 끝까지. 출발은 **아래로** 기울고
+       (도면 12.138 → 12.705 로 내려간다) 도착은 **수평** — 뒤 소매산이 소매통에
+       수평으로 닿으므로 여기서도 수평이라야 꺾이지 않는다. */
+    var co = CAL.twoCapOut;
+    var undCapOut = splineSegs([[backOutX, topY], cg.bicepB],
+      endTan([1, co.slope], co.k0), endTan([1, 0], co.k1));
 
     var out = {
       AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
@@ -883,6 +893,7 @@
       cuffBig: cuffBig, cuffUnder: cuffUnder, cuffW: cuffBig + cuffUnder,
       elbowY: elbowY, insetY: insetY, splitX: splitX, splitP: splitP,
       backOutX: backOutX, frontInX: frontInX, topY: topY,
+      capBigFront: capBigFront,               // 정점 → 앞 절단점 (소매통까지 안 간다)
       capBigBack: revPts(capSplit.head),      // 절개점 → 정점
       capUnderBack: revPts(capSplit.tail),    // 뒤 소매통 → 절개점
       bigHemF: bigHemF, bigHemB: bigHemB, undHemB: undHemB, undHemF: undHemF,
@@ -913,14 +924,16 @@
     }
     var poly = function (pts) { return lineSegs.apply(null, pts); };
     var big = mk('sleeveBig', '큰소매', [
-      { name: '앞 소매산', role: 'armhole',   segs: s.capFront },
+      { name: '앞 소매산', role: 'armhole',   segs: poly(s.capBigFront) },
       { name: '앞 밑선',   role: 'side',      segs: s.bigFront },
       { name: '밑단',      role: 'sleeveHem', segs: lineSegs(s.bigHemF, s.bigHemB) },
       { name: '뒤 절개선', role: 'side',      segs: revSegs(s.bigBack) },
       { name: '뒤 소매산', role: 'armhole',   segs: poly(s.capBigBack) }
     ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
        [{ p: cp(s.splitP), angle: 0, label: '절개 시작' },
-        { p: cp(s.apex), angle: 90, label: '소매산 정점' }]);
+        { p: cp(s.apex), angle: 90, label: '소매산 정점' },
+        /* 앞 합인 — 도면 마크 (11.6975, 11.4023) */
+        { p: cp(s.pBF), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBF))), label: '앞 합인' }]);
     var und = mk('sleeveUnder', '작은소매', [
       { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
       { name: '절개선',     role: 'side',      segs: s.undBack },
@@ -928,7 +941,9 @@
       { name: '바깥 뒤선',  role: 'side',      segs: revSegs(s.undOuter) },
       { name: '소매통 연결', role: 'armhole',  segs: s.undCapOut }
     ], [[s.backOutX + 2, 15], [s.backOutX + 2, s.sleeveLen - 1.0]],
-       [{ p: cp(s.splitP), angle: 180, label: '절개 시작' }]);
+       [{ p: cp(s.splitP), angle: 180, label: '절개 시작' },
+        /* 뒤 합인 — 도면 마크 (−14.9255, 11.7312). 절개점과 소매통 사이라 작은소매 몫 */
+        { p: cp(s.pBB), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBB))), label: '뒤 합인' }]);
     return [big, und];
   }
 
@@ -1114,7 +1129,10 @@
     tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0108 },
     /* 2장소매 — 절개변·앞경계의 끝 접선 크기 */
     twoSeam  : { k0: 1.00 },
-    twoFront : { k0: 1.00 }
+    twoFront : { k0: 1.00 },
+    /* 작은소매 소매통 연결(3 cm) — 도면 capBackOut 7점에 적합.
+       도착 접선은 **수평 고정**이라야 뒤 소매산과 매끄럽게 이어진다. */
+    twoCapOut: { slope: 0.6111, k0: 0.6078, k1: 0.2402 }
   };
 
   /* ══════════════════════════════════════════════════════════════════

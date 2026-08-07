@@ -566,14 +566,45 @@ function sectionTwo(m) {
      f2(s.seamLenBig) + ' / ' + f2(s.seamLenUnder) + '  차 ' + f2(dSeam) +
      '  (도면 ' + f2(WGT.curves.bigBack.arc) + ' = ' + f2(WGT.curves.underBack.arc) + ')');
 
-  /* 소매산을 두 조각이 나눠 갖는다 — 합이 원래 소매산 길이여야 한다 */
-  var capBig = E.util.polyLen(s.capBigBack) + E.util.polyLen(sampleSegs(s.capFront, 0.02));
-  var capUnd = E.util.polyLen(s.capUnderBack);
-  var capAll = capBig + capUnd, capRef = s.capLenTotal;
-  ok(Math.abs(capAll - capRef) <= 0.10, '소매산 분할 합 = 전체 소매산',
-     f2(capBig) + ' + ' + f2(capUnd) + ' = ' + f2(capAll) + '  전체 ' + f2(capRef));
+  /* ★ 큰소매 앞 소매산은 소매통이 아니라 frontIn 에서 끝난다 (도면 capFront 호 18.163).
+     소매통까지 그리면 앞 밑선 시작점과 3 cm 어긋난다 — 실제로 그렇게 틀려 있었다. */
+  var capBF = E.util.polyLen(s.capBigFront);
+  ok(V.dist(s.capBigFront[s.capBigFront.length - 1], WGT.curves.capFront.end) <= 0.10,
+     '큰소매 앞 소매산 끝 = 도면 앞 절단점',
+     '엔진(' + f2(s.capBigFront[s.capBigFront.length - 1][0]) + ', ' +
+     f2(s.capBigFront[s.capBigFront.length - 1][1]) + ')  도면(' +
+     f2(WGT.curves.capFront.end[0]) + ', ' + f2(WGT.curves.capFront.end[1]) + ')');
+  ok(Math.abs(capBF - WGT.curves.capFront.arc) <= 0.10, '큰소매 앞 소매산 길이',
+     f2(capBF) + '  (도면 ' + f2(WGT.curves.capFront.arc) + ')');
+
+  /* 소매산 = 양 조각의 armhole 변 전부. 앞에서 덜어낸 몫은 작은소매가 뒤로 받는다 */
+  var capOut = E.util.polyLen(sampleSegs(s.undCapOut, 0.02));
+  ok(Math.abs(capOut - WGT.curves.capBackOut.arc) <= 0.10, '작은소매 소매통 연결 길이',
+     f2(capOut) + '  (도면 ' + f2(WGT.curves.capBackOut.arc) + ')');
+  var capBig = capBF + E.util.polyLen(s.capBigBack);
+  var capUnd = E.util.polyLen(s.capUnderBack) + capOut;
+  var capAll = capBig + capUnd;
+  var capRef = WGT.curves.capFront.arc + WGT.curves.capBack.arc + WGT.curves.capBackOut.arc;
+  ok(Math.abs(capAll - capRef) <= 0.15, '소매산 총합 (큰 + 작은) = 도면',
+     f2(capBig) + ' + ' + f2(capUnd) + ' = ' + f2(capAll) + '  (도면 ' + f2(capRef) + ')');
   ok(capAll - (s.AHb + s.AHf) > 0.8 && capAll - (s.AHb + s.AHf) <= 3.0,
      '소매산 이세분 (0.8 ~ 3.0)', f2(capAll - (s.AHb + s.AHf)));
+
+  /* ★ 큰소매 앞 밑선 ↔ 작은소매 바깥 뒤선 — 이 둘이 겨드랑 솔기로 맞물린다 */
+  var dUnd = Math.abs(s.underLenF - s.underLenB);
+  ok(dUnd <= TOL_SEW + 0.05, '겨드랑 솔기 (큰소매 앞 = 작은소매 뒤)',
+     f2(s.underLenF) + ' / ' + f2(s.underLenB) + '  차 ' + f2(dUnd) +
+     '  (도면 ' + f2(WGT.curves.bigFrontUp.arc + WGT.curves.bigFrontLow.arc) +
+     ' / ' + f2(WGT.curves.underOuter.arc) + ')');
+
+  /* 소매통에서 소매산이 꺾이지 않는가 — 연결곡선과 뒤 소매산이 모두 수평 도착 */
+  (function () {
+    var a = sampleSegs(s.undCapOut, 0.02), b = s.capUnderBack;
+    var t0 = V.norm(V.sub(a[a.length - 1], a[a.length - 3]));
+    var t1 = V.norm(V.sub(b[2], b[0]));
+    var ang = Math.abs(Math.atan2(t0[0] * t1[1] - t0[1] * t1[0], t0[0] * t1[0] + t0[1] * t1[1]) * 180 / Math.PI);
+    ok(ang <= 6, '작은소매 소매통 이음매 매끄러움', '꺾임 ' + f2(ang) + '°');
+  })();
 
   note('소맷부리 큰 ' + f2(s.cuffBig) + ' + 작은 ' + f2(s.cuffUnder) + ' = ' + f2(s.cuffW) +
        '  (도면 표기 (23~25)+(4~5))');
@@ -598,6 +629,28 @@ function sectionTwo(m) {
        '길이 ' + f2(ss.sleeveLen) + ' · 소맷부리 ' + f2(ss.cuffW) +
        ' · 절개변차 ' + f2(Math.abs(ss.seamLenBig - ss.seamLenUnder)) +
        (bad.length ? '  → ' + bad.join(', ') : ''));
+  });
+}
+
+/* ══ 외곽선 연속성 ═════════════════════════════════════════════════════
+ *  ★ 이 검사가 없어서 2장소매 큰소매의 앞 소매산이 소매통까지 그려진 채
+ *    (앞 밑선 시작점과 3 cm 어긋난 채) 통과했다. 조각의 변은 **끝점이 다음 변의
+ *    시작점과 붙어 있어야** 한다 — 안 붙으면 외곽선에 계단이 생기고 시접선도 튄다. */
+function sectionContinuity() {
+  console.log('\n[8] 조각 외곽선 연속성 — 변 끝점이 다음 변 시작점과 붙어 있는가');
+  var TOL_GAP = 0.08;                    // 샘플링 간격(0.02~0.05)보다 넉넉히
+  E.SLEEVE_TYPES.forEach(function (st) {          // ['short','tight','two'] — 배열이다
+      var d = E.draftLady1(E.measuresForSize('66호'), { seam: 0, sleeveType: st });
+      d.pieces.forEach(function (p) {
+        var worst = 0, where = '';
+        p.edges.forEach(function (e, k) {
+          var nx = p.edges[(k + 1) % p.edges.length];
+          var g = V.dist(p.outline[e.end], p.outline[nx.start]);
+          if (g > worst) { worst = g; where = e.name + ' → ' + nx.name; }
+        });
+        ok(worst <= TOL_GAP, st + " · " + p.name + " 외곽선 연속",
+           "최대 벌어짐 " + f2(worst) + (worst > TOL_GAP ? "  (" + where + ")" : ""));
+      });
   });
 }
 
@@ -652,6 +705,7 @@ if (process.argv.indexOf('--calibrate') >= 0) {
   sectionTwo(m);
   sectionSizes();
   sectionSeam();
+  sectionContinuity();
   console.log('\n' + (fails.length ? '실패 ' + fails.length + '건:\n  - ' + fails.join('\n  - ')
                                    : '전 항목 통과') +
               (warns.length ? '\n경고 ' + warns.length + '건' : ''));
