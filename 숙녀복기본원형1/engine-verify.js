@@ -632,11 +632,18 @@ function sectionTwo(m) {
     var ch = V.norm(V.sub(v.hem, v.top));
     var perp = Math.abs(ch[0] * v.vec[0] + ch[1] * v.vec[1]);
     ok(perp <= 0.02, w[0] + ' 트임 방향 (절개선 현에 수직)', '내적 ' + f2(perp));
-    /* 미터 접음선 — 트임 위 모서리 ↔ 절개선 위 2.0 지점 */
+    /* ★ 트임 위는 **직각이 아니라 미터로 잘린다** — 사선이 재단선이고 2.2 가로선은 접음선.
+       직각으로 두면 접었을 때 그 삼각형만큼 부피가 겹친다. */
     ok(Math.abs(V.dist(v.top, v.mitreOn) - E.K.ventMitre) <= 0.05, w[0] + ' 미터 기준점 2',
        '절개선 위 ' + f2(V.dist(v.top, v.mitreOn)));
-    ok(Math.abs(V.dist(v.topOut, v.mitreOn) - 2.974) <= 0.15, w[0] + ' 미터 접음선',
+    ok(Math.abs(V.dist(v.topOut, v.mitreOn) - 2.974) <= 0.15, w[0] + ' 미터 사선',
        f2(V.dist(v.topOut, v.mitreOn)) + '  (도면 2.974)');
+    var pc = d.pieces.filter(function (p) { return p.name === w[0]; })[0];
+    ok(pc.edges.some(function (e) { return e.name === '트임 미터'; }),
+       w[0] + ' 미터 사선이 **재단선**(외곽선 변)', pc.edges.map(function (e) { return e.name; }).join(' '));
+    var ids = pc.internal.map(function (l) { return l.id; });
+    ok(ids.indexOf('ventFold') >= 0 && ids.indexOf('ventTop') >= 0,
+       w[0] + ' 접음선 둘(9 · 2.2)은 **내부선**', ids.join(' '));
   });
 
   /* 트임이 조각을 파먹지 않는가 — 두 조각 외곽선 자기교차 0 (성글게 재표본해 O(n²) 을 줄인다) */

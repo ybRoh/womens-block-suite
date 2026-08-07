@@ -855,18 +855,23 @@
    *  절개선의 **아래 9 cm 구간을 바깥으로 2.2 내밀어** 덧단을 만든다.
    *  · 내미는 방향 = 그 9 cm 구간의 **현에 수직**, 조각 안쪽의 반대편
    *    (도면 실측 큰소매 Δ(−2.188, +0.242) / 작은소매 Δ(+2.190, +0.226) — 둘 다 현 수직)
-   *  · 트임 위 모서리에서 절개선 위 2.0 지점으로 **미터 접음선**을 긋는다
-   *  외곽선은 절개선(위 구간) → 2.2 → 트임 9 → 2.2 → 밑단 순으로 계단이 진다.  */
+   *  · ★ 덧단 **위는 직각 계단이 아니라 미터로 잘려 뾰족해진다.**
+   *    트임 바깥 위 모서리 → 절개선 위 **2.0** 지점을 잇는 사선이 **재단선**이고
+   *    (도면 실측 2.9742), 2.2 가로선과 절개선 아래 9 는 **접음선**이다.
+   *    직각으로 두면 접었을 때 그 삼각형만큼 부피가 겹쳐 소맷부리가 두꺼워진다.
+   *  외곽선: 절개선(미터 위) → 미터 사선 → 트임 9 → 2.2 → 밑단.                  */
   function ventOf(seamSegs, insideRef) {
     var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
-    var head = sp.head, fold = sp.tail;                 // head = 절개 시작점 → 트임 위끝
-    var top = head[head.length - 1].p1, hem = seamSegs[seamSegs.length - 1].p1;
+    var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
+    var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
+    var hem = seamSegs[seamSegs.length - 1].p1;
     var ch = V.norm(V.sub(hem, top)), nr = [ch[1], -ch[0]];
     if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) < 0) nr = [-nr[0], -nr[1]];
     var vv = [nr[0] * K.ventW, nr[1] * K.ventW];
+    /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
     var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
     return {
-      seamHead: head, fold: fold, top: top, hem: hem,
+      seamHead: mp.head, fold: fold, top: top, hem: hem,
       mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,
       topOut: [top[0] + vv[0], top[1] + vv[1]],
       hemOut: [hem[0] + vv[0], hem[1] + vv[1]],
@@ -993,10 +998,10 @@
       { name: '앞 소매산', role: 'armhole',   segs: poly(s.capBigFront) },
       { name: '앞 밑선',   role: 'side',      segs: s.bigFront },
       { name: '밑단',      role: 'sleeveHem', segs: lineSegs(s.bigHemF, s.bigHemB) },
-      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고 다시 2.2 들어온다 */
+      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고, 위는 미터로 잘려 뾰족해진다 */
       { name: '트임 밑단', role: 'sleeveHem', segs: lineSegs(s.bigHemB, vB.hemOut) },
       { name: '트임',      role: 'side',      segs: lineSegs(vB.hemOut, vB.topOut) },
-      { name: '트임 위',   role: 'side',      segs: lineSegs(vB.topOut, vB.top) },
+      { name: '트임 미터', role: 'side',      segs: lineSegs(vB.topOut, vB.mitreOn) },
       { name: '뒤 절개선', role: 'side',      segs: revSegs(vB.seamHead) },
       { name: '뒤 소매산', role: 'armhole',   segs: poly(s.capBigBack) }
     ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
@@ -1008,7 +1013,7 @@
     var und = mk('sleeveUnder', '작은소매', [
       { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
       { name: '절개선',     role: 'side',      segs: vU.seamHead },
-      { name: '트임 위',    role: 'side',      segs: lineSegs(vU.top, vU.topOut) },
+      { name: '트임 미터',  role: 'side',      segs: lineSegs(vU.mitreOn, vU.topOut) },
       { name: '트임',       role: 'side',      segs: lineSegs(vU.topOut, vU.hemOut) },
       { name: '트임 밑단',  role: 'sleeveHem', segs: lineSegs(vU.hemOut, s.undHemF) },
       { name: '밑단',       role: 'sleeveHem', segs: lineSegs(s.undHemF, s.undHemB) },
@@ -1029,8 +1034,10 @@
     var x0 = big ? s.bigHemB[0] : s.undHemB[0], x1 = big ? s.bigHemF[0] : s.undHemF[0];
     var common = [
       L('elbow',     'dashed', [[Math.min(x0, x1) - 0.5, s.elbowY], [Math.max(x0, x1) + 0.5, s.elbowY]], '팔꿈치선'),
+      /* 접음선 둘 — 절개선 아래 9 와 트임 위 가로선 2.2. 미터 사선은 **재단선**이라
+         내부선이 아니다 (외곽선 '트임 미터' 변). */
       L('ventFold',  'dashed', subsamp(v.fold), '트임 접음선 (9)'),
-      L('ventMitre', 'dashed', [cp(v.topOut), cp(v.mitreOn)], '미터 접음선 (2)'),
+      L('ventTop',   'dashed', [cp(v.top), cp(v.topOut)], '트임 위 접음선 (2.2)'),
       L('splitPt',   'point',  [cp(s.splitP)], '절개 시작 −AH/4')
     ];
     return big ? common.concat([
@@ -1178,8 +1185,11 @@
                      V.dist(s.bigHemF, s.bigHemB), B, [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 1.6]),
       FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
                      vB.len, B, [vB.topOut[0] - 0.6, (vB.topOut[1] + vB.hemOut[1]) / 2]),
-      FN('ventMitre','미터 접음선', '트임 위 모서리 → 절개선 위 ' + f1(K.ventMitre),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre) +
+                                    ' (직각으로 두면 접을 때 부피가 겹친다)',
                      V.dist(vB.topOut, vB.mitreOn), B, cp(vB.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vB.top, vB.topOut), B, cp(vB.top)),
       FN('hemDrop',  '밑단 하강',   '소매길이보다 ' + f1(K.twoHemDrop) + ' 내려간다',
                      K.twoHemDrop, B, [s.bigHemB[0] + 1.5, s.sleeveLen + 0.7]),
 
@@ -1199,8 +1209,10 @@
                      V.dist(s.undHemF, s.undHemB), U, [(s.undHemF[0] + s.undHemB[0]) / 2, s.sleeveLen + 1.6]),
       FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
                      vU.len, U, [vU.topOut[0] + 0.6, (vU.topOut[1] + vU.hemOut[1]) / 2]),
-      FN('ventMitre','미터 접음선', '트임 위 모서리 → 절개선 위 ' + f1(K.ventMitre),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre),
                      V.dist(vU.topOut, vU.mitreOn), U, cp(vU.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vU.top, vU.topOut), U, cp(vU.top)),
 
       /* ── 소맷부리 합계 (큰소매에 한 번) ── */
       FN('cuff',     '완성 소맷부리', '큰 ' + f1(V.dist(s.bigHemF, s.bigHemB)) +

@@ -7958,18 +7958,23 @@ td.n.n-fail{color:var(--red)}
    *  절개선의 **아래 9 cm 구간을 바깥으로 2.2 내밀어** 덧단을 만든다.
    *  · 내미는 방향 = 그 9 cm 구간의 **현에 수직**, 조각 안쪽의 반대편
    *    (도면 실측 큰소매 Δ(−2.188, +0.242) / 작은소매 Δ(+2.190, +0.226) — 둘 다 현 수직)
-   *  · 트임 위 모서리에서 절개선 위 2.0 지점으로 **미터 접음선**을 긋는다
-   *  외곽선은 절개선(위 구간) → 2.2 → 트임 9 → 2.2 → 밑단 순으로 계단이 진다.  */
+   *  · ★ 덧단 **위는 직각 계단이 아니라 미터로 잘려 뾰족해진다.**
+   *    트임 바깥 위 모서리 → 절개선 위 **2.0** 지점을 잇는 사선이 **재단선**이고
+   *    (도면 실측 2.9742), 2.2 가로선과 절개선 아래 9 는 **접음선**이다.
+   *    직각으로 두면 접었을 때 그 삼각형만큼 부피가 겹쳐 소맷부리가 두꺼워진다.
+   *  외곽선: 절개선(미터 위) → 미터 사선 → 트임 9 → 2.2 → 밑단.                  */
   function ventOf(seamSegs, insideRef) {
     var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
-    var head = sp.head, fold = sp.tail;                 // head = 절개 시작점 → 트임 위끝
-    var top = head[head.length - 1].p1, hem = seamSegs[seamSegs.length - 1].p1;
+    var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
+    var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
+    var hem = seamSegs[seamSegs.length - 1].p1;
     var ch = V.norm(V.sub(hem, top)), nr = [ch[1], -ch[0]];
     if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) &lt; 0) nr = [-nr[0], -nr[1]];
     var vv = [nr[0] * K.ventW, nr[1] * K.ventW];
+    /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
     var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
     return {
-      seamHead: head, fold: fold, top: top, hem: hem,
+      seamHead: mp.head, fold: fold, top: top, hem: hem,
       mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,
       topOut: [top[0] + vv[0], top[1] + vv[1]],
       hemOut: [hem[0] + vv[0], hem[1] + vv[1]],
@@ -8096,10 +8101,10 @@ td.n.n-fail{color:var(--red)}
       { name: &#x27;앞 소매산&#x27;, role: &#x27;armhole&#x27;,   segs: poly(s.capBigFront) },
       { name: &#x27;앞 밑선&#x27;,   role: &#x27;side&#x27;,      segs: s.bigFront },
       { name: &#x27;밑단&#x27;,      role: &#x27;sleeveHem&#x27;, segs: lineSegs(s.bigHemF, s.bigHemB) },
-      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고 다시 2.2 들어온다 */
+      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고, 위는 미터로 잘려 뾰족해진다 */
       { name: &#x27;트임 밑단&#x27;, role: &#x27;sleeveHem&#x27;, segs: lineSegs(s.bigHemB, vB.hemOut) },
       { name: &#x27;트임&#x27;,      role: &#x27;side&#x27;,      segs: lineSegs(vB.hemOut, vB.topOut) },
-      { name: &#x27;트임 위&#x27;,   role: &#x27;side&#x27;,      segs: lineSegs(vB.topOut, vB.top) },
+      { name: &#x27;트임 미터&#x27;, role: &#x27;side&#x27;,      segs: lineSegs(vB.topOut, vB.mitreOn) },
       { name: &#x27;뒤 절개선&#x27;, role: &#x27;side&#x27;,      segs: revSegs(vB.seamHead) },
       { name: &#x27;뒤 소매산&#x27;, role: &#x27;armhole&#x27;,   segs: poly(s.capBigBack) }
     ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
@@ -8111,7 +8116,7 @@ td.n.n-fail{color:var(--red)}
     var und = mk(&#x27;sleeveUnder&#x27;, &#x27;작은소매&#x27;, [
       { name: &#x27;뒤 소매산&#x27;,  role: &#x27;armhole&#x27;,   segs: poly(s.capUnderBack) },
       { name: &#x27;절개선&#x27;,     role: &#x27;side&#x27;,      segs: vU.seamHead },
-      { name: &#x27;트임 위&#x27;,    role: &#x27;side&#x27;,      segs: lineSegs(vU.top, vU.topOut) },
+      { name: &#x27;트임 미터&#x27;,  role: &#x27;side&#x27;,      segs: lineSegs(vU.mitreOn, vU.topOut) },
       { name: &#x27;트임&#x27;,       role: &#x27;side&#x27;,      segs: lineSegs(vU.topOut, vU.hemOut) },
       { name: &#x27;트임 밑단&#x27;,  role: &#x27;sleeveHem&#x27;, segs: lineSegs(vU.hemOut, s.undHemF) },
       { name: &#x27;밑단&#x27;,       role: &#x27;sleeveHem&#x27;, segs: lineSegs(s.undHemF, s.undHemB) },
@@ -8132,8 +8137,10 @@ td.n.n-fail{color:var(--red)}
     var x0 = big ? s.bigHemB[0] : s.undHemB[0], x1 = big ? s.bigHemF[0] : s.undHemF[0];
     var common = [
       L(&#x27;elbow&#x27;,     &#x27;dashed&#x27;, [[Math.min(x0, x1) - 0.5, s.elbowY], [Math.max(x0, x1) + 0.5, s.elbowY]], &#x27;팔꿈치선&#x27;),
+      /* 접음선 둘 — 절개선 아래 9 와 트임 위 가로선 2.2. 미터 사선은 **재단선**이라
+         내부선이 아니다 (외곽선 &#x27;트임 미터&#x27; 변). */
       L(&#x27;ventFold&#x27;,  &#x27;dashed&#x27;, subsamp(v.fold), &#x27;트임 접음선 (9)&#x27;),
-      L(&#x27;ventMitre&#x27;, &#x27;dashed&#x27;, [cp(v.topOut), cp(v.mitreOn)], &#x27;미터 접음선 (2)&#x27;),
+      L(&#x27;ventTop&#x27;,   &#x27;dashed&#x27;, [cp(v.top), cp(v.topOut)], &#x27;트임 위 접음선 (2.2)&#x27;),
       L(&#x27;splitPt&#x27;,   &#x27;point&#x27;,  [cp(s.splitP)], &#x27;절개 시작 −AH/4&#x27;)
     ];
     return big ? common.concat([
@@ -8281,8 +8288,11 @@ td.n.n-fail{color:var(--red)}
                      V.dist(s.bigHemF, s.bigHemB), B, [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 1.6]),
       FN(&#x27;ventFold&#x27;, &#x27;트임&#x27;,        &#x27;절개선 아래 &#x27; + f1(K.ventLen) + &#x27; 를 바깥으로 &#x27; + f1(K.ventW),
                      vB.len, B, [vB.topOut[0] - 0.6, (vB.topOut[1] + vB.hemOut[1]) / 2]),
-      FN(&#x27;ventMitre&#x27;,&#x27;미터 접음선&#x27;, &#x27;트임 위 모서리 → 절개선 위 &#x27; + f1(K.ventMitre),
+      FN(&#x27;ventMitre&#x27;,&#x27;트임 미터&#x27;,   &#x27;재단선 — 트임 바깥 위 모서리 → 절개선 위 &#x27; + f1(K.ventMitre) +
+                                    &#x27; (직각으로 두면 접을 때 부피가 겹친다)&#x27;,
                      V.dist(vB.topOut, vB.mitreOn), B, cp(vB.mitreOn)),
+      FN(&#x27;ventTop&#x27;,  &#x27;트임 위 접음선&#x27;, &#x27;트임 너비 &#x27; + f1(K.ventW),
+                     V.dist(vB.top, vB.topOut), B, cp(vB.top)),
       FN(&#x27;hemDrop&#x27;,  &#x27;밑단 하강&#x27;,   &#x27;소매길이보다 &#x27; + f1(K.twoHemDrop) + &#x27; 내려간다&#x27;,
                      K.twoHemDrop, B, [s.bigHemB[0] + 1.5, s.sleeveLen + 0.7]),
 
@@ -8302,8 +8312,10 @@ td.n.n-fail{color:var(--red)}
                      V.dist(s.undHemF, s.undHemB), U, [(s.undHemF[0] + s.undHemB[0]) / 2, s.sleeveLen + 1.6]),
       FN(&#x27;ventFold&#x27;, &#x27;트임&#x27;,        &#x27;절개선 아래 &#x27; + f1(K.ventLen) + &#x27; 를 바깥으로 &#x27; + f1(K.ventW),
                      vU.len, U, [vU.topOut[0] + 0.6, (vU.topOut[1] + vU.hemOut[1]) / 2]),
-      FN(&#x27;ventMitre&#x27;,&#x27;미터 접음선&#x27;, &#x27;트임 위 모서리 → 절개선 위 &#x27; + f1(K.ventMitre),
+      FN(&#x27;ventMitre&#x27;,&#x27;트임 미터&#x27;,   &#x27;재단선 — 트임 바깥 위 모서리 → 절개선 위 &#x27; + f1(K.ventMitre),
                      V.dist(vU.topOut, vU.mitreOn), U, cp(vU.mitreOn)),
+      FN(&#x27;ventTop&#x27;,  &#x27;트임 위 접음선&#x27;, &#x27;트임 너비 &#x27; + f1(K.ventW),
+                     V.dist(vU.top, vU.topOut), U, cp(vU.top)),
 
       /* ── 소맷부리 합계 (큰소매에 한 번) ── */
       FN(&#x27;cuff&#x27;,     &#x27;완성 소맷부리&#x27;, &#x27;큰 &#x27; + f1(V.dist(s.bigHemF, s.bigHemB)) +
