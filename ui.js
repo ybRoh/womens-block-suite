@@ -18,16 +18,16 @@
   /* 소매길이는 engine.js 가 measurements 가 아니라 opt 로 받습니다
      (draftNoDart(m, {sleeveLen})). 그래서 UI 는 이 키만 opt 로 넘깁니다.
      엔진이 나중에 MEAS_KEYS 에 편입하면 자동으로 measurements 쪽으로 갑니다. */
-  var OPT_MEASURE_KEYS = ['sleeveLen'];
+  var OPT_MEASURE_KEYS = [];   // 소매 제외 (2026-08-07)
 
   /* 라벨은 숫자가 아니라 표기이므로 사본이어도 어긋날 위험이 없습니다.
      엔진이 MEAS_LABEL 을 주면 그쪽이 우선입니다. */
   var LABEL_FALLBACK = {
     B: '가슴둘레 B', backLen: '등길이', shoulderW: '어깨너비', backW: '등품',
-    frontW: '앞품', bpLen: '유장', bpSpan: '유폭', sleeveLen: '소매길이'
+    frontW: '앞품', bpLen: '유장', bpSpan: '유폭'
   };
   var FIELD_NOTE = { backLen: '앞길이 대신 앞내림 1.3' };
-  var SLEEVE_KEYS = { sleeveLen: 1 };          // 치수 목록에서 '소매' 그룹으로 분리
+  var SLEEVE_KEYS = {};                        // 소매 제외 (2026-08-07)
   var SHOULDER_EASE = 0.95;                    // 뒷어깨 이세분 (SPEC §3.1: 0.6~1.0)
 
   /* ── 호수 (SPEC §11-3) ──
@@ -43,16 +43,35 @@
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', hem: '밑단', sleeveHem: '소매 밑단', fold: '골선'
+    side: '옆선', hem: '밑단', fold: '골선'
   };
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem'];
-  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, sleeveHem: 2.5, fold: 0 };
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem'];
+  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, fold: 0 };
   var SEAM_PRESETS = {
     none: function () { return zeroSeam(); },
     standard: function () { return standardSeam(); },
     uniform: function () { return uniformSeam(1.0); }
   };
   var SEAM_PRESET_LABEL = { none: '시접 없음', standard: '표준', uniform: '균일 1.0', custom: '사용자 지정' };
+
+  /** 현재 draft 의 조각들이 실제로 쓰는 role 집합. 판단 불가면 null(=필터 안 함). */
+  function usedSeamRoles() {
+    var E = ENG();
+    if (!E || typeof E.draftNoDart !== 'function' || !state.m) return null;
+    var d;
+    try {
+      var sp = splitMeasures();
+      d = E.draftNoDart(sp.m, { seam: {}, shoulderEase: SHOULDER_EASE });
+    } catch (e) { return null; }
+    if (!d || !d.pieces) return null;
+    var out = null;
+    d.pieces.forEach(function (p) {
+      (p.edges || []).forEach(function (e) {
+        if (e && e.role) { out = out || {}; out[e.role] = 1; }
+      });
+    });
+    return out;
+  }
 
   /** 입력란을 만들 role 목록 (fold 제외) — 엔진 목록 우선, UI 선호 순서로 정렬 */
   function seamRoleDefs() {
@@ -61,6 +80,11 @@
       ? E.SEAM_ROLES.slice()
       : Object.keys(SEAM_FALLBACK);
     keys = keys.filter(function (k) { return k !== FOLD_ROLE; });
+    /* 현재 도면에 실제로 존재하는 변만 남깁니다 — 소매를 뺀 상태에서 '소매 밑단'
+       입력란이 남아 있으면 값을 바꿔도 붙을 변이 없습니다.
+       조각 구성이 바뀌면(소매 복원 등) 자동으로 따라옵니다. */
+    var used = usedSeamRoles();
+    if (used) keys = keys.filter(function (k) { return used[k]; });
     keys.sort(function (a, b) {
       var ia = SEAM_ROLE_ORDER.indexOf(a), ib = SEAM_ROLE_ORDER.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
@@ -278,7 +302,7 @@
     m: null,
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
-    capReduce: 0,          // SPEC §3.4 개정: 기본 0
+    capReduce: 0,          // 소매 제외로 미사용. 엔진 복원 시 UI 도 함께 복원
     printMode: 'a4',
     rollWidthMm: 594,
     overlapMm: 10,
@@ -975,41 +999,11 @@
       checks.push({ k: 'bad', t: '진동이 깊습니다 — 옆선 ' + f2(minSide) + ' cm < ' + f1(SIDE_WARN_CM) });
     }
 
-    /* ── 소매 (SPEC §3.4) ── */
-    var sleeve = null;
-    ((d && d.pieces) || []).forEach(function (p) { if (p.id === 'sleeve') sleeve = p; });
-    var capH = pick(M, ['capHeight', 'sleeveCapHeight', 'capH']);
-    var slvW = pick(M, ['sleeveWidth', 'bicepsWidth', 'bicepWidth', 'sleeveBiceps']);
-    var hemW = pick(M, ['sleeveHemWidth', 'hemWidth', 'cuffWidth', 'sleeveHem']);
-    var capL = pick(M, ['sleeveCapLenTotal', 'capLength', 'capCurveLength', 'sleeveCapLength', 'capCurve']);
-    var capE = pick(M, ['sleeveCapEase', 'capEase', 'sleeveEase']);
-    if (capE === null && capL !== null && num(M.armholeTotal) !== null) capE = capL - M.armholeTotal;
-
-    put('sumCapH', capH); put('sumSlvW', slvW); put('sumSlvHem', hemW); put('sumCapLen', capL);
-    var g = easeGrade(capE);
-    put('sumCapEase', capE, g);
-    mark('sumCapEaseok', g, g === 'pass' ? '✓' : '!');
-
-    if (!sleeve) {
-      els.easeWarn.hidden = true;
-      checks.push({ k: 'bad', t: '소매 조각 없음 — 엔진 §3.4 구현 대기' });
-    } else if (g) {
-      var msg = g === 'fail'
-        ? '이세분 ' + f2(capE) + ' cm — 허용범위(0.5~2.5) 밖입니다. 소매산 이세 조절을 낮추세요.'
-        : g === 'warn'
-          ? '이세분 ' + f2(capE) + ' cm — 이세가 적습니다(0.5~1.0). 소매산 이세 조절을 낮추세요.'
-          : '';
-      els.easeWarn.hidden = !msg;
-      els.easeWarn.className = 'warn' + (g === 'fail' ? ' warn-bad' : '');
-      els.easeWarnText.textContent = msg;
-      checks.push({ k: g === 'pass' ? 'ok' : 'bad', t: '소매산 이세분 ' + f2(capE) + ' cm (' + g.toUpperCase() + ')' });
-      if (Array.isArray(sleeve.foldEdges) && sleeve.foldEdges.length) {
-        checks.push({ k: 'bad', t: '소매에 골선이 있습니다 — SPEC §3.4 는 foldEdges: []' });
-      }
-    } else {
-      els.easeWarn.hidden = true;
-      checks.push({ k: 'bad', t: '소매 이세분 값 없음 — measures 키 확인 필요' });
-    }
+    /* ── 소매는 이 앱에서 제외되었습니다 (2026-08-07 사용자 결정) ──
+       제공된 반소매 도면이 '숙녀복기본원형1 반소매 47P' 로 이 몸판(무다트 원형)과
+       다른 원형의 소매이고(AH 42.82 vs 47.19), 긴소매는 제도법 자체가 다릅니다.
+       엔진에 코드는 남아 있으며 opt.includeSleeve = true 로 되살릴 수 있습니다.
+       그때 이 블록과 ui.html 의 소매 요약 행·이세분 경고를 함께 복원하세요. */
 
     /* 조각 외곽선 유효성 (폐곡선 판정은 QA팀 몫) */
     ((d && d.pieces) || []).forEach(function (p) {
@@ -1048,7 +1042,7 @@
       : '—';
     els.footSeam.textContent = '시접 ' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset) +
       ' (' + seamRoleDefs().map(function (r) { return f1(state.seam[r.key] || 0); }).join('/') + ', 골선 0)' +
-      ' · capReduce ' + state.capReduce.toFixed(1);
+      '';
     var bb = (state.draft && state.layout) ? state.layout.bbox : null;
     els.footBox.textContent = bb ? ('전체 ' + f1(bb.w) + ' × ' + f1(bb.h) + ' cm') : '—';
 
@@ -1250,9 +1244,9 @@
       recompute(false);
     });
 
-    els.capReduce.addEventListener('input', function () {
+    if (els.capReduce) els.capReduce.addEventListener('input', function () {
       state.capReduce = parseFloat(els.capReduce.value) || 0;
-      els.capReduceVal.textContent = state.capReduce.toFixed(1);
+      if (els.capReduceVal) els.capReduceVal.textContent = state.capReduce.toFixed(1);
       recompute(false);
     });
 
@@ -1388,7 +1382,6 @@
       fitBtn: $('ndFitBtn'), actualBtn: $('ndActualBtn'),
       checks: $('ndChecks'), pieces: $('ndPieces'), notes: $('ndNotes'), notesBlock: $('ndNotesBlock'),
       sideWarn: $('ndSideWarn'), sideWarnDetail: $('ndSideWarnDetail'),
-      easeWarn: $('ndEaseWarn'), easeWarnText: $('ndEaseWarnText'),
       footSize: $('ndFootSize'), footMeas: $('ndFootMeas'), footSeam: $('ndFootSeam'), footBox: $('ndFootBox'),
       printArea: $('ndp-print-area'), toast: $('ndToast')
     };
@@ -1411,8 +1404,8 @@
     state.seam = standardSeam();
     state.seam[FOLD_ROLE] = 0;
     state.seamPreset = detectPreset(state.seam);
-    els.capReduce.value = state.capReduce;
-    els.capReduceVal.textContent = state.capReduce.toFixed(1);
+    if (els.capReduce) els.capReduce.value = state.capReduce;
+    if (els.capReduceVal) els.capReduceVal.textContent = state.capReduce.toFixed(1);
 
     buildFields();
     buildSeamRoles();
@@ -1470,8 +1463,8 @@
     setCapReduce: function (v) {
       var n = Math.max(0, Math.min(1, +v || 0));
       state.capReduce = n;
-      els.capReduce.value = n;
-      els.capReduceVal.textContent = n.toFixed(1);
+      if (els.capReduce) els.capReduce.value = n;
+      if (els.capReduceVal) els.capReduceVal.textContent = n.toFixed(1);
       recompute(false);
     },
     setMeasure: function (key, v) {

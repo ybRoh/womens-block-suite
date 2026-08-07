@@ -12,7 +12,7 @@
   <header class="topbar">
     <div class="brand">
       <h1>기본 무다트 원형</h1>
-      <p class="sub">문화식 · 앞면원형 p.31 / 어깨다트 없는 뒷면원형 p.34 · 반소매원형</p>
+      <p class="sub">문화식 · 앞면원형 p.31 / 어깨다트 없는 뒷면원형 p.34 · 몸판 2조각</p>
     </div>
 
     <div class="sizetabs" id="ndSizeTabs" role="tablist" aria-label="호수 선택">
@@ -29,7 +29,7 @@
 
   <div class="workspace">
 
-    <!-- ───────── 좌측 패널 : 치수 · 소매 · 시접 · 출력 ───────── -->
+    <!-- ───────── 좌측 패널 : 치수 · 시접 · 출력 ───────── -->
     <aside class="panel panel-left" id="ndLeft">
 
       <section class="block">
@@ -40,19 +40,6 @@
         </button>
         <p class="hint">앞길이는 입력하지 않습니다 — 무다트 원형은 등길이에 <b>앞내림 1.3</b>을 내려 대신합니다.
           암홀(AH·뒤AH·앞AH)은 몸판에서 자동 산출되므로 입력란이 없습니다.</p>
-      </section>
-
-      <section class="block">
-        <h2>소매</h2>
-        <div class="field field-slider">
-          <label for="ndCapReduce">소매산 이세 조절
-            <span class="sublab">capReduce · 올리면 이세분이 줄어듭니다</span>
-          </label>
-          <span class="slidewrap">
-            <input type="range" id="ndCapReduce" min="0" max="1" step="0.1" value="0">
-            <output class="slideval" id="ndCapReduceVal">0.0</output>
-          </span>
-        </div>
       </section>
 
       <section class="block">
@@ -209,12 +196,6 @@
             <tr><td class="k">뒤</td><td class="v" id="sumSdB">—</td><td class="n" id="sumSdBok"></td></tr>
             <tr><td class="k">앞</td><td class="v" id="sumSdF">—</td><td class="n" id="sumSdFok"></td></tr>
 
-            <tr class="grp"><th colspan="3">소매</th></tr>
-            <tr><td class="k">소매산 높이</td><td class="v" id="sumCapH">—</td><td class="n"></td></tr>
-            <tr><td class="k">소매폭</td><td class="v" id="sumSlvW">—</td><td class="n"></td></tr>
-            <tr><td class="k">밑단폭</td><td class="v" id="sumSlvHem">—</td><td class="n"></td></tr>
-            <tr><td class="k">소매산 곡선</td><td class="v" id="sumCapLen">—</td><td class="n"></td></tr>
-            <tr class="sub"><td class="k">이세분</td><td class="v" id="sumCapEase">—</td><td class="n" id="sumCapEaseok"></td></tr>
           </tbody>
         </table>
 
@@ -223,8 +204,6 @@
           <b>진동이 깊습니다</b> — 등길이 치수를 확인하세요.
           <span class="warn-sub" id="ndSideWarnDetail"></span>
         </div>
-        <!-- 소매산 이세분 경고 -->
-        <div class="warn" id="ndEaseWarn" hidden><span id="ndEaseWarnText"></span></div>
       </section>
 
       <section class="block">

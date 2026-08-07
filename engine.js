@@ -388,7 +388,10 @@
     var sideBack = V.dist(Ub, bWaist), sideFront = V.dist(Uf, fSideHem);
 
     /* ───────── 반소매 (SPEC §3.4) ───────── */
-    var slv = (opt.includeSleeve === false) ? null : sleeveGeom(m, opt, AHb, AHf);
+    /* 소매 제외 (2026-08-07 사용자 결정) — 제공된 반소매 도면은 '숙녀복기본원형1 반소매 47P' 로
+       이 몸판(무다트 원형)과 다른 원형의 소매이고(AH 42.82 vs 47.19), 긴소매는 제도법 자체가 다릅니다.
+       코드는 남겨 두고 기본값만 껐습니다. 되살리려면 opt.includeSleeve = true. */
+    var slv = (opt.includeSleeve === true) ? sleeveGeom(m, opt, AHb, AHf) : null;
     var pieces = [backPiece, frontPiece];
     if (slv) pieces.push(sleevePiece(slv, seam));
 
@@ -411,6 +414,10 @@
         capHeight:      slv ? r4(slv.capH) : null,
         sleeveHemWidth: slv ? r4(slv.hemHalfB + slv.hemHalfF) : null,
         sleeveLen:        slv ? r4(slv.sleeveLen) : null,
+        sleeveType:       slv ? slv.sleeveType : null,       // 'cap' | 'short'  (SPEC §16)
+        sleeveTypeName:   slv ? slv.typeName : null,
+        sleeveUnderLenBack:  slv ? r4(slv.underLenB) : null, // 밑선 길이 (앞뒤가 같아야 함)
+        sleeveUnderLenFront: slv ? r4(slv.underLenF) : null,
         sleeveCapLenBack: slv ? r4(slv.capLenBack) : null,
         sleeveCapLenFront: slv ? r4(slv.capLenFront) : null,
         sleeveCapLenTotal: slv ? r4(slv.capLenTotal) : null,
@@ -431,6 +438,10 @@
       sleeve: slv,   // 소매 제도점 전부 (검증·주석용)
       meta: {
         hemStyle: opt.hemStyle || 'curve',
+        sleeveType: slv ? slv.sleeveType : null,
+        sleeveTypes: SLEEVE_TYPES.map(function (k) {
+          return { key: k, name: SLEEVE_TYPE[k].name, len66: SLEEVE_TYPE[k].len, grade: SLEEVE_TYPE[k].lenGrade };
+        }),
         formulaNotes: formulaNotes(m, {
           AD: AD, WL: WL, nw: nw, bSideX: bSideX, fSideX: fSideX, BLf: BLf,
           bPitchX: bPitchX, fPitchX: fPitchX, bSpX: bSpX, shLenBack: shLenBack,
@@ -448,6 +459,20 @@
    *   AH·뒤AH·앞AH 는 몸판 draft 에서 자동 산출 (사용자 입력 아님).
    * ════════════════════════════════════════════════════════════════ */
 
+  /* ── 소매 종류 (SPEC §16-1) ────────────────────────────────────────
+   *  둘 다 §3.4 의 **반소매 제도법을 그대로** 쓴다 — 소매길이만 다르다.
+   *  밑선 직선 · 밑단 들임 1.5 씩 · 2등분점 0.5 하강 · 팔꿈치선 없음.
+   *
+   *  ⚠ 7부소매·긴소매는 여기에 추가하면 안 된다. 긴소매는 팔꿈치 처리·뒤팔꿈치 여유·
+   *    소매부리 트임·소매산 높이가 모두 다른 **별도 제도법**이라, 길이와 소매부리 폭만
+   *    바꿔서는 만들 수 없다. 사용자가 제도법 도면과 DXF 를 제공할 때 별도로 구현한다.
+   *    (SPEC §16 2026-08-07 개정 — 초판의 threequarter/long 규정은 폐기됨)          */
+  var SLEEVE_TYPE = {
+    cap:   { name: '짧은소매', len: 19.0, lenGrade: 0.4 },
+    short: { name: '반소매',   len: 25.0, lenGrade: 0.5 }    // 기본값
+  };
+  var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
+
   /** 점 P 에서 원점→D 대각선에 내린 수선의 발과 수선 길이 */
   function footOn(D, P) {
     var L = Math.hypot(D[0], D[1]), u = [D[0] / L, D[1] / L];
@@ -461,10 +486,15 @@
     var AH = AHb + AHf;
     var capReduce = (opt.capReduce === undefined) ? K.capReduce : +opt.capReduce;
     capReduce = Math.max(0, Math.min(1, capReduce));
-    // 소매길이: 66호 25.0, 호수당 +0.5 (B 는 호수당 +6 → /12)
-    var sleeveLen = (opt.sleeveLen === undefined) ? 25.0 + (m.B - BASE.B) / 12 : +opt.sleeveLen;
+    /* 소매 종류 — 기본 'short'(반소매). 알 수 없는 값이 오면 조용히 기본값으로.
+       소매길이 = 종류 기준값 + 호수당 grade.  opt.sleeveLen 을 주면 그것으로 덮어쓴다.
+       ※ short 의 25.0 + 0.5·step 은 기존 식 25.0 + (B−87.6)/12 와 항등 → 하위호환. */
+    var stKey = SLEEVE_TYPE[opt.sleeveType] ? opt.sleeveType : 'short';
+    var ST = SLEEVE_TYPE[stKey];
+    var step = (m.B - BASE.B) / GRADE.B;                     // 호수 스텝 (66호 = 0)
+    var sleeveLen = (opt.sleeveLen === undefined) ? ST.len + ST.lenGrade * step : +opt.sleeveLen;
 
-    var capH = AH / 4 + 2;                                   // 소매산 높이
+    var capH = AH / 4 + 2;                                   // 소매산 높이 (소매 종류와 무관 — AH 로만 결정)
     var diagB = AHb - capReduce, diagF = AHf - capReduce;    // 대각선
     var halfB = Math.sqrt(Math.max(diagB * diagB - capH * capH, 0.01));
     var halfF = Math.sqrt(Math.max(diagF * diagF - capH * capH, 0.01));
@@ -500,6 +530,8 @@
     var capLenBack = sLen(capBack), capLenFront = sLen(capFront);
     return {
       AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
+      sleeveType: stKey, typeName: ST.name,
+      underLenB: V.dist(bicepB, hemEndB), underLenF: V.dist(bicepF, hemEndF),   // 밑선(직선) 길이
       capH: capH, diagB: diagB, diagF: diagF, halfB: halfB, halfF: halfF,
       hemHalfB: hemHalfB, hemHalfF: hemHalfF,
       apex: apex, bicepB: bicepB, bicepF: bicepF,
@@ -584,8 +616,9 @@
       FN('markTop',  '상단 마크',  'AH/8',                            s.AH / 8, 'sleeve', [0, -0.4]),
       FN('perpBB',   '뒤 하단 마크', 'AH/12 + 0.6',                    s.AH / 12 + 0.6, 'sleeve', cp(s.markBotB)),
       FN('perpBF',   '앞 하단 마크', 'AH/8',                           s.AH / 8, 'sleeve', cp(s.markBotF)),
-      FN('center',   '소매길이',   '66호 25.0 · 호수당 +0.5',           s.sleeveLen, 'sleeve', [0, mid]),
-      FN('hemLine',  '밑단폭',     '소매통 − 들임 1.5×2',               s.hemHalfB + s.hemHalfF, 'sleeve', [0, s.sleeveLen]),
+      FN('center',   '소매길이',   s.typeName + ' — 66호 ' + f1(SLEEVE_TYPE[s.sleeveType].len) +
+                                   ' · 호수당 +' + f1(SLEEVE_TYPE[s.sleeveType].lenGrade), s.sleeveLen, 'sleeve', [0, mid]),
+      FN('hemLine',  '밑단폭',     '소매통 − 들임 1.5×2 (교재 규정)',     s.hemHalfB + s.hemHalfF, 'sleeve', [0, s.sleeveLen]),
       FN('capBack',  '뒤 소매산',  '곡선길이 (≥ 뒤AH ' + f1(s.AHb) + ')', s.capLenBack,  'sleeve', [-s.halfB * 0.55, s.capH * 0.35]),
       FN('capFront', '앞 소매산',  '곡선길이 (≥ 앞AH ' + f1(s.AHf) + ')', s.capLenFront, 'sleeve', [s.halfF * 0.55, s.capH * 0.35]),
       FN('apexPt',   '이세분',     '소매산 곡선길이 − AH',              s.capEase, 'sleeve', [0, 1.2])
@@ -1035,6 +1068,7 @@
     MEAS_KEYS: MEAS_KEYS, MEAS_LABEL: MEAS_LABEL, SIZES: Object.keys(SIZE_STEP),
     BASE: BASE, GRADE: GRADE, K: K, CAL: CAL, FLATTEN: FLATTEN,
     SEAM_DEFAULT: SEAM_DEFAULT, SEAM_ROLES: SEAM_ROLES,   // SPEC §11-1 role 별 기본 시접
+    SLEEVE_TYPE: SLEEVE_TYPE, SLEEVE_TYPES: SLEEVE_TYPES, // SPEC §16 소매 종류 (짧은/반소매 2종)
     util: { V: V, bez: bez, bezLen: bezLen, sLen: sLen, through: through, sPath: sPath, LN: LN,
             sampleSegs: sampleSegs, polyLen: polyLen, offsetLoop: offsetLoop, offsetLoopSeg: offsetLoopSeg,
             normSeam: normSeam, lineSegs: lineSegs,

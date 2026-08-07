@@ -329,8 +329,8 @@ function section1() {
  * 2. 봉제 정합성 (SPEC §5)
  * ════════════════════════════════════════════════════════════════════*/
 function section2() {
-  console.log('\n[1m═══ 2. 봉제 정합성 (SPEC §5) — 44·55·66·77호 ═══[0m');
-  var sizes = ['44호', '55호', '66호', '77호'];
+  console.log('\n[1m═══ 2. 봉제 정합성 (SPEC §5) — 전 호수 ═══[0m');
+  var sizes = E2.SIZES;   // 호수 목록은 엔진에서 — 호수가 늘면 자동 반영
   var drafts = {}, geoms = {};
   sizes.forEach(function (s) {
     var m = E.measuresForSize(s);
@@ -563,6 +563,7 @@ function section2() {
       function pick(d) { var r = null; d.pieces.forEach(function (x) { if (x.id === pid) r = x; }); return r; }
       var p0 = pick(E2.draftNoDart(m, { seam: 0 })), p1 = pick(E2.draftNoDart(m, { seam: 1.0 }));
       var p15 = pick(E2.draftNoDart(m, { seam: 1.5 })), pr = pick(E2.draftNoDart(m, { seam: {} }));
+      if (!p0 || !p1 || !p15 || !pr) return;   // 소매 제외 시 건너뜀 (SPEC §17)
       var a0 = Math.abs(polyArea(p0.outline));
       var per = 0; for (var i = 0; i < p0.outline.length; i++) per += V.dist(p0.outline[i], p0.outline[(i + 1) % p0.outline.length]);
       console.log('    ' + pad(p0.name, 10) + pad(z, 8) + pad(a0.toFixed(1), 11) +
@@ -575,12 +576,13 @@ function section2() {
   });
 
   /* §5-6 치수표 일치 */
-  console.log('\n  [1m[5-6] 44·55·66·77호 치수가 SPEC §2·§11-3 표와 일치[0m');
+  console.log('\n  [1m[5-6] 전 호수 치수가 SPEC §2·§11-3·§14 표와 일치[0m');
   var TABLE = {
     '44호': { B: 75.6, backLen: 36.5, shoulderW: 37.9, backW: 34.4, frontW: 31.9, bpLen: 23.8, bpSpan: 18.0 },
     '55호': { B: 81.6, backLen: 37.0, shoulderW: 38.7, backW: 35.6, frontW: 33.1, bpLen: 24.3, bpSpan: 18.5 },
     '66호': { B: 87.6, backLen: 37.5, shoulderW: 39.5, backW: 36.8, frontW: 34.3, bpLen: 24.8, bpSpan: 19.0 },
-    '77호': { B: 93.6, backLen: 38.0, shoulderW: 40.3, backW: 38.0, frontW: 35.5, bpLen: 25.3, bpSpan: 19.5 }
+    '77호': { B: 93.6, backLen: 38.0, shoulderW: 40.3, backW: 38.0, frontW: 35.5, bpLen: 25.3, bpSpan: 19.5 },
+    '88호': { B: 99.6, backLen: 38.5, shoulderW: 41.1, backW: 39.2, frontW: 36.7, bpLen: 25.8, bpSpan: 20.0 }
   };
   sizes.forEach(function (s) {
     var m = E.measuresForSize(s), bad = [];
@@ -662,8 +664,8 @@ function polyArea(p) { var a = 0; for (var i = 0; i < p.length; i++) { var q = p
  *      원본 소매 DXF 는 내부 모순이 있고 이 몸판의 소매도 아니므로 좌표 대조 없음.
  * ════════════════════════════════════════════════════════════════════*/
 function sectionSleeve() {
-  console.log('\n' + B + '═══ 2-S. 반소매 (SPEC §3.4) — 44·55·66·77호 ═══' + N);
-  var sizes = ['44호', '55호', '66호', '77호'];
+  console.log('\n' + B + '═══ 2-S. 소매 제도 (SPEC §3.4) — 전 호수 ═══' + N);
+  var sizes = E2.SIZES;   // 호수 목록은 엔진에서 — 호수가 늘면 자동 반영
   var ds = {}, sl = {};
   sizes.forEach(function (z) {
     ds[z] = E2.draftNoDart(E2.measuresForSize(z), { seam: 1.0 });
@@ -674,9 +676,6 @@ function sectionSleeve() {
   console.log('\n  ' + B + '소매 수치표 (capReduce = ' + num(sl['66호'].capReduce, 2) + ')' + N);
   console.log('  ' + pad('항목', 24) + sizes.map(function (z) { return pad(z, 12); }).join(''));
   var rows = [
-    ['소매길이',            function (s) { return s.sleeveLen; }],
-    ['소매산 높이 AH/4+2',  function (s) { return s.capH; }],
-    ['소매폭 (뒤반+앞반)',  function (s) { return s.halfB + s.halfF; }],
     ['  · 뒤 반폭',         function (s) { return s.halfB; }],
     ['  · 앞 반폭',         function (s) { return s.halfF; }],
     ['밑단폭',              function (s) { return s.hemHalfB + s.hemHalfF; }],
@@ -688,7 +687,6 @@ function sectionSleeve() {
     ['앞 소매산 곡선길이',  function (s) { return s.capLenFront; }],
     ['   vs 앞AH',          function (s) { return s.AHf; }],
     ['   차(앞 이세)',      function (s) { return s.capLenFront - s.AHf; }],
-    ['소매산 곡선 합',      function (s) { return s.capLenTotal; }],
     ['   vs AH',            function (s) { return s.AH; }],
     ['★ 이세분',            function (s) { return s.capEase; }]
   ];
@@ -820,6 +818,144 @@ function sectionSleeve() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ * 2-T. 소매 종류 (SPEC §16) — 짧은소매 · 반소매 2종 × 5호수 = 10조합
+ *      ※ 7부·긴소매는 별도 제도법이라 여기 없습니다 (§16 2026-08-07 개정)
+ * ════════════════════════════════════════════════════════════════════*/
+function sectionSleeveType() {
+  console.log('\n' + B + '═══ 2-T. 소매 종류 (SPEC §16) — 전 호수 × 2종 ═══' + N);
+  var sizes = E2.SIZES, types = E2.SLEEVE_TYPES;
+
+  console.log('\n  ' + B + '10조합 수치표' + N);
+  console.log('  ' + pad('호수', 7) + pad('종류', 11) + pad('소매길이', 10) + pad('소매산', 9) +
+    pad('여유', 8) + pad('소매폭', 9) + pad('소매부리', 10) + pad('밑선(뒤)', 10) + pad('밑선(앞)', 10) +
+    pad('밑선 차', 10) + '이세분');
+  var rows = {};
+  sizes.forEach(function (z) {
+    types.forEach(function (t) {
+      var d = E2.draftNoDart(E2.measuresForSize(z), { seam: {}, sleeveType: t });
+      rows[z + '/' + t] = d;
+      var M = d.measures;
+      console.log('  ' + pad(z, 7) + pad(M.sleeveTypeName, 11) + pad(M.sleeveLen.toFixed(2), 10) +
+        pad(M.capHeight.toFixed(3), 9) + pad((M.sleeveLen - M.capHeight).toFixed(3), 8) +
+        pad(M.sleeveWidth.toFixed(3), 9) + pad(M.sleeveHemWidth.toFixed(3), 10) +
+        pad(M.sleeveUnderLenBack.toFixed(4), 10) + pad(M.sleeveUnderLenFront.toFixed(4), 10) +
+        pad(Math.abs(M.sleeveUnderLenBack - M.sleeveUnderLenFront).toFixed(4), 10) +
+        M.sleeveCapEase.toFixed(4));
+    });
+  });
+
+  /* T-1 소매길이 > 소매산 + 2.0 */
+  console.log('\n  ' + B + '[T-1] 소매길이 > 소매산 높이 + 2.0 (최소 여유)' + N);
+  sizes.forEach(function (z) {
+    types.forEach(function (t) {
+      var M = rows[z + '/' + t].measures, sl = M.sleeveLen - M.capHeight;
+      check('§16', z + ' ' + M.sleeveTypeName + ' 길이 여유', sl > 2.0,
+        '소매길이 ' + num(M.sleeveLen, 2) + ' − 소매산 ' + num(M.capHeight, 3) + ' = ' + num(sl, 3) + ' cm');
+    });
+  });
+
+  /* T-2 앞뒤 밑선 길이 차 */
+  console.log('\n  ' + B + '[T-2] 앞뒤 밑선 길이 차 ≤ 0.05 cm' + N);
+  sizes.forEach(function (z) {
+    types.forEach(function (t) {
+      var g = E2.geom(E2.measuresForSize(z), { sleeveType: t }, null);
+      var d = rows[z + '/' + t], sv = d.sleeve;
+      // 조각 외곽선에서 실제로 잰다 (계산값이 아니라 그려진 변 길이)
+      var pc = null; d.pieces.forEach(function (x) { if (x.id === 'sleeve') pc = x; });
+      var lb = 0, lf = 0;
+      pc.edges.forEach(function (e) {
+        var L = 0;
+        for (var i = Math.max(1, e.start); i <= e.end; i++) L += V.dist(pc.outline[i - 1], pc.outline[i]);
+        if (e.name === '뒤 밑선') lb = L; if (e.name === '앞 밑선') lf = L;
+      });
+      var dd = Math.abs(lb - lf);
+      check('§16', z + ' ' + d.measures.sleeveTypeName + ' 앞뒤 밑선', dd <= 0.05,
+        '외곽선 실측 뒤 ' + num(lb, 4) + ' · 앞 ' + num(lf, 4) + ' → 차 ' + num(dd, 5) +
+        '  (제도값 ' + num(sv.underLenB, 4) + ' / ' + num(sv.underLenF, 4) + ')');
+    });
+  });
+
+  /* T-3 소매산·이세분은 종류와 무관 */
+  console.log('\n  ' + B + '[T-3] 소매산 곡선·이세분은 소매 종류와 무관 (AH 로만 결정)' + N);
+  sizes.forEach(function (z) {
+    var a = rows[z + '/cap'].sleeve, b = rows[z + '/short'].sleeve;
+    var pa = U.sampleSegs(a.capBack.concat(a.capFront), 0.05);
+    var pb = U.sampleSegs(b.capBack.concat(b.capFront), 0.05);
+    var mx = 0;
+    if (pa.length === pb.length) for (var i = 0; i < pa.length; i++) mx = Math.max(mx, V.dist(pa[i], pb[i]));
+    else mx = Infinity;
+    check('§16', z + ' 소매산 종류 무관', mx < 1e-12 &&
+      Math.abs(a.capEase - b.capEase) < 1e-12 && Math.abs(a.capH - b.capH) < 1e-12,
+      '소매산 곡선 좌표 최대차 ' + (isFinite(mx) ? mx.toExponential(1) : '점수 불일치') +
+      ' · 이세분 ' + num(a.capEase) + ' = ' + num(b.capEase) + ' · 소매산 ' + num(a.capH, 3));
+  });
+
+  /* T-4 하위호환 — sleeveType 생략 = short */
+  console.log('\n  ' + B + '[T-4] 하위호환 — sleeveType 생략 = short, 좌표 완전 일치' + N);
+  sizes.forEach(function (z) {
+    var m = E2.measuresForSize(z);
+    var d0 = E2.draftNoDart(m, { seam: {} });                       // 생략
+    var d1 = E2.draftNoDart(m, { seam: {}, sleeveType: 'short' });  // 명시
+    var d2 = E2.draftNoDart(m, { seam: {}, sleeveType: '없는값' }); // 잘못된 값 → 기본
+    function sv(d) { var r = null; d.pieces.forEach(function (x) { if (x.id === 'sleeve') r = x; }); return r; }
+    var a = sv(d0), b = sv(d1), c = sv(d2), mx = 0, mx2 = 0;
+    var ok = a.outline.length === b.outline.length && a.outline.length === c.outline.length;
+    if (ok) for (var i = 0; i < a.outline.length; i++) {
+      mx = Math.max(mx, V.dist(a.outline[i], b.outline[i]));
+      mx2 = Math.max(mx2, V.dist(a.outline[i], c.outline[i]));
+    }
+    // 기존 식(25.0 + (B−87.6)/12)과도 같은지
+    var legacy = 25.0 + (m.B - E2.BASE.B) / 12;
+    check('§16', z + ' sleeveType 기본값', ok && mx < 1e-12 && mx2 < 1e-12 &&
+      Math.abs(d0.measures.sleeveLen - legacy) < 1e-12 && d0.measures.sleeveType === 'short',
+      '생략 vs short 최대차 ' + mx.toExponential(1) + ' · 잘못된 값 → short ' + mx2.toExponential(1) +
+      ' · 소매길이 ' + num(d0.measures.sleeveLen, 4) + ' = 구식 ' + num(legacy, 4));
+  });
+
+  /* T-5 소매부리 < 소매폭 · 폐곡선 · 자기교차 0 */
+  console.log('\n  ' + B + '[T-5] 소매부리 < 소매폭 · 폐곡선 · 자기교차 0 (완성선/시접선)' + N);
+  sizes.forEach(function (z) {
+    types.forEach(function (t) {
+      var d = rows[z + '/' + t], M = d.measures;
+      var pc = null; d.pieces.forEach(function (x) { if (x.id === 'sleeve') pc = x; });
+      var gap = V.dist(pc.outline[0], pc.outline[pc.outline.length - 1]);
+      var x1 = selfXList(pc.outline).length, x2 = selfXList(pc.seamline).length;
+      var a0 = Math.abs(polyArea(pc.outline)), a1 = Math.abs(polyArea(pc.seamline));
+      check('§16', z + ' ' + M.sleeveTypeName + ' 조각', M.sleeveHemWidth < M.sleeveWidth &&
+        gap < 0.06 && x1 === 0 && x2 === 0 && a1 > a0 && pc.foldEdges.length === 0,
+        '부리 ' + num(M.sleeveHemWidth, 3) + ' < 소매폭 ' + num(M.sleeveWidth, 3) +
+        ' · 점 ' + pc.outline.length + ' · 닫힘 ' + num(gap, 4) + ' · 자기교차 ' + x1 + '/' + x2 +
+        ' · 면적 ' + a0.toFixed(1) + '→' + a1.toFixed(1));
+    });
+  });
+
+  /* T-6 종류가 길어질수록 소매길이 증가 · 호수 단조 증가 · 팔꿈치선 없음 */
+  console.log('\n  ' + B + '[T-6] 종류별 길이 대소 · 호수 단조 증가 · 팔꿈치선 미도입' + N);
+  sizes.forEach(function (z) {
+    check('§16', z + ' 짧은소매 < 반소매', rows[z + '/cap'].measures.sleeveLen < rows[z + '/short'].measures.sleeveLen,
+      num(rows[z + '/cap'].measures.sleeveLen, 2) + ' < ' + num(rows[z + '/short'].measures.sleeveLen, 2));
+  });
+  types.forEach(function (t) {
+    var v = sizes.map(function (z) { return rows[z + '/' + t].measures.sleeveLen; });
+    check('§16', E2.SLEEVE_TYPE[t].name + ' 호수 단조 증가', monoInc(v),
+      v.map(function (x) { return x.toFixed(2); }).join(' < '));
+  });
+  var hasElbow = false, hasStdSrc = false;
+  sizes.forEach(function (z) {
+    types.forEach(function (t) {
+      var d = rows[z + '/' + t];
+      d.pieces.forEach(function (pc) { pc.internal.forEach(function (o) { if (o.id === 'elbow') hasElbow = true; }); });
+      d.meta.formulaNotes.forEach(function (n) { if (/표준치수/.test(n.formula || '')) hasStdSrc = true; });
+    });
+  });
+  check('§16', '팔꿈치선·표준치수 소매부리 미도입 (긴소매 제도법 대기)', !hasElbow && !hasStdSrc,
+    "internal 에 id:'elbow' 없음 · formulaNotes 에 표준치수 출처 없음 — 소매부리는 전부 「소매통 − 들임 1.5×2 (교재 규정)」");
+  check('§16', '소매 종류 2종만 노출', E2.SLEEVE_TYPES.length === 2 &&
+    E2.SLEEVE_TYPES.indexOf('threequarter') < 0 && E2.SLEEVE_TYPES.indexOf('long') < 0,
+    E2.SLEEVE_TYPES.map(function (k) { return k + '(' + E2.SLEEVE_TYPE[k].name + ' ' + E2.SLEEVE_TYPE[k].len + '±' + E2.SLEEVE_TYPE[k].lenGrade + ')'; }).join(' · '));
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  * 3. 참고 출력 (계약 준수 · 완성치수)
  * ════════════════════════════════════════════════════════════════════*/
 function section3() {
@@ -828,8 +964,8 @@ function section3() {
   var need = ['pieces', 'measures', 'size', 'meta'];
   check('§8', 'Draft 최상위 키', need.every(function (k) { return k in d; }), need.join(', ') + ' + points/curves(부가)');
   var pk = ['id', 'name', 'cutCount', 'grainline', 'outline', 'seamline', 'internal', 'notches', 'bbox', 'foldEdges'];
-  var okp = d.pieces.length === 3 && d.pieces.every(function (p) { return pk.every(function (k) { return k in p; }); });
-  check('§8', 'piece 키 10개 × 3조각 (뒷판·앞판·소매)', okp, d.pieces.map(function (p) {
+  var okp = d.pieces.length === 2 && d.pieces.every(function (p) { return pk.every(function (k) { return k in p; }); });
+  check('§8', 'piece 키 10개 × 2조각 (뒷판·앞판) — 소매 제외 SPEC §17', okp, d.pieces.map(function (p) {
     return p.id + '(outline ' + p.outline.length + '점, seamline ' + p.seamline.length + '점, internal ' +
       p.internal.length + ', notch ' + p.notches.length + ')';
   }).join(' / '));
@@ -890,17 +1026,17 @@ function section3() {
     ', ' + num(d.points.front.sideHem[1], 2) + ")  hemStyle='" + d.meta.hemStyle + "'");
 
   console.log('\n  [1m완성치수 (이세분 0.95 · 시접 1.0)[0m');
-  var head = pad('항목', 22) + ['44호', '55호', '66호', '77호'].map(function (s) { return pad(s, 10); }).join('');
+  var head = pad('항목', 22) + E.SIZES.map(function (s) { return pad(s, 10); }).join('');
   console.log('    ' + head);
   var rows = [['뒤 어깨선', 'shoulderBack'], ['앞 어깨선', 'shoulderFront'],
     ['뒤 암홀', 'armholeBack'], ['앞 암홀', 'armholeFront'], ['암홀 합', 'armholeTotal'],
     ['뒷목(반)', 'neckBack'], ['앞목(반)', 'neckFront'], ['목둘레 합(반)', 'neckTotal'],
-    ['옆선', 'sideBack'],
-    ['소매산 높이', 'capHeight'], ['소매폭', 'sleeveWidth'], ['밑단폭', 'sleeveHemWidth'],
-    ['소매산 곡선', 'sleeveCapLenTotal'], ['★ 이세분', 'sleeveCapEase']];
-  var ms = ['44호', '55호', '66호', '77호'].map(function (s) { return E.draftNoDart(E.measuresForSize(s), { seam: 0 }).measures; });
+    ['옆선', 'sideBack']];   /* 소매 행은 제거 — 소매는 이 앱에서 제외 (SPEC §17) */
+  var ms = E.SIZES.map(function (s) { return E.draftNoDart(E.measuresForSize(s), { seam: 0 }).measures; });
   rows.forEach(function (r) {
-    console.log('    ' + pad(r[0], 22) + ms.map(function (m) { return pad(m[r[1]].toFixed(3), 10); }).join(''));
+    console.log('    ' + pad(r[0], 22) + ms.map(function (m) {
+      var v = m[r[1]]; return pad(typeof v === 'number' && isFinite(v) ? v.toFixed(3) : '—', 10);
+    }).join(''));
   });
 }
 
@@ -909,7 +1045,12 @@ console.log('[1m기본 무다트 원형 (문화식) — 제도 엔진 검증[0
 console.log('engine.js  ·  dxf-66-groundtruth.json  ·  ' + new Date().toISOString().slice(0, 19).replace('T', ' '));
 section1();
 section2();
-sectionSleeve();
+/* 소매는 이 앱(기본원형)에서 제외되었습니다 — SPEC §17.
+   제공된 반소매 도면은 '숙녀복기본원형1' 의 소매이고, 그 원형은 별도 메뉴로 갑니다.
+   엔진에 sleeveGeom 코드는 남아 있으므로, 소매를 되살릴 때 아래 두 줄을 함께 켜세요.
+   (그때 두 함수 내부의 draftNoDart 호출에 includeSleeve:true 를 넘겨야 합니다.) */
+// sectionSleeve();
+// sectionSleeveType();
 section3();
 
 var fail = RESULTS.filter(function (r) { return !r.ok; });

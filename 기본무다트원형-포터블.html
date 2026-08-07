@@ -540,7 +540,7 @@ td.n.n-fail{color:var(--red)}
   <header class="topbar">
     <div class="brand">
       <h1>기본 무다트 원형</h1>
-      <p class="sub">문화식 · 앞면원형 p.31 / 어깨다트 없는 뒷면원형 p.34 · 반소매원형</p>
+      <p class="sub">문화식 · 앞면원형 p.31 / 어깨다트 없는 뒷면원형 p.34 · 몸판 2조각</p>
     </div>
 
     <div class="sizetabs" id="ndSizeTabs" role="tablist" aria-label="호수 선택">
@@ -557,7 +557,7 @@ td.n.n-fail{color:var(--red)}
 
   <div class="workspace">
 
-    <!-- ───────── 좌측 패널 : 치수 · 소매 · 시접 · 출력 ───────── -->
+    <!-- ───────── 좌측 패널 : 치수 · 시접 · 출력 ───────── -->
     <aside class="panel panel-left" id="ndLeft">
 
       <section class="block">
@@ -568,19 +568,6 @@ td.n.n-fail{color:var(--red)}
         </button>
         <p class="hint">앞길이는 입력하지 않습니다 — 무다트 원형은 등길이에 <b>앞내림 1.3</b>을 내려 대신합니다.
           암홀(AH·뒤AH·앞AH)은 몸판에서 자동 산출되므로 입력란이 없습니다.</p>
-      </section>
-
-      <section class="block">
-        <h2>소매</h2>
-        <div class="field field-slider">
-          <label for="ndCapReduce">소매산 이세 조절
-            <span class="sublab">capReduce · 올리면 이세분이 줄어듭니다</span>
-          </label>
-          <span class="slidewrap">
-            <input type="range" id="ndCapReduce" min="0" max="1" step="0.1" value="0">
-            <output class="slideval" id="ndCapReduceVal">0.0</output>
-          </span>
-        </div>
       </section>
 
       <section class="block">
@@ -737,12 +724,6 @@ td.n.n-fail{color:var(--red)}
             <tr><td class="k">뒤</td><td class="v" id="sumSdB">—</td><td class="n" id="sumSdBok"></td></tr>
             <tr><td class="k">앞</td><td class="v" id="sumSdF">—</td><td class="n" id="sumSdFok"></td></tr>
 
-            <tr class="grp"><th colspan="3">소매</th></tr>
-            <tr><td class="k">소매산 높이</td><td class="v" id="sumCapH">—</td><td class="n"></td></tr>
-            <tr><td class="k">소매폭</td><td class="v" id="sumSlvW">—</td><td class="n"></td></tr>
-            <tr><td class="k">밑단폭</td><td class="v" id="sumSlvHem">—</td><td class="n"></td></tr>
-            <tr><td class="k">소매산 곡선</td><td class="v" id="sumCapLen">—</td><td class="n"></td></tr>
-            <tr class="sub"><td class="k">이세분</td><td class="v" id="sumCapEase">—</td><td class="n" id="sumCapEaseok"></td></tr>
           </tbody>
         </table>
 
@@ -751,8 +732,6 @@ td.n.n-fail{color:var(--red)}
           <b>진동이 깊습니다</b> — 등길이 치수를 확인하세요.
           <span class="warn-sub" id="ndSideWarnDetail"></span>
         </div>
-        <!-- 소매산 이세분 경고 -->
-        <div class="warn" id="ndEaseWarn" hidden><span id="ndEaseWarnText"></span></div>
       </section>
 
       <section class="block">
@@ -1172,7 +1151,10 @@ td.n.n-fail{color:var(--red)}
     var sideBack = V.dist(Ub, bWaist), sideFront = V.dist(Uf, fSideHem);
 
     /* ───────── 반소매 (SPEC §3.4) ───────── */
-    var slv = (opt.includeSleeve === false) ? null : sleeveGeom(m, opt, AHb, AHf);
+    /* 소매 제외 (2026-08-07 사용자 결정) — 제공된 반소매 도면은 '숙녀복기본원형1 반소매 47P' 로
+       이 몸판(무다트 원형)과 다른 원형의 소매이고(AH 42.82 vs 47.19), 긴소매는 제도법 자체가 다릅니다.
+       코드는 남겨 두고 기본값만 껐습니다. 되살리려면 opt.includeSleeve = true. */
+    var slv = (opt.includeSleeve === true) ? sleeveGeom(m, opt, AHb, AHf) : null;
     var pieces = [backPiece, frontPiece];
     if (slv) pieces.push(sleevePiece(slv, seam));
 
@@ -1195,6 +1177,10 @@ td.n.n-fail{color:var(--red)}
         capHeight:      slv ? r4(slv.capH) : null,
         sleeveHemWidth: slv ? r4(slv.hemHalfB + slv.hemHalfF) : null,
         sleeveLen:        slv ? r4(slv.sleeveLen) : null,
+        sleeveType:       slv ? slv.sleeveType : null,       // 'cap' | 'short'  (SPEC §16)
+        sleeveTypeName:   slv ? slv.typeName : null,
+        sleeveUnderLenBack:  slv ? r4(slv.underLenB) : null, // 밑선 길이 (앞뒤가 같아야 함)
+        sleeveUnderLenFront: slv ? r4(slv.underLenF) : null,
         sleeveCapLenBack: slv ? r4(slv.capLenBack) : null,
         sleeveCapLenFront: slv ? r4(slv.capLenFront) : null,
         sleeveCapLenTotal: slv ? r4(slv.capLenTotal) : null,
@@ -1215,6 +1201,10 @@ td.n.n-fail{color:var(--red)}
       sleeve: slv,   // 소매 제도점 전부 (검증·주석용)
       meta: {
         hemStyle: opt.hemStyle || 'curve',
+        sleeveType: slv ? slv.sleeveType : null,
+        sleeveTypes: SLEEVE_TYPES.map(function (k) {
+          return { key: k, name: SLEEVE_TYPE[k].name, len66: SLEEVE_TYPE[k].len, grade: SLEEVE_TYPE[k].lenGrade };
+        }),
         formulaNotes: formulaNotes(m, {
           AD: AD, WL: WL, nw: nw, bSideX: bSideX, fSideX: fSideX, BLf: BLf,
           bPitchX: bPitchX, fPitchX: fPitchX, bSpX: bSpX, shLenBack: shLenBack,
@@ -1232,6 +1222,20 @@ td.n.n-fail{color:var(--red)}
    *   AH·뒤AH·앞AH 는 몸판 draft 에서 자동 산출 (사용자 입력 아님).
    * ════════════════════════════════════════════════════════════════ */
 
+  /* ── 소매 종류 (SPEC §16-1) ────────────────────────────────────────
+   *  둘 다 §3.4 의 **반소매 제도법을 그대로** 쓴다 — 소매길이만 다르다.
+   *  밑선 직선 · 밑단 들임 1.5 씩 · 2등분점 0.5 하강 · 팔꿈치선 없음.
+   *
+   *  ⚠ 7부소매·긴소매는 여기에 추가하면 안 된다. 긴소매는 팔꿈치 처리·뒤팔꿈치 여유·
+   *    소매부리 트임·소매산 높이가 모두 다른 **별도 제도법**이라, 길이와 소매부리 폭만
+   *    바꿔서는 만들 수 없다. 사용자가 제도법 도면과 DXF 를 제공할 때 별도로 구현한다.
+   *    (SPEC §16 2026-08-07 개정 — 초판의 threequarter/long 규정은 폐기됨)          */
+  var SLEEVE_TYPE = {
+    cap:   { name: '짧은소매', len: 19.0, lenGrade: 0.4 },
+    short: { name: '반소매',   len: 25.0, lenGrade: 0.5 }    // 기본값
+  };
+  var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
+
   /** 점 P 에서 원점→D 대각선에 내린 수선의 발과 수선 길이 */
   function footOn(D, P) {
     var L = Math.hypot(D[0], D[1]), u = [D[0] / L, D[1] / L];
@@ -1245,10 +1249,15 @@ td.n.n-fail{color:var(--red)}
     var AH = AHb + AHf;
     var capReduce = (opt.capReduce === undefined) ? K.capReduce : +opt.capReduce;
     capReduce = Math.max(0, Math.min(1, capReduce));
-    // 소매길이: 66호 25.0, 호수당 +0.5 (B 는 호수당 +6 → /12)
-    var sleeveLen = (opt.sleeveLen === undefined) ? 25.0 + (m.B - BASE.B) / 12 : +opt.sleeveLen;
+    /* 소매 종류 — 기본 'short'(반소매). 알 수 없는 값이 오면 조용히 기본값으로.
+       소매길이 = 종류 기준값 + 호수당 grade.  opt.sleeveLen 을 주면 그것으로 덮어쓴다.
+       ※ short 의 25.0 + 0.5·step 은 기존 식 25.0 + (B−87.6)/12 와 항등 → 하위호환. */
+    var stKey = SLEEVE_TYPE[opt.sleeveType] ? opt.sleeveType : 'short';
+    var ST = SLEEVE_TYPE[stKey];
+    var step = (m.B - BASE.B) / GRADE.B;                     // 호수 스텝 (66호 = 0)
+    var sleeveLen = (opt.sleeveLen === undefined) ? ST.len + ST.lenGrade * step : +opt.sleeveLen;
 
-    var capH = AH / 4 + 2;                                   // 소매산 높이
+    var capH = AH / 4 + 2;                                   // 소매산 높이 (소매 종류와 무관 — AH 로만 결정)
     var diagB = AHb - capReduce, diagF = AHf - capReduce;    // 대각선
     var halfB = Math.sqrt(Math.max(diagB * diagB - capH * capH, 0.01));
     var halfF = Math.sqrt(Math.max(diagF * diagF - capH * capH, 0.01));
@@ -1284,6 +1293,8 @@ td.n.n-fail{color:var(--red)}
     var capLenBack = sLen(capBack), capLenFront = sLen(capFront);
     return {
       AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
+      sleeveType: stKey, typeName: ST.name,
+      underLenB: V.dist(bicepB, hemEndB), underLenF: V.dist(bicepF, hemEndF),   // 밑선(직선) 길이
       capH: capH, diagB: diagB, diagF: diagF, halfB: halfB, halfF: halfF,
       hemHalfB: hemHalfB, hemHalfF: hemHalfF,
       apex: apex, bicepB: bicepB, bicepF: bicepF,
@@ -1368,8 +1379,9 @@ td.n.n-fail{color:var(--red)}
       FN('markTop',  '상단 마크',  'AH/8',                            s.AH / 8, 'sleeve', [0, -0.4]),
       FN('perpBB',   '뒤 하단 마크', 'AH/12 + 0.6',                    s.AH / 12 + 0.6, 'sleeve', cp(s.markBotB)),
       FN('perpBF',   '앞 하단 마크', 'AH/8',                           s.AH / 8, 'sleeve', cp(s.markBotF)),
-      FN('center',   '소매길이',   '66호 25.0 · 호수당 +0.5',           s.sleeveLen, 'sleeve', [0, mid]),
-      FN('hemLine',  '밑단폭',     '소매통 − 들임 1.5×2',               s.hemHalfB + s.hemHalfF, 'sleeve', [0, s.sleeveLen]),
+      FN('center',   '소매길이',   s.typeName + ' — 66호 ' + f1(SLEEVE_TYPE[s.sleeveType].len) +
+                                   ' · 호수당 +' + f1(SLEEVE_TYPE[s.sleeveType].lenGrade), s.sleeveLen, 'sleeve', [0, mid]),
+      FN('hemLine',  '밑단폭',     '소매통 − 들임 1.5×2 (교재 규정)',     s.hemHalfB + s.hemHalfF, 'sleeve', [0, s.sleeveLen]),
       FN('capBack',  '뒤 소매산',  '곡선길이 (≥ 뒤AH ' + f1(s.AHb) + ')', s.capLenBack,  'sleeve', [-s.halfB * 0.55, s.capH * 0.35]),
       FN('capFront', '앞 소매산',  '곡선길이 (≥ 앞AH ' + f1(s.AHf) + ')', s.capLenFront, 'sleeve', [s.halfF * 0.55, s.capH * 0.35]),
       FN('apexPt',   '이세분',     '소매산 곡선길이 − AH',              s.capEase, 'sleeve', [0, 1.2])
@@ -1819,6 +1831,7 @@ td.n.n-fail{color:var(--red)}
     MEAS_KEYS: MEAS_KEYS, MEAS_LABEL: MEAS_LABEL, SIZES: Object.keys(SIZE_STEP),
     BASE: BASE, GRADE: GRADE, K: K, CAL: CAL, FLATTEN: FLATTEN,
     SEAM_DEFAULT: SEAM_DEFAULT, SEAM_ROLES: SEAM_ROLES,   // SPEC §11-1 role 별 기본 시접
+    SLEEVE_TYPE: SLEEVE_TYPE, SLEEVE_TYPES: SLEEVE_TYPES, // SPEC §16 소매 종류 (짧은/반소매 2종)
     util: { V: V, bez: bez, bezLen: bezLen, sLen: sLen, through: through, sPath: sPath, LN: LN,
             sampleSegs: sampleSegs, polyLen: polyLen, offsetLoop: offsetLoop, offsetLoopSeg: offsetLoopSeg,
             normSeam: normSeam, lineSegs: lineSegs,
@@ -4105,16 +4118,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /* 소매길이는 engine.js 가 measurements 가 아니라 opt 로 받습니다
      (draftNoDart(m, {sleeveLen})). 그래서 UI 는 이 키만 opt 로 넘깁니다.
      엔진이 나중에 MEAS_KEYS 에 편입하면 자동으로 measurements 쪽으로 갑니다. */
-  var OPT_MEASURE_KEYS = ['sleeveLen'];
+  var OPT_MEASURE_KEYS = [];   // 소매 제외 (2026-08-07)
 
   /* 라벨은 숫자가 아니라 표기이므로 사본이어도 어긋날 위험이 없습니다.
      엔진이 MEAS_LABEL 을 주면 그쪽이 우선입니다. */
   var LABEL_FALLBACK = {
     B: '가슴둘레 B', backLen: '등길이', shoulderW: '어깨너비', backW: '등품',
-    frontW: '앞품', bpLen: '유장', bpSpan: '유폭', sleeveLen: '소매길이'
+    frontW: '앞품', bpLen: '유장', bpSpan: '유폭'
   };
   var FIELD_NOTE = { backLen: '앞길이 대신 앞내림 1.3' };
-  var SLEEVE_KEYS = { sleeveLen: 1 };          // 치수 목록에서 '소매' 그룹으로 분리
+  var SLEEVE_KEYS = {};                        // 소매 제외 (2026-08-07)
   var SHOULDER_EASE = 0.95;                    // 뒷어깨 이세분 (SPEC §3.1: 0.6~1.0)
 
   /* ── 호수 (SPEC §11-3) ──
@@ -4130,16 +4143,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', hem: '밑단', sleeveHem: '소매 밑단', fold: '골선'
+    side: '옆선', hem: '밑단', fold: '골선'
   };
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem'];
-  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, sleeveHem: 2.5, fold: 0 };
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem'];
+  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, fold: 0 };
   var SEAM_PRESETS = {
     none: function () { return zeroSeam(); },
     standard: function () { return standardSeam(); },
     uniform: function () { return uniformSeam(1.0); }
   };
   var SEAM_PRESET_LABEL = { none: '시접 없음', standard: '표준', uniform: '균일 1.0', custom: '사용자 지정' };
+
+  /** 현재 draft 의 조각들이 실제로 쓰는 role 집합. 판단 불가면 null(=필터 안 함). */
+  function usedSeamRoles() {
+    var E = ENG();
+    if (!E || typeof E.draftNoDart !== 'function' || !state.m) return null;
+    var d;
+    try {
+      var sp = splitMeasures();
+      d = E.draftNoDart(sp.m, { seam: {}, shoulderEase: SHOULDER_EASE });
+    } catch (e) { return null; }
+    if (!d || !d.pieces) return null;
+    var out = null;
+    d.pieces.forEach(function (p) {
+      (p.edges || []).forEach(function (e) {
+        if (e && e.role) { out = out || {}; out[e.role] = 1; }
+      });
+    });
+    return out;
+  }
 
   /** 입력란을 만들 role 목록 (fold 제외) — 엔진 목록 우선, UI 선호 순서로 정렬 */
   function seamRoleDefs() {
@@ -4148,6 +4180,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       ? E.SEAM_ROLES.slice()
       : Object.keys(SEAM_FALLBACK);
     keys = keys.filter(function (k) { return k !== FOLD_ROLE; });
+    /* 현재 도면에 실제로 존재하는 변만 남깁니다 — 소매를 뺀 상태에서 '소매 밑단'
+       입력란이 남아 있으면 값을 바꿔도 붙을 변이 없습니다.
+       조각 구성이 바뀌면(소매 복원 등) 자동으로 따라옵니다. */
+    var used = usedSeamRoles();
+    if (used) keys = keys.filter(function (k) { return used[k]; });
     keys.sort(function (a, b) {
       var ia = SEAM_ROLE_ORDER.indexOf(a), ib = SEAM_ROLE_ORDER.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
@@ -4365,7 +4402,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     m: null,
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
-    capReduce: 0,          // SPEC §3.4 개정: 기본 0
+    capReduce: 0,          // 소매 제외로 미사용. 엔진 복원 시 UI 도 함께 복원
     printMode: 'a4',
     rollWidthMm: 594,
     overlapMm: 10,
@@ -5062,41 +5099,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       checks.push({ k: 'bad', t: '진동이 깊습니다 — 옆선 ' + f2(minSide) + ' cm < ' + f1(SIDE_WARN_CM) });
     }
 
-    /* ── 소매 (SPEC §3.4) ── */
-    var sleeve = null;
-    ((d && d.pieces) || []).forEach(function (p) { if (p.id === 'sleeve') sleeve = p; });
-    var capH = pick(M, ['capHeight', 'sleeveCapHeight', 'capH']);
-    var slvW = pick(M, ['sleeveWidth', 'bicepsWidth', 'bicepWidth', 'sleeveBiceps']);
-    var hemW = pick(M, ['sleeveHemWidth', 'hemWidth', 'cuffWidth', 'sleeveHem']);
-    var capL = pick(M, ['sleeveCapLenTotal', 'capLength', 'capCurveLength', 'sleeveCapLength', 'capCurve']);
-    var capE = pick(M, ['sleeveCapEase', 'capEase', 'sleeveEase']);
-    if (capE === null && capL !== null && num(M.armholeTotal) !== null) capE = capL - M.armholeTotal;
-
-    put('sumCapH', capH); put('sumSlvW', slvW); put('sumSlvHem', hemW); put('sumCapLen', capL);
-    var g = easeGrade(capE);
-    put('sumCapEase', capE, g);
-    mark('sumCapEaseok', g, g === 'pass' ? '✓' : '!');
-
-    if (!sleeve) {
-      els.easeWarn.hidden = true;
-      checks.push({ k: 'bad', t: '소매 조각 없음 — 엔진 §3.4 구현 대기' });
-    } else if (g) {
-      var msg = g === 'fail'
-        ? '이세분 ' + f2(capE) + ' cm — 허용범위(0.5~2.5) 밖입니다. 소매산 이세 조절을 낮추세요.'
-        : g === 'warn'
-          ? '이세분 ' + f2(capE) + ' cm — 이세가 적습니다(0.5~1.0). 소매산 이세 조절을 낮추세요.'
-          : '';
-      els.easeWarn.hidden = !msg;
-      els.easeWarn.className = 'warn' + (g === 'fail' ? ' warn-bad' : '');
-      els.easeWarnText.textContent = msg;
-      checks.push({ k: g === 'pass' ? 'ok' : 'bad', t: '소매산 이세분 ' + f2(capE) + ' cm (' + g.toUpperCase() + ')' });
-      if (Array.isArray(sleeve.foldEdges) && sleeve.foldEdges.length) {
-        checks.push({ k: 'bad', t: '소매에 골선이 있습니다 — SPEC §3.4 는 foldEdges: []' });
-      }
-    } else {
-      els.easeWarn.hidden = true;
-      checks.push({ k: 'bad', t: '소매 이세분 값 없음 — measures 키 확인 필요' });
-    }
+    /* ── 소매는 이 앱에서 제외되었습니다 (2026-08-07 사용자 결정) ──
+       제공된 반소매 도면이 '숙녀복기본원형1 반소매 47P' 로 이 몸판(무다트 원형)과
+       다른 원형의 소매이고(AH 42.82 vs 47.19), 긴소매는 제도법 자체가 다릅니다.
+       엔진에 코드는 남아 있으며 opt.includeSleeve = true 로 되살릴 수 있습니다.
+       그때 이 블록과 ui.html 의 소매 요약 행·이세분 경고를 함께 복원하세요. */
 
     /* 조각 외곽선 유효성 (폐곡선 판정은 QA팀 몫) */
     ((d && d.pieces) || []).forEach(function (p) {
@@ -5135,7 +5142,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       : '—';
     els.footSeam.textContent = '시접 ' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset) +
       ' (' + seamRoleDefs().map(function (r) { return f1(state.seam[r.key] || 0); }).join('/') + ', 골선 0)' +
-      ' · capReduce ' + state.capReduce.toFixed(1);
+      '';
     var bb = (state.draft && state.layout) ? state.layout.bbox : null;
     els.footBox.textContent = bb ? ('전체 ' + f1(bb.w) + ' × ' + f1(bb.h) + ' cm') : '—';
 
@@ -5337,9 +5344,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       recompute(false);
     });
 
-    els.capReduce.addEventListener('input', function () {
+    if (els.capReduce) els.capReduce.addEventListener('input', function () {
       state.capReduce = parseFloat(els.capReduce.value) || 0;
-      els.capReduceVal.textContent = state.capReduce.toFixed(1);
+      if (els.capReduceVal) els.capReduceVal.textContent = state.capReduce.toFixed(1);
       recompute(false);
     });
 
@@ -5475,7 +5482,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       fitBtn: $('ndFitBtn'), actualBtn: $('ndActualBtn'),
       checks: $('ndChecks'), pieces: $('ndPieces'), notes: $('ndNotes'), notesBlock: $('ndNotesBlock'),
       sideWarn: $('ndSideWarn'), sideWarnDetail: $('ndSideWarnDetail'),
-      easeWarn: $('ndEaseWarn'), easeWarnText: $('ndEaseWarnText'),
       footSize: $('ndFootSize'), footMeas: $('ndFootMeas'), footSeam: $('ndFootSeam'), footBox: $('ndFootBox'),
       printArea: $('ndp-print-area'), toast: $('ndToast')
     };
@@ -5498,8 +5504,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     state.seam = standardSeam();
     state.seam[FOLD_ROLE] = 0;
     state.seamPreset = detectPreset(state.seam);
-    els.capReduce.value = state.capReduce;
-    els.capReduceVal.textContent = state.capReduce.toFixed(1);
+    if (els.capReduce) els.capReduce.value = state.capReduce;
+    if (els.capReduceVal) els.capReduceVal.textContent = state.capReduce.toFixed(1);
 
     buildFields();
     buildSeamRoles();
@@ -5557,8 +5563,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     setCapReduce: function (v) {
       var n = Math.max(0, Math.min(1, +v || 0));
       state.capReduce = n;
-      els.capReduce.value = n;
-      els.capReduceVal.textContent = n.toFixed(1);
+      if (els.capReduce) els.capReduce.value = n;
+      if (els.capReduceVal) els.capReduceVal.textContent = n.toFixed(1);
       recompute(false);
     },
     setMeasure: function (key, v) {
