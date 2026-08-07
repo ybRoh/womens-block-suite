@@ -61,9 +61,59 @@
   var F2 = function (p) { return p[0].toFixed(3) + ',' + p[1].toFixed(3); };
   var sPath = function (s) { return 'M ' + F2(s[0].p0) + ' ' + s.map(function (g) { return 'C ' + F2(g.c1) + ' ' + F2(g.c2) + ' ' + F2(g.p1); }).join(' '); };
   var LN = function () { return 'M ' + Array.prototype.slice.call(arguments).map(F2).join(' L '); };
-  /** through() 의 세그먼트별 장력 변형.
-   *  tt[i] = [들어가는쪽, 나가는쪽] 장력. 통과점을 지나는 것은 같고 배가 부른 정도만 달라진다.
-   *  소매산·앞 밑선처럼 통과점 사이 곡률이 구간마다 다른 곡선에 필요하다. */
+  /** 앵커를 지나는 **C2 연속 3차 스플라인** → 베지어 세그먼트 배열.
+   *
+   *  왜 필요한가 — 조각마다 장력을 따로 적합하면 접선은 이어져도(G1) **곡률이 튄다**.
+   *  실제로 앞 암홀에서 곡률이 −10 ↔ +11 로 뒤집혀 눈에 보이는 꺾임이 생겼고,
+   *  소매산은 중간 앵커 구간이 직선처럼 펴졌다.
+   *  C2 스플라인은 곡률까지 이어져 사람이 운형자로 그은 곡선처럼 매끄럽다.
+   *  (원본 도면의 AutoCAD 스플라인도 같은 계열이라 대조 정확도도 좋아진다.)
+   *
+   *  @param pts  반드시 지나야 하는 점들 (제도 규칙점)
+   *  @param d0   시작 접선 **벡터**. null 이면 자연단(2차 도함수 0)
+   *  @param d1   끝 접선 벡터.       null 이면 자연단
+   *  끝 접선은 크기가 모양을 좌우하므로 부르는 쪽에서 방향 × (현길이 × 계수) 로 준다. */
+  function splineSegs(pts, d0, d1) {
+    var n = pts.length - 1, i;
+    if (n < 1) return [];
+    var h = [];
+    for (i = 0; i < n; i++) h.push(Math.max(V.dist(pts[i], pts[i + 1]), 1e-9));
+
+    /* 삼중대각 A·m = R  (m = 앵커별 접선벡터). 좌표별 계수가 같아 벡터로 한 번에 푼다. */
+    var A = [], B = [], C2 = [], R = [];
+    for (i = 0; i <= n; i++) { A.push(0); B.push(0); C2.push(0); R.push([0, 0]); }
+    if (d0) { B[0] = 1; C2[0] = 0; R[0] = [d0[0], d0[1]]; }
+    else { B[0] = 2; C2[0] = 1; R[0] = V.mul(V.sub(pts[1], pts[0]), 3 / h[0]); }
+    for (i = 1; i < n; i++) {
+      A[i] = h[i]; B[i] = 2 * (h[i - 1] + h[i]); C2[i] = h[i - 1];
+      R[i] = V.add(V.mul(V.sub(pts[i], pts[i - 1]), 3 * h[i] / h[i - 1]),
+                   V.mul(V.sub(pts[i + 1], pts[i]), 3 * h[i - 1] / h[i]));
+    }
+    if (d1) { A[n] = 0; B[n] = 1; R[n] = [d1[0], d1[1]]; }
+    else { A[n] = 1; B[n] = 2; R[n] = V.mul(V.sub(pts[n], pts[n - 1]), 3 / h[n - 1]); }
+
+    for (i = 1; i <= n; i++) {                    // 토마스 알고리즘
+      var w = A[i] / B[i - 1];
+      B[i] -= w * C2[i - 1];
+      R[i] = V.sub(R[i], V.mul(R[i - 1], w));
+    }
+    var m = [];
+    for (i = 0; i <= n; i++) m.push([0, 0]);
+    m[n] = V.mul(R[n], 1 / B[n]);
+    for (i = n - 1; i >= 0; i--) m[i] = V.mul(V.sub(R[i], V.mul(m[i + 1], C2[i])), 1 / B[i]);
+
+    var segs = [];
+    for (i = 0; i < n; i++) {
+      segs.push({ p0: pts[i], c1: V.add(pts[i], V.mul(m[i], h[i] / 3)),
+                  c2: V.sub(pts[i + 1], V.mul(m[i + 1], h[i] / 3)), p1: pts[i + 1] });
+    }
+    return segs;
+  }
+  /** 스플라인 끝 접선 벡터 — 방향 × k.
+   *  현길이 매개화라 |접선| ≈ 1 이 "자연스러운" 크기다. 현길이를 곱하면 곡선이 부푼다. */
+  function endTan(dir, k) { return V.mul(V.norm(dir), (k === undefined ? 1 : k)); }
+
+  /** through() 의 세그먼트별 장력 변형 (구버전 — 곡률이 튀어 더는 쓰지 않는다) */
   function throughT(pts, t0v, t1v, C) {
     var n = pts.length, tt = (C && C.t) || null, rot = (C && C.r) || null;
     var tan = [], i;
@@ -586,12 +636,18 @@
     /* 양 끝 접선은 **둘 다 수평** — 정점에서 수평으로 출발해 소매통 끝에도 수평으로
        닿는다 (긴소매 DXF 실측: 소매통 도착 접선 뒤 −1.55° / 앞 1.82°).
        끝접선을 자유롭게 두면 소매통 근처에서 도면과 0.15 cm 어긋난다. */
-    /* 상단 통과점 ↔ 하단 통과점 사이는 **S 자**이고, 도면에서 그 두 점을 잇는 현의
-       **정확히 중점**에서 방향이 바뀐다 (긴소매 DXF: t=0.500 에서 오프셋 −0.0002).
-       그 교차점을 앵커로 넣어야 이 구간을 큐빅 하나로 뭉개지 않는다. */
+    /* 정점 → 상단 통과점 → 하단 통과점 → 소매통 끝을 **C2 스플라인**으로 잇는다.
+       양 끝 접선은 둘 다 수평 (DXF 실측 도착 접선 뒤 −1.55° / 앞 1.82°).
+       구간별 장력을 따로 적합하던 이전 방식은 통과점 사이가 직선처럼 펴져 보였다. */
+    var cb = CAL.capBack, cf = CAL.capFront;
+    /* 상단 통과점 ↔ 하단 통과점 사이는 S 자이고 도면에서 그 두 점을 잇는 **현의 중점**에서
+       방향이 바뀐다 (t=0.500 에서 오프셋 −0.0002). 그 교차점도 앵커로 넣는다.
+       C2 스플라인이라 앵커를 늘려도 곡률은 계속 이어진다. */
     var midB = _lerp(pTB, pBB, 0.5), midF = _lerp(pTF, pBF, 0.5);
-    var capBack = throughT([apex, pTB, midB, pBB, bicepB], [-1, 0], [-1, 0], CAL.capBack);
-    var capFront = throughT([apex, pTF, midF, pBF, bicepF], [1, 0], [1, 0], CAL.capFront);
+    var capBack = splineSegs([apex, pTB, midB, pBB, bicepB],
+      endTan([-1, 0], cb.k0), endTan([-1, 0], cb.k1));
+    var capFront = splineSegs([apex, pTF, midF, pBF, bicepF],
+      endTan([1, 0], cf.k0), endTan([1, 0], cf.k1));
     var capLenBack = sLen(capBack), capLenFront = sLen(capFront);
     return {
       capH: capH, diagB: diagB, diagF: diagF, halfB: halfB, halfF: halfF,
@@ -684,7 +740,16 @@
     var tB = (insetY - capH) / (sleeveLen + K.tightBackHemDrop - capH);
     var underBackMid = [-halfB + (-cuffW / 2 + halfB) * tB, insetY];
 
-    var underFront = throughT([bicepF, underMid, hemF], null, null, CAL.tightUnder);
+    /* 앞 밑선 — 소매통 끝에서 세로에 가깝게 출발해 들임점을 지나 소맷부리로.
+       자연단 스플라인이라 곡률이 끝에서 0 으로 풀려 밑단과 매끄럽게 만난다. */
+    var cu = CAL.tightUnder;
+    /* 팔꿈치선 위의 점도 앵커로 — 도면의 앞 밑선은 소매통~들임점 구간과
+       들임점~소맷부리 구간의 곡률이 확연히 달라 세 점만으로는 모자란다. */
+    var tE = (elbowY - underMid[1]) / (sleeveLen - underMid[1]);
+    var underElbow = [underMid[0] + (cuffW / 2 - underMid[0]) * tE + cu.eOff, elbowY];
+    var underFront = splineSegs([bicepF, underMid, underElbow, hemF],
+      endTan([0, 1], cu.k0),
+      endTan(V.sub(hemF, underElbow), cu.k1));
     var underBack = lineSegs(bicepB, hemB);                   // 뒤는 직선 (이세처리)
     var hemBack = hemCurve(hemFlat, hemB);                    // 수평 구간 끝 → 뒤 끝 (0.3 하강)
 
@@ -827,66 +892,53 @@
     var C = CAL.backNeck;
     var W = SNP[0] - BNP[0], Hy = SNP[1] - BNP[1];
     var Mp = [BNP[0] + W * C.mx, BNP[1] + Hy * C.my];
-    var tm = rotv(V.norm(V.sub(SNP, BNP)), C.mt);       // 현(BNP→SNP)에서 mt도 회전
     /* 끝접선 — 이 원형의 뒷목은 어깨선에 **수직으로 도착하지 않는다**
        (66호 DXF 실측 −58.05°, 어깨 수직이면 −71.38°). 어깨 수직에서 et 도 돌려 맞춘다. */
     var pin = rotv(perpToward(shDir, SNP, BNP), C.et || 0);
-    return [
-      { p0: BNP, c1: [BNP[0] + W * C.h0, BNP[1]], c2: V.sub(Mp, V.mul(tm, W * C.h1)), p1: Mp },
-      { p0: Mp,  c1: V.add(Mp, V.mul(tm, W * C.h2)),  c2: V.add(SNP, V.mul(pin, W * C.h3)), p1: SNP }
-    ];
+    return splineSegs([BNP, Mp, SNP],
+      endTan([1, 0], C.k0),        // CB 에서 수평 출발
+      endTan(V.mul(pin, -1), C.k1));
   }
 
-  /** 앞 목선 : CF(수평 출발) → 목 구성 사각 대각선 2/3 점 → 목옆점(어깨선에 수직 도착) — 2 큐빅
-   *  대각선 2/3 점은 66호 DXF 의 원호/스플라인 접합점과 정확히 일치한다 (4.8667, 5.0667). */
+  /** 앞 목선 : CF(수평 출발) → 목 구성 사각 대각선 2/3 점 → 목옆점 — C2 스플라인
+   *  대각선 2/3 점은 66호 DXF 의 표시원과 정확히 일치한다. */
   function curveFrontNeck(FNP, SNP, shDir, nw) {
     var C = CAL.frontNeck;
-    var dep = FNP[1];                                            // 앞목깊이 = B/12+0.3
-    var Mp = [nw * K.neckDiagRatio, dep * K.neckDiagRatio];      // 목 구성 사각 대각선 2/3 점
-    var diag = V.norm([nw, dep]);
-    var tm = rotv([diag[1], -diag[0]], C.mt);                    // 대각선 수직에서 mt도 회전
+    var dep = FNP[1];                                            // 앞목깊이 = B/12
+    var Mp = [nw * K.neckDiagRatio, dep * K.neckDiagRatio];      // 목 사각 대각선 2/3 점
     var pin = rotv(perpToward(shDir, SNP, FNP), C.et || 0);      // 어깨 수직에서 et 도
-    return [
-      { p0: FNP, c1: [FNP[0] + nw * C.h0, FNP[1]], c2: V.sub(Mp, V.mul(tm, nw * C.h1)), p1: Mp },
-      { p0: Mp,  c1: V.add(Mp, V.mul(tm, nw * C.h2)), c2: V.add(SNP, V.mul(pin, nw * C.h3)), p1: SNP }
-    ];
+    return splineSegs([FNP, Mp, SNP],
+      endTan([1, 0], C.k0),
+      endTan(V.mul(pin, -1), C.k1));
   }
 
-  /** 암홀 : 겨드랑(수평 출발) → 오목점 hollow → 품점(품선 2등분점, 세로 접선)
-   *          → 접점 T → 어깨점 (T~SP 는 **직선**)
+  /** 암홀 : 겨드랑(수평 출발) → 오목점 hollow → 품점(품선 2등분점) → 접점 T → 어깨점
    *
    *  66호 DXF 로 확인한 이 원형의 암홀 구조 —
-   *   ① 어깨점에서 어깨선에 **수직으로 내린 직선**이 품선과 만나는 점까지가 안내선이고
-   *      (뒤 5.637 = DXF LINE (17.2,6.548)-(19,1.206) · 앞 5.273 = LINE (16,9.037)-(17.864,4.105)),
+   *   ① 어깨점에서 어깨선에 **수직으로 내린 직선**이 품선과 만나는 점까지가 안내선이고,
    *      암홀 윗부분은 그 직선 위를 그대로 지난다 (DXF 편차 0.0003 cm).
    *   ② 암홀은 품선의 2등분점에서 품선에 **접한다** (뒤 (17.2,10.8) 편차 0.0003 cm).
-   *  → 직선 구간 T~SP 를 따로 두어야 곡선 하나로 뭉개지 않는다.
    *
-   *  앵커 위치·핸들 길이는 전부 dx(품선→옆선) · dy(어깨점→BL) 스팬 대비 비율이라
-   *  호수에 따라 자연스럽게 스케일된다.
-   *  앞·뒤 모두 "x 는 중심선에서 옆선 쪽 +" 로컬 좌표라 같은 식을 쓴다. */
+   *  네 점을 **C2 스플라인**으로 잇고 마지막 T~SP 만 직선이다.
+   *  예전처럼 구간마다 장력을 따로 적합하면 접선은 이어져도 곡률이 튀어
+   *  품점 부근에서 눈에 보이게 꺾인다 (실제로 곡률이 −10 ↔ +11 로 뒤집혔다).
+   *  앵커 위치는 dx(품선→옆선)·dy(어깨점→BL) 대비 비율이라 호수에 따라 스케일된다. */
   function curveArmhole(U, SP, shDir, pitchXm, pitchY, BL, back) {
     var C = back ? CAL.backArm : CAL.frontArm;
     var dy = BL - SP[1];                                       // 어깨점 → BL 세로 스팬
     var dx = U[0] - pitchXm;                                   // 품선 → 옆선 가로 스팬
-    /* 품점 = **품선의 2등분점** (도면 `중심 2등분`). 66호 DXF 에서 뒤 암홀이
-       등품선 2등분점 (17.2, 10.8) 을 편차 0.0003 cm 로 지나는 것을 확인했다.
-       pdx·pdy 는 그 점에서의 미세 보정(무차원)이다. */
-    var P = [pitchXm + C.pdx * dx, pitchY + C.pdy * dy];       // 품점
+    var P = [pitchXm + C.pdx * dx, pitchY + C.pdy * dy];       // 품점 (품선 2등분점 + 미세보정)
     var H = [U[0] - C.hdx * dx, BL - C.hdy * dy];              // 오목점 hollow
-    var tm = rotv(V.norm(V.sub(P, U)), C.hth);                 // hollow 접선 = 현(U→P) 에서 hth도
     var pin = perpToward(shDir, SP, U);                        // 어깨선 수직, 조각 안쪽
     /* 어깨점에서 어깨선에 수직으로 내린 직선이 품선과 만날 때까지의 거리 */
     var sQ = Math.abs(pin[0]) > 1e-6 ? (pitchXm - SP[0]) / pin[0] : dy;
     if (!isFinite(sQ) || sQ <= 0.2) sQ = dy;
     var T = V.add(SP, V.mul(pin, sQ * C.tR));                  // 곡선이 그 직선에 접하는 점
-    var pv = rotv([0, 1], C.pt || 0);                          // 품점 접선 — 세로에서 pt 도
-    return [
-      { p0: U, c1: [U[0] - C.h0 * dx, U[1]], c2: V.sub(H, V.mul(tm, C.h1 * dy)), p1: H },
-      { p0: H, c1: V.add(H, V.mul(tm, C.h2 * dy)), c2: V.add(P, V.mul(pv, C.h3 * dy)), p1: P },
-      { p0: P, c1: V.sub(P, V.mul(pv, C.h4 * dy)), c2: V.add(T, V.mul(pin, C.h5 * dy)), p1: T },
-      { p0: T, c1: _lerp(T, SP, 1 / 3), c2: _lerp(T, SP, 2 / 3), p1: SP }   // 직선 구간
-    ];
+    /* 끝은 직선 T→SP 에 접해야 하므로 T 에서의 접선을 그 직선 방향(−pin)으로 고정한다 */
+    var curve = splineSegs([U, H, P, T],
+      endTan([-1, 0], C.k0),
+      endTan(V.mul(pin, -1), C.k1));
+    return curve.concat(lineSegs(T, SP));
   }
 
   /* ── 곡선 캘리브레이션 상수 ──────────────────────────────────────────
@@ -894,13 +946,13 @@
    *  최소화하도록 적합한 값. 모두 무차원 비율/각도(도)이므로 44~88호에서도
    *  같은 모양이 유지된다.  재적합: node engine-verify.js --calibrate         */
   var CAL = {
-    backNeck : { mx: 0.684360, my: 0.171795, mt: 2.567742, et: 9.391420, h0: 0.226002, h1: 0.183574, h2: 0.049407, h3: 0.280296 },
-    frontNeck: { mt: -6.182503, et: -1.128876, h0: 0.359261, h1: 0.102646, h2: 0.172661, h3: 0.405875 },
-    backArm  : { pdx: -0.006039, pdy: 0.000000, pt: 0.784355, hdx: 0.421482, hdy: 0.020323, hth: -28.977293, tR: 0.281448, h0: 0.040327, h1: 0.035878, h2: 0.139686, h3: 0.054153, h4: 0.206202, h5: 0.093916 },
-    frontArm : { pdx: -0.000285, pdy: -0.070919, pt: -1.068975, hdx: 0.970730, hdy: 0.333144, hth: 22.101787, tR: 0.053302, h0: 0.096563, h1: 0.346949, h2: 0.326630, h3: 0.120211, h4: 0.064822, h5: 0.031390 },
-    capBack  : { t: [[0.4103, 0.4533], [0.4500, 0.0314], [1.1106, 0.2500], [0.4634, 0.3695]], r: [0.000, 2.420, 0.000, 0.000, 0.000] },
-    capFront : { t: [[0.0356, 0.4200], [0.6500, 0.1423], [0.2501, 0.6399], [0.4191, 0.0379]], r: [0.000, 0.000, 0.406, 0.000, 0.000] },
-    tightUnder: { t: [[0.0200, 0.1473], [1.1259, 0.4035]], r: [0.000, 0.000, 0.000] }
+    backNeck : { mx: 0.697884, my: 0.175462, et: 11.048849, k0: 1.163277, k1: 1.776908 },
+    frontNeck: { et: -0.407531, k0: 0.970923, k1: 0.699718 },
+    backArm  : { pdx: -0.009753, pdy: 0.028694, hdx: 0.501658, hdy: 0.036540, tR: 0.339969, k0: 1.870135, k1: 0.945052 },
+    frontArm : { pdx: 0.013299, pdy: -0.020467, hdx: 0.697250, hdy: 0.088058, tR: 0.070800, k0: 1.508443, k1: 1.263473 },
+    capBack  : { k0: 1.1487, k1: 1.8359 },
+    capFront : { k0: 0.9437, k1: 0.9742 },
+    tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0110 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
