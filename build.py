@@ -59,6 +59,9 @@ def render(shell, apps, portable):
             f'<iframe class="suiteframe" data-app="{folder}" title="{label}" '
             f'{attr}{"" if i == 0 else " hidden"}></iframe>'
         )
+    for ph in ('<!--TABS-->', '<!--FRAMES-->'):
+        if shell.count(ph) != 1:
+            sys.exit(f'shell.html: 자리표시자 {ph} 가 정확히 1번 나와야 합니다 (현재 {shell.count(ph)}번)')
     body = shell.replace('<!--TABS-->', '\n      '.join(tabs)) \
                 .replace('<!--FRAMES-->', '\n    '.join(frames))
     stamp = datetime.date.today().isoformat()
