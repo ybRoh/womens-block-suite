@@ -74,11 +74,41 @@ function ptPolyDist(p, poly) {
   return d;
 }
 /** 참조 점들 → 엔진 폴리라인 최대 편차 + 최악 지점 */
+/** 도면 대조 편차 — **양방향(하우스도르프)**.
+ *  ⚠ 한 방향(도면 점 → 내 곡선)만 재면 내 곡선이 밖으로 튀거나 **고리를 만들어도**
+ *    도면 점은 여전히 곡선 가까이 있어 편차가 안 는다. 실제로 그 실수로 다른 원형에서
+ *    "편차 0.038 합격"인데 곡선길이가 4.3cm 긴 해가 채택된 적이 있다. (SPEC §22) */
 function devToPoly(refPts, poly) {
   var mx = 0, at = null;
   refPts.forEach(function (p) { var d = ptPolyDist(p, poly); if (d > mx) { mx = d; at = p; } });
+  poly.forEach(function (p) { var d = ptPolyDist(p, refPts); if (d > mx) { mx = d; at = p; } });
   return { max: mx, at: at };
 }
+/** 열린 곡선용 자기교차 — `selfIntersections()` 는 **폐곡선용**이라 마지막 점과 첫 점을
+ *  이어 버린다. 열린 곡선(암홀·목선·밑단)에 그걸 쓰면 없는 교차가 잡힌다. */
+function selfIntersectionsOpen(pts) {
+  var n = 0;
+  for (var i = 0; i < pts.length - 1; i++)
+    for (var j = i + 2; j < pts.length - 1; j++)
+      if (segIntersect(pts[i], pts[i + 1], pts[j], pts[j + 1])) n++;
+  return n;
+}
+/** 곡률 급변 최대치 — 꺾여 보이는지의 지표. C2 스플라인이면 0.15 아래. (SPEC §22) */
+function maxCurvatureJump(poly) {
+  var ang = [], k = [], i;
+  for (i = 1; i < poly.length; i++) ang.push(Math.atan2(poly[i][1] - poly[i - 1][1], poly[i][0] - poly[i - 1][0]));
+  for (i = 1; i < ang.length; i++) {
+    var d = ang[i] - ang[i - 1];
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    var ds = Math.hypot(poly[i + 1][0] - poly[i][0], poly[i + 1][1] - poly[i][1]);
+    k.push(ds > 1e-9 ? d / ds : 0);
+  }
+  var j = 0;
+  for (i = 1; i < k.length; i++) j = Math.max(j, Math.abs(k[i] - k[i - 1]));
+  return j;
+}
+function polyLenOf(pts) { var L = 0; for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]); return L; }
 function segIntersect(p1, p2, p3, p4) {
   var d = (p2[0] - p1[0]) * (p4[1] - p3[1]) - (p2[1] - p1[1]) * (p4[0] - p3[0]);
   if (Math.abs(d) < 1e-12) return false;
@@ -183,21 +213,39 @@ function section1() {
     arcPts.push(toFront([arc.c[0] + arc.r * Math.cos(a), arc.c[1] + arc.r * Math.sin(a)]));
   }
   var curveJobs = [
-    { name: GTNAME(0) + ' (curves[0] ' + GTC(0).length + '점)', ref: GTC(0), segs: gDxf.backNeck },
-    { name: GTNAME(1) + ' (curves[1] ' + GTC(1).length + '점)', ref: GTC(1), segs: gDxf.backArm },
-    { name: GTNAME(2) + ' (curves[2] ' + GTC(2).length + '점)', ref: GTC(2), segs: gDxf.frontHem,
+    { gtId: 0, name: GTNAME(0) + ' (curves[0] ' + GTC(0).length + '점)', ref: GTC(0), segs: gDxf.backNeck },
+    { gtId: 1, name: GTNAME(1) + ' (curves[1] ' + GTC(1).length + '점)', ref: GTC(1), segs: gDxf.backArm },
+    { gtId: 2, name: GTNAME(2) + ' (curves[2] ' + GTC(2).length + '점)', ref: GTC(2), segs: gDxf.frontHem,
       note: "hemStyle:'curve' (§9-1 로 기본값 확정) — 구판 'spec' 과의 차이는 아래 [1-D]" },
-    { name: GTNAME(3) + ' (arcs[0]+curves[3] ' + (arcPts.length + GTC(3).length) + '점)',
+    { gtId: 3, name: GTNAME(3) + ' (arcs[0]+curves[3] ' + (arcPts.length + GTC(3).length) + '점)',
       ref: arcPts.concat(GTC(3)), segs: gDxf.frontNeck },
-    { name: GTNAME(4) + ' (curves[4] ' + GTC(4).length + '점)', ref: GTC(4), segs: gDxf.frontArm }
+    { gtId: 4, name: GTNAME(4) + ' (curves[4] ' + GTC(4).length + '점)', ref: GTC(4), segs: gDxf.frontArm }
   ];
+  /* 곡선별 허용치 — 암홀만 0.10. 이유 둘 (SPEC §22):
+     ① C2 연속 스플라인으로 바꾸면서 편차를 조금 내주고 **곡률 급변 0.93 → 0.03**
+        (눈에 보이던 꺾임)과 **곡선길이 정확 일치**를 얻었다. 봉제에 쓰는 값은 길이다.
+     ② 원본 DXF 는 암홀이 어깨점에서 어깨선 수직에서 **9° 벗어나** 도착한다(손으로 그은
+        스플라인). 엔진은 SPEC §5-7 의 봉제 규칙대로 **정확히 수직**으로 도착시키므로
+        어깨점 근처에서 도면과 어긋날 수밖에 없다 — 규칙이 우선이다. */
+  var CURVE_TOL = { 0: 0.07, 1: 0.10, 3: 0.07, 4: 0.10 };
+  /* 목선도 0.07 — 같은 이유다. 원본 DXF 는 목선이 목옆점에서 어깨수직에서 3~6° 벗어나
+     도착하는데, 엔진은 §5-7 대로 정확히 수직으로 도착시킨다(앞뒤 목선이 어깨솔기에서
+     매끄럽게 이어지려면 필요). 그 대가로 목옆점 근처에서 도면과 어긋난다. */
   var worstCurve = 0;
-  curveJobs.forEach(function (j) {
+  curveJobs.forEach(function (j, ji) {
     var poly = U.sampleSegs(j.segs, 0.02);
     var d = devToPoly(j.ref, poly);
+    var tol = CURVE_TOL[j.gtId] || TOL;
     worstCurve = Math.max(worstCurve, d.max);
-    check('DXF', j.name, d.max <= TOL,
-      '최대편차 ' + num(d.max) + ' cm   (최악 지점 ' + num(d.at[0], 3) + ', ' + num(d.at[1], 3) + ')');
+    check('DXF', j.name, d.max <= tol,
+      '최대편차 ' + num(d.max) + ' cm (허용 ' + tol + ')   (최악 지점 ' + num(d.at[0], 3) + ', ' + num(d.at[1], 3) + ')');
+    /* 편차만 보면 못 잡는 것들 — 고리·길이·꺾임 (SPEC §22) */
+    check('DXF', j.name + ' 자기교차', selfIntersectionsOpen(poly) === 0, String(selfIntersectionsOpen(poly)));
+    var dl = Math.abs(polyLenOf(poly) - polyLenOf(j.ref));
+    check('DXF', j.name + ' 곡선길이', dl <= 0.10,
+      num(polyLenOf(poly)) + '  도면 ' + num(polyLenOf(j.ref)) + '  차 ' + num(dl));
+    var kj = maxCurvatureJump(poly);
+    check('DXF', j.name + ' 매끄러움', kj <= 0.15, '곡률급변 ' + num(kj) + ' (허용 0.15)');
     if (j.note) console.log('         ↳ ' + j.note);
   });
 

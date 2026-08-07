@@ -35,7 +35,10 @@ var TOL_CURVE = 0.05;   // 곡선 최대편차 (cm)
    · backArm 0.06 — 적합 기준에 **곡선길이 일치와 자기교차 금지**를 넣은 뒤의 수렴값
      (0.052). 이전 0.044 는 길이가 0.023 어긋난 해였다. 편차 0.008 을 더 줄이려고
      길이를 틀리게 두는 것은 손해라 판단해 허용치를 올린다. */
-var CURVE_TOL = { frontArm: 0.08, backArm: 0.06 };
+var CURVE_TOL = { backNeck: 0.08, frontArm: 0.06, backArm: 0.05 };
+/* backNeck 0.08 — 원본 DXF 의 뒷목은 목옆점에서 어깨수직에서 **13.4° 벗어나** 도착한다
+   (앞목은 1.0°). 그대로 따르면 어깨솔기에서 목선이 12° 꺾인다. 엔진은 SPEC §23 대로
+   앞뒤 모두 **어깨선에 수직**으로 도착시키므로 목옆점 근처에서 도면과 어긋난다 — 봉제가 우선. */
 var TOL_KINK = 0.15;    // 곡률 급변 허용 — C2 스플라인이면 0.1 아래로 떨어진다
 var TOL_SEW = 0.10;     // 봉제되는 두 변의 길이 차 허용 (cm)
 
@@ -154,8 +157,9 @@ function fitCost(gtPts, gtLen, segs) {
  * 좌표하강 — 파라미터 하나씩 스텝을 줄여가며 최대편차를 낮춘다.
  * 전부 무차원 비율/각도라 다른 호수에서도 같은 형상이 유지된다.        */
 var SPECS = {
-  backNeck:  ['mx', 'my', 'et', 'k0', 'k1'],
-  frontNeck: ['et', 'k0', 'k1'],
+  /* 목선 끝접선은 **어깨선 수직 고정**(SPEC §23)이라 et 를 넣지 않는다 */
+  backNeck:  ['mx', 'my', 'k0', 'k1'],
+  frontNeck: ['k0', 'k1'],
   backArm:   ['pdx', 'pdy', 'hdx', 'hdy', 'tR', 'k0', 'k1'],
   frontArm:  ['pdx', 'pdy', 'hdx', 'hdy', 'tR', 'k0', 'k1']
 };
@@ -373,6 +377,44 @@ function sectionCurves(m) {
      f2(F) + '  도면 문자 ' + GT.annotated['앞암홀길이']);
 }
 
+/** 곡선 끝접선 — 목선·암홀은 어깨점에서 **어깨선에 수직**으로 도착해야 한다 (SPEC §23).
+ *  앞뒤가 어깨솔기에서 같은 각으로 만나야 봉제 후 목선·암홀이 매끄럽게 이어진다. */
+function sectionTangent(m) {
+  console.log('\n[3-T] 끝접선 — 어깨선 수직 도착 (앞뒤가 어깨솔기에서 매끄럽게 이어지는 조건)');
+  var g = E.geom(m, {});
+  function endDir(segs, atEnd) {
+    var p = sampleSegs(segs, 0.02), n = p.length;
+    var a = atEnd ? p[n - 1] : p[0], acc = 0, q = a;
+    var i = atEnd ? n - 2 : 1, st = atEnd ? -1 : 1;
+    for (; i >= 0 && i < n; i += st) { acc += V.dist(q, p[i]); q = p[i]; if (acc >= 0.3) break; }
+    return Math.atan2(q[1] - a[1], q[0] - a[0]) * 180 / Math.PI;
+  }
+  function perpDeg(shDir) { return Math.atan2(shDir[1], shDir[0]) * 180 / Math.PI - 90; }
+  function diff(a, b) { var d = a - b; while (d > 90) d -= 180; while (d < -90) d += 180; return Math.abs(d); }
+  /** 해석적 끝접선 — 마지막 베지어의 c2→p1 방향. 제도 규칙이 그대로 드러난다. */
+  function endDirExact(segs) {
+    var g2 = segs[segs.length - 1];
+    return Math.atan2(g2.p1[1] - g2.c2[1], g2.p1[0] - g2.c2[0]) * 180 / Math.PI;
+  }
+  var JOBS = [
+    ['뒷목 @목옆점',    g.backNeck,  g.bShDir],
+    ['앞목 @목옆점',    g.frontNeck, g.fShDir],
+    ['뒤 암홀 @어깨점', g.backArm,   g.bShDir],
+    ['앞 암홀 @어깨점', g.frontArm,  g.fShDir]
+  ];
+  JOBS.forEach(function (r) {
+    var perp = perpDeg(r[2]);
+    ok(diff(endDirExact(r[1]), perp) <= 0.5, r[0] + ' 어깨선 ⟂ (해석적)',
+       '어긋남 ' + f2(diff(endDirExact(r[1]), perp)) + '° (허용 0.5°)');
+  });
+  /* 실효각(끝점에서 0.3cm 현)은 곡률 때문에 해석적 값과 다르다. 원본 DXF 도 3~6° 이므로
+     같은 대역이면 된다 — 이게 커지면 끝에서 지나치게 급히 꺾인다는 뜻이다. */
+  JOBS.forEach(function (r) {
+    var e = diff(endDir(r[1], true), perpDeg(r[2]));
+    ok(e <= 6.0, r[0] + ' 실효각 (0.3cm 현)', f2(e) + '° (허용 6.0° · 도면도 3~6°)');
+  });
+}
+
 function sectionSew(m, d) {
   console.log('\n[3] 봉제 정합 — 맞물리는 두 변의 길이 (허용 ' + TOL_SEW + ' cm)');
   var M = d.measures;
@@ -533,6 +575,7 @@ if (process.argv.indexOf('--calibrate') >= 0) {
   sectionSkeleton(m, d);
   sectionCurves(m);
   sectionSew(m, d);
+  sectionTangent(m);
   sectionSleeve(m, d);
   sectionTight(m);
   sectionSizes();

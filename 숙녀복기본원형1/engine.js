@@ -894,7 +894,10 @@
     var Mp = [BNP[0] + W * C.mx, BNP[1] + Hy * C.my];
     /* 끝접선 — 이 원형의 뒷목은 어깨선에 **수직으로 도착하지 않는다**
        (66호 DXF 실측 −58.05°, 어깨 수직이면 −71.38°). 어깨 수직에서 et 도 돌려 맞춘다. */
-    var pin = rotv(perpToward(shDir, SNP, BNP), C.et || 0);
+    /* 목옆점에는 **어깨선에 수직으로** 도착한다 (SPEC §5-7 · §23).
+       앞뒤 목선이 어깨솔기에서 같은 각으로 만나야 봉제 후 목선이 매끄럽다.
+       ※ 원본 DXF 는 이 각이 벗어나 있지만(손으로 그은 스플라인) 규칙을 따른다. */
+    var pin = perpToward(shDir, SNP, BNP);
     return splineSegs([BNP, Mp, SNP],
       endTan([1, 0], C.k0),        // CB 에서 수평 출발
       endTan(V.mul(pin, -1), C.k1));
@@ -906,7 +909,7 @@
     var C = CAL.frontNeck;
     var dep = FNP[1];                                            // 앞목깊이 = B/12
     var Mp = [nw * K.neckDiagRatio, dep * K.neckDiagRatio];      // 목 사각 대각선 2/3 점
-    var pin = rotv(perpToward(shDir, SNP, FNP), C.et || 0);      // 어깨 수직에서 et 도
+    var pin = perpToward(shDir, SNP, FNP);      // 어깨선에 수직 도착 (§5-7)
     return splineSegs([FNP, Mp, SNP],
       endTan([1, 0], C.k0),
       endTan(V.mul(pin, -1), C.k1));
@@ -946,13 +949,13 @@
    *  최소화하도록 적합한 값. 모두 무차원 비율/각도(도)이므로 44~88호에서도
    *  같은 모양이 유지된다.  재적합: node engine-verify.js --calibrate         */
   var CAL = {
-    backNeck : { mx: 0.697884, my: 0.175462, et: 11.048849, k0: 1.163277, k1: 1.776908 },
-    frontNeck: { et: -0.407531, k0: 0.970923, k1: 0.699718 },
-    backArm  : { pdx: -0.009753, pdy: 0.028694, hdx: 0.501658, hdy: 0.036540, tR: 0.339969, k0: 1.870135, k1: 0.945052 },
-    frontArm : { pdx: 0.013299, pdy: -0.020467, hdx: 0.697250, hdy: 0.088058, tR: 0.070800, k0: 1.508443, k1: 1.263473 },
+    backNeck : { mx: 0.533270, my: 0.066068, k0: 0.586070, k1: 1.029722 },
+    frontNeck: { k0: 0.961130, k1: 0.727263 },
+    backArm  : { pdx: 0.004119, pdy: -0.052741, hdx: 0.531282, hdy: 0.044945, tR: 0.224301, k0: 1.633277, k1: 1.638341 },
+    frontArm : { pdx: 0.018507, pdy: 0.084168, hdx: 0.885293, hdy: 0.198793, tR: 0.091475, k0: 1.470229, k1: 1.536268 },
     capBack  : { k0: 1.1487, k1: 1.8359 },
     capFront : { k0: 0.9437, k1: 0.9742 },
-    tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0110 }
+    tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0108 }
   };
 
   /* ══════════════════════════════════════════════════════════════════

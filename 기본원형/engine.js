@@ -56,6 +56,58 @@
   var F2 = function (p) { return p[0].toFixed(3) + ',' + p[1].toFixed(3); };
   var sPath = function (s) { return 'M ' + F2(s[0].p0) + ' ' + s.map(function (g) { return 'C ' + F2(g.c1) + ' ' + F2(g.c2) + ' ' + F2(g.p1); }).join(' '); };
   var LN = function () { return 'M ' + Array.prototype.slice.call(arguments).map(F2).join(' L '); };
+  /** 앵커를 지나는 **C2 연속 3차 스플라인** → 베지어 세그먼트 배열.
+   *
+   *  왜 필요한가 — 조각마다 장력을 따로 적합하면 접선은 이어져도(G1) **곡률이 튄다**.
+   *  실제로 앞 암홀에서 곡률이 −10 ↔ +11 로 뒤집혀 눈에 보이는 꺾임이 생겼고,
+   *  소매산은 중간 앵커 구간이 직선처럼 펴졌다.
+   *  C2 스플라인은 곡률까지 이어져 사람이 운형자로 그은 곡선처럼 매끄럽다.
+   *  (원본 도면의 AutoCAD 스플라인도 같은 계열이라 대조 정확도도 좋아진다.)
+   *
+   *  @param pts  반드시 지나야 하는 점들 (제도 규칙점)
+   *  @param d0   시작 접선 **벡터**. null 이면 자연단(2차 도함수 0)
+   *  @param d1   끝 접선 벡터.       null 이면 자연단
+   *  끝 접선은 크기가 모양을 좌우하므로 부르는 쪽에서 방향 × (현길이 × 계수) 로 준다. */
+  function splineSegs(pts, d0, d1) {
+    var n = pts.length - 1, i;
+    if (n < 1) return [];
+    var h = [];
+    for (i = 0; i < n; i++) h.push(Math.max(V.dist(pts[i], pts[i + 1]), 1e-9));
+
+    /* 삼중대각 A·m = R  (m = 앵커별 접선벡터). 좌표별 계수가 같아 벡터로 한 번에 푼다. */
+    var A = [], B = [], C2 = [], R = [];
+    for (i = 0; i <= n; i++) { A.push(0); B.push(0); C2.push(0); R.push([0, 0]); }
+    if (d0) { B[0] = 1; C2[0] = 0; R[0] = [d0[0], d0[1]]; }
+    else { B[0] = 2; C2[0] = 1; R[0] = V.mul(V.sub(pts[1], pts[0]), 3 / h[0]); }
+    for (i = 1; i < n; i++) {
+      A[i] = h[i]; B[i] = 2 * (h[i - 1] + h[i]); C2[i] = h[i - 1];
+      R[i] = V.add(V.mul(V.sub(pts[i], pts[i - 1]), 3 * h[i] / h[i - 1]),
+                   V.mul(V.sub(pts[i + 1], pts[i]), 3 * h[i - 1] / h[i]));
+    }
+    if (d1) { A[n] = 0; B[n] = 1; R[n] = [d1[0], d1[1]]; }
+    else { A[n] = 1; B[n] = 2; R[n] = V.mul(V.sub(pts[n], pts[n - 1]), 3 / h[n - 1]); }
+
+    for (i = 1; i <= n; i++) {                    // 토마스 알고리즘
+      var w = A[i] / B[i - 1];
+      B[i] -= w * C2[i - 1];
+      R[i] = V.sub(R[i], V.mul(R[i - 1], w));
+    }
+    var m = [];
+    for (i = 0; i <= n; i++) m.push([0, 0]);
+    m[n] = V.mul(R[n], 1 / B[n]);
+    for (i = n - 1; i >= 0; i--) m[i] = V.mul(V.sub(R[i], V.mul(m[i + 1], C2[i])), 1 / B[i]);
+
+    var segs = [];
+    for (i = 0; i < n; i++) {
+      segs.push({ p0: pts[i], c1: V.add(pts[i], V.mul(m[i], h[i] / 3)),
+                  c2: V.sub(pts[i + 1], V.mul(m[i + 1], h[i] / 3)), p1: pts[i + 1] });
+    }
+    return segs;
+  }
+  /** 스플라인 끝 접선 벡터 — 방향 × k.
+   *  현길이 매개화라 |접선| ≈ 1 이 "자연스러운" 크기다. 현길이를 곱하면 곡선이 부푼다. */
+  function endTan(dir, k) { return V.mul(V.norm(dir), (k === undefined ? 1 : k)); }
+
   function lineSegs() {
     var p = Array.prototype.slice.call(arguments), s = [];
     for (var i = 0; i < p.length - 1; i++) s.push({ p0: p[i], c1: _lerp(p[i], p[i + 1], 1 / 3), c2: _lerp(p[i], p[i + 1], 2 / 3), p1: p[i + 1] });
@@ -636,32 +688,32 @@
     var C = CAL.backNeck;
     var W = SNP[0] - BNP[0], Hy = SNP[1] - BNP[1];
     var Mp = [BNP[0] + W * C.mx, BNP[1] + Hy * C.my];
-    var tm = rotv(V.norm(V.sub(SNP, BNP)), C.mt);       // 현(BNP→SNP)에서 mt도 회전
-    var pin = perpToward(shDir, SNP, BNP);              // 어깨선에 수직, 목 안쪽 방향
-    return [
-      { p0: BNP, c1: [BNP[0] + W * C.h0, BNP[1]], c2: V.sub(Mp, V.mul(tm, W * C.h1)), p1: Mp },
-      { p0: Mp,  c1: V.add(Mp, V.mul(tm, W * C.h2)),  c2: V.add(SNP, V.mul(pin, W * C.h3)), p1: SNP }
-    ];
+    /* 목옆점에는 **어깨선에 수직으로** 도착한다 (SPEC §5-7 · §23).
+       앞뒤 목선이 어깨솔기에서 같은 각으로 만나야 봉제 후 목선이 매끄럽다.
+       ※ 원본 DXF 는 이 각이 벗어나 있지만(손으로 그은 스플라인) 규칙을 따른다. */
+    var pin = perpToward(shDir, SNP, BNP);   // 어깨 수직에서 et 도
+    return splineSegs([BNP, Mp, SNP],
+      endTan([1, 0], C.k0),          // CB 에서 수평 출발
+      endTan(V.mul(pin, -1), C.k1)); // 목옆점 도착 방향
   }
 
-  /** 앞 목선 : CF(수평 출발) → 목 구성 사각 대각선 2/3 점 → 목옆점(어깨선에 수직 도착) — 2 큐빅
+  /** 앞 목선 : CF(수평 출발) → 목 구성 사각 대각선 2/3 점 → 목옆점 — C2 스플라인
    *  대각선 2/3 점은 66호 DXF 의 원호/스플라인 접합점과 정확히 일치한다 (4.8667, 5.0667). */
   function curveFrontNeck(FNP, SNP, shDir, nw) {
     var C = CAL.frontNeck;
     var dep = FNP[1];                                            // 앞목깊이 = B/12+0.3
-    var Mp = [nw * K.neckDiagRatio, dep * K.neckDiagRatio];      // 목 구성 사각 대각선 2/3 점
-    var diag = V.norm([nw, dep]);
-    var tm = rotv([diag[1], -diag[0]], C.mt);                    // 대각선 수직에서 mt도 회전
-    var pin = perpToward(shDir, SNP, FNP);
-    return [
-      { p0: FNP, c1: [FNP[0] + nw * C.h0, FNP[1]], c2: V.sub(Mp, V.mul(tm, nw * C.h1)), p1: Mp },
-      { p0: Mp,  c1: V.add(Mp, V.mul(tm, nw * C.h2)), c2: V.add(SNP, V.mul(pin, nw * C.h3)), p1: SNP }
-    ];
+    var Mp = [nw * K.neckDiagRatio, dep * K.neckDiagRatio];      // 목 사각 대각선 2/3 점
+    var pin = perpToward(shDir, SNP, FNP);      // 어깨선에 수직 도착 (§5-7)
+    return splineSegs([FNP, Mp, SNP],
+      endTan([1, 0], C.k0),
+      endTan(V.mul(pin, -1), C.k1));
   }
 
   /** 암홀 : 겨드랑(수평 출발) → 오목점 hollow → 품점(등품/앞품 접점) → 어깨점(어깨선 수직 도착)
-   *  Freesewing fsArmhole 의 4앵커 3세그먼트 구조. 앵커 위치·핸들 길이는 전부
-   *  dx(품선→옆선) · dy(어깨점→BL) 스팬 대비 비율이라 호수에 따라 자연스럽게 스케일된다.
+   *
+   *  네 점을 **C2 연속 스플라인**으로 잇는다. 예전처럼 구간마다 장력을 따로 적합하면
+   *  접선은 이어져도(G1) **곡률이 튀어** 품점 부근에서 눈에 보이게 꺾인다 (SPEC §22).
+   *  앵커 위치는 dx(품선→옆선)·dy(어깨점→BL) 대비 비율이라 호수에 따라 스케일된다.
    *  앞·뒤 모두 "x 는 중심선에서 옆선 쪽 +" 로컬 좌표라 같은 식을 쓴다. */
   function curveArmhole(U, SP, shDir, pitchXm, BL, back) {
     var C = back ? CAL.backArm : CAL.frontArm;
@@ -669,13 +721,14 @@
     var dx = U[0] - pitchXm;                                   // 품선 → 옆선 가로 스팬
     var P = [pitchXm + C.pdx * dx, SP[1] + C.pky * dy];        // 품점
     var H = [U[0] - C.hdx * dx, BL - C.hdy * dy];              // 오목점 hollow
-    var tm = rotv(V.norm(V.sub(P, U)), C.hth);                 // hollow 접선 = 현(U→P) 에서 hth도
+    /* 어깨점에는 **어깨선에 수직으로** 도착한다 (SPEC §5-7).
+       앞뒤 암홀이 어깨솔기에서 같은 각으로 만나야 봉제 후 암홀이 매끄럽기 때문이다.
+       ※ 원본 DXF 는 이 각이 9° 벗어나 있지만(손으로 그은 스플라인), 규칙을 따른다.
+         그 대가로 어깨점 근처에서 도면과 최대 0.09 cm 차이가 난다 — 봉제가 우선. */
     var pin = perpToward(shDir, SP, U);
-    return [
-      { p0: U, c1: [U[0] - C.h0 * dx, U[1]], c2: V.sub(H, V.mul(tm, C.h1 * dy)), p1: H },
-      { p0: H, c1: V.add(H, V.mul(tm, C.h2 * dy)), c2: [P[0], P[1] + C.h3 * dy], p1: P },
-      { p0: P, c1: [P[0], P[1] - C.h4 * dy], c2: V.add(SP, V.mul(pin, C.h5 * dy)), p1: SP }
-    ];
+    return splineSegs([U, H, P, SP],
+      endTan([-1, 0], C.k0),                                   // 겨드랑에서 수평 출발
+      endTan(V.mul(pin, -1), C.k1));
   }
 
   /** 앞 밑단 : CF → 옆선
@@ -704,20 +757,13 @@
    *  최소화하도록 적합한 값. 모두 무차원 비율/각도(도)이므로 55·77호에서도
    *  같은 모양이 유지된다.  재적합: node engine-verify.js --calibrate         */
   var CAL = {
-    /* 뒤 목선 — 스팬 W = 목옆점 x. mx·my = 중간 앵커의 (BNP→목옆점) 사각 내 비율,
-       mt = 현에서의 중간 접선 회전각(도). 66호 DXF 최대편차 0.0038 cm */
-    backNeck : { mx: 0.739689, my: 0.173472, mt: -0.476839,
-                 h0: 0.253966, h1: 0.198616, h2: 0.253903, h3: 0.036665 },
-    /* 앞 목선 — 스팬 = B/12. 중간 앵커는 목 사각 대각선 2/3 점(고정),
-       mt = 대각선 수직에서의 회전각(도). 최대편차 0.0106 cm */
-    frontNeck: { mt: -8.218831, h0: 0.108725, h1: 0.340544, h2: 0.288209, h3: 0.010292 },
-    /* 암홀 — pdx·hdx 는 dx(품선→옆선), pky·hdy·h1~h5 는 dy(어깨점→BL) 대비 비율.
-       hth = 현(겨드랑→품점)에서의 hollow 접선 회전각(도).
-       뒤 최대편차 0.0319 cm · 앞 0.0387 cm */
-    backArm  : { pdx: -0.011348, pky: 0.531304, hdx: 0.421482, hdy: 0.020323, hth: -32.156148,
-                 h0: 0.243732, h1: 0.041917, h2: 0.139686, h3: 0.205414, h4: 0.120163, h5: 0.004000 },
-    frontArm : { pdx: -0.000501, pky: 0.521973, hdx: 0.720336, hdy: 0.102838, hth: -1.629470,
-                 h0: 0.438464, h1: 0.083725, h2: 0.065721, h3: 0.240844, h4: 0.133049, h5: 0.013419 }
+    /* 앵커 위치(무차원 비율) + **끝 접선 크기 계수 k0·k1** 뿐이다.
+       구간별 장력·접선회전은 곡률을 튀게 만들어 없앴다 — 사이는 C2 스플라인이 정한다.
+       재적합: node calibrate.js */
+    backNeck : { mx: 0.904399, my: 0.433799, k0: 0.737113, k1: 1.681409 },
+    frontNeck: { k0: 0.963552, k1: 1.002014 },
+    backArm  : { pdx: 0.140985, pky: 0.269766, hdx: 0.920056, hdy: 0.212297, k0: 1.513882, k1: 0.407768 },
+    frontArm : { pdx: 0.104999, pky: 0.311348, hdx: 0.766925, hdy: 0.118526, k0: 1.588067, k1: 0.234824 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
