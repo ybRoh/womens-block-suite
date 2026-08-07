@@ -934,14 +934,18 @@
     els.sleeveType.value = state.sleeveType;
 
     var tight = state.sleeveType === 'tight';
-    if (els.cuffRow) els.cuffRow.hidden = !tight;
+    var two = state.sleeveType === 'two';
+    if (els.cuffRow) els.cuffRow.hidden = !tight;   // 2장소매는 소맷부리가 두 몫이라 입력을 두지 않는다
     if (tight && els.cuffW) {
       var d = state.draft, slv = d && d.sleeve;
       if (state.cuffW === null && slv && isFinite(slv.cuffW)) els.cuffW.value = f1(slv.cuffW);
       else if (state.cuffW !== null) els.cuffW.value = f1(state.cuffW);
     }
     if (els.sleeveHint) {
-      els.sleeveHint.innerHTML = tight
+      els.sleeveHint.innerHTML = two
+        ? '<b>큰소매 + 작은소매 2조각</b>입니다. 뒤 소매산의 <b>x = −AH/4</b> 지점에서 갈라지고, ' +
+          '두 절개변은 길이가 같아 서로 봉제됩니다. 소맷부리는 큰소매 몫 + 작은소매 몫 (도면 (23~25)+(4~5)).'
+        : tight
         ? '앞 밑선은 <b>반소매 밑단 들임 지점</b>(앞반폭 − 1.5)을 지나 소맷부리까지 들어옵니다. ' +
           '뒤 밑선은 직선이고 앞보다 길어 <b>이세처리</b>합니다. 소매산 정점은 앞으로 <b>0.6</b> 이동합니다.'
         : '밑단은 좌우 <b>1.5</b> 씩 들이고 2등분점에서 끝까지 <b>0.5</b> 내려갑니다.';
@@ -1258,7 +1262,7 @@
   function PDFM() { return global.NoDartPDF; }
 
   function pdfFileName() {
-    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'tight' ? '긴소매' : '반소매') +
+    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'two' ? '2장소매' : state.sleeveType === 'tight' ? '긴소매' : '반소매') +
       '_' + (state.printMode === 'roll' ? '롤지' + state.rollWidthMm + 'mm' : 'A4분할') +
       '_시접' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset).replace(/\s+/g, '') +
       '_1대1.pdf';
@@ -1315,7 +1319,7 @@
   }
 
   function dxfFileName() {
-    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'tight' ? '긴소매' : '반소매') +
+    return '숙녀복기본원형1_' + state.size + '_' + (state.sleeveType === 'two' ? '2장소매' : state.sleeveType === 'tight' ? '긴소매' : '반소매') +
       '_시접' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset).replace(/\s+/g, '') +
       '_' + ($('ndDxfUnit') ? $('ndDxfUnit').value : 'cm') + '.dxf';
   }

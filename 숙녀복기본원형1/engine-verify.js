@@ -308,6 +308,9 @@ function calibrate() {
     var body = SPECS[name].map(function (k) { return k + ': ' + C[k].toFixed(6); }).join(', ');
     return '    ' + name + (name.length < 9 ? ' '.repeat(9 - name.length) : '') + ': { ' + body + ' }';
   }).concat(TGT ? ['capBack', 'capFront', 'tightUnder'].map(arrRow) : [])
+    .concat(['    /* 2장소매 — 절개변·앞경계의 끝 접선 크기 */',
+             '    twoSeam  : { k0: ' + E.CAL.twoSeam.k0.toFixed(4) + ' }',
+             '    twoFront : { k0: ' + E.CAL.twoFront.k0.toFixed(4) + ' }'].slice(0, 0))
     .join(',\n') + '\n  };';
 
   var file = path.join(HERE, 'engine.js');
@@ -530,6 +533,74 @@ function sectionTight(m) {
   });
 }
 
+/* ══ 2장소매 (교재 48P) ═══════════════════════════════════════════════ */
+var WGT = (function () {
+  var f = path.join(HERE, 'dxf-two-sleeve-groundtruth.json');
+  return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
+})();
+
+function sectionTwo(m) {
+  if (!WGT) { console.log('\n[5-2] 2장소매 — 정답지 없음, 건너뜀'); return; }
+  console.log('\n[5-2] 2장소매 — 도면 대조 (48P · 큰소매 + 작은소매)');
+  var d = E.draftLady1(m, { seam: 0, sleeveType: 'two' });
+  var s = d.sleeve, R = WGT.ref;
+
+  ok(d.pieces.length === 4, '조각 4개 (뒷판·앞판·큰소매·작은소매)',
+     d.pieces.map(function (p) { return p.id; }).join(' '));
+
+  var want = [
+    ['절개 시작점',   s.splitP,               [R.splitX, R.splitY], 0.12],
+    ['작은소매 뒤 경계', [s.backOutX, s.topY], [R.backOut, WGT.curves.capBackOut.start[1]], 0.08],
+    ['큰소매 앞 경계',  [s.frontInX, s.topY],  [R.frontIn, WGT.curves.capFront.end[1]], 0.08],
+    ['큰소매 앞 밑단',  s.bigHemF,             WGT.curves.bigHem.end, 0.10],
+    ['작은소매 밑단 뒤', s.undHemB,            WGT.curves.underHem.start, 0.10]
+  ];
+  want.forEach(function (w) {
+    var e = V.dist(w[1], w[2]);
+    ok(e <= w[3], w[0], '편차 ' + f2(e) + ' (허용 ' + w[3] + ')  엔진(' + f2(w[1][0]) + ', ' + f2(w[1][1]) + ')');
+  });
+
+  /* ★ 봉제 — 절개변 두 개가 서로 맞물린다. 길이가 같아야 한다. */
+  var dSeam = Math.abs(s.seamLenBig - s.seamLenUnder);
+  ok(dSeam <= TOL_SEW, '절개변 (큰소매 = 작은소매)',
+     f2(s.seamLenBig) + ' / ' + f2(s.seamLenUnder) + '  차 ' + f2(dSeam) +
+     '  (도면 ' + f2(WGT.curves.bigBack.arc) + ' = ' + f2(WGT.curves.underBack.arc) + ')');
+
+  /* 소매산을 두 조각이 나눠 갖는다 — 합이 원래 소매산 길이여야 한다 */
+  var capBig = E.util.polyLen(s.capBigBack) + E.util.polyLen(sampleSegs(s.capFront, 0.02));
+  var capUnd = E.util.polyLen(s.capUnderBack);
+  var capAll = capBig + capUnd, capRef = s.capLenTotal;
+  ok(Math.abs(capAll - capRef) <= 0.10, '소매산 분할 합 = 전체 소매산',
+     f2(capBig) + ' + ' + f2(capUnd) + ' = ' + f2(capAll) + '  전체 ' + f2(capRef));
+  ok(capAll - (s.AHb + s.AHf) > 0.8 && capAll - (s.AHb + s.AHf) <= 3.0,
+     '소매산 이세분 (0.8 ~ 3.0)', f2(capAll - (s.AHb + s.AHf)));
+
+  note('소맷부리 큰 ' + f2(s.cuffBig) + ' + 작은 ' + f2(s.cuffUnder) + ' = ' + f2(s.cuffW) +
+       '  (도면 표기 (23~25)+(4~5))');
+
+  /* 곡선 매끄러움 · 고리 */
+  [['큰소매 뒤 절개선', s.bigBack], ['작은소매 절개선', s.undBack],
+   ['큰소매 앞 밑선', s.bigFront], ['작은소매 바깥 뒤선', s.undOuter]].forEach(function (c) {
+    var poly = sampleSegs(c[1], 0.02);
+    ok(selfIntersections(poly) === 0, c[0] + ' 자기교차 없음', String(selfIntersections(poly)));
+    var kj = maxCurvatureJump(poly);
+    ok(kj <= TOL_KINK, c[0] + ' 매끄러움', '곡률급변 ' + f2(kj));
+  });
+
+  /* 전 호수 */
+  E.SIZES.forEach(function (sz) {
+    var dd = E.draftLady1(E.measuresForSize(sz), { seam: 0, sleeveType: 'two' });
+    var ss = dd.sleeve, bad = [];
+    if (Math.abs(ss.seamLenBig - ss.seamLenUnder) > TOL_SEW) bad.push('절개변 불일치');
+    if (dd.pieces.length !== 4) bad.push('조각 ' + dd.pieces.length + '개');
+    if (ss.cuffW <= 10) bad.push('소맷부리 ' + f2(ss.cuffW));
+    ok(bad.length === 0, sz + ' 2장소매',
+       '길이 ' + f2(ss.sleeveLen) + ' · 소맷부리 ' + f2(ss.cuffW) +
+       ' · 절개변차 ' + f2(Math.abs(ss.seamLenBig - ss.seamLenUnder)) +
+       (bad.length ? '  → ' + bad.join(', ') : ''));
+  });
+}
+
 function sectionSizes() {
   console.log('\n[6] 전 호수 (44~88호) 정상 제도');
   E.SIZES.forEach(function (sz) {
@@ -578,6 +649,7 @@ if (process.argv.indexOf('--calibrate') >= 0) {
   sectionTangent(m);
   sectionSleeve(m, d);
   sectionTight(m);
+  sectionTwo(m);
   sectionSizes();
   sectionSeam();
   console.log('\n' + (fails.length ? '실패 ' + fails.length + '건:\n  - ' + fails.join('\n  - ')

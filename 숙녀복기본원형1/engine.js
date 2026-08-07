@@ -309,7 +309,15 @@
     tightApexShift   : 0.6,    // 소매산 정점을 앞으로 이동 (도면 `앞으로이동 0.6`)
     tightBackHemDrop : 0.3,    // 소맷부리 뒤쪽 끝 내림 (도면 `0.3↓`)
     tightElbowAdd    : 2.5,    // 팔꿈치선 = 소매길이/2 + 2.5 (도면 실측 32.314)
-    tightUnderTension: 0.42    // 앞 밑선 통과점 베지어 장력 (재적합 대상)
+    tightUnderTension: 0.42,   // 앞 밑선 통과점 베지어 장력 (재적합 대상)
+
+    /* ── 2장소매 (교재 48P · 숙녀복기본원형 2장소매.dxf 실측) ── */
+    twoSideOff       : 3.0,    // 작은소매 뒤 +3 · 큰소매 앞 −3 (도면 `3`)
+    twoHemDrop       : 1.3,    // 밑단이 소매길이보다 내려가는 양 (도면 `1.3↓`)
+    twoBigHemDrop    : 0.244,  // 큰소매 뒤 밑단 추가 하강 (도면 실측)
+    twoFrontHemIn    : 1.7,    // 큰소매 앞 밑단 들임
+    twoFrontElbowIn  : 0.30,   // 큰소매 앞 경계의 팔꿈치 들임
+    twoBackElbowOut  : 0.55    // 작은소매 바깥 뒤 경계의 팔꿈치 내밈
   };
 
   /* ══════════════════════════════════════════════════════════════════
@@ -519,7 +527,10 @@
     /* ───────── 반소매 (SPEC §17-2) ───────── */
     var slv = (opt.includeSleeve === false) ? null : sleeveGeom(m, opt, AHb, AHf);
     var pieces = [backPiece, frontPiece];
-    if (slv) pieces.push(sleevePiece(slv, seam));
+    if (slv) {
+      if (slv.twoPiece) twoSleevePieces(slv, seam).forEach(function (p) { pieces.push(p); });
+      else pieces.push(sleevePiece(slv, seam));
+    }
 
     return {
       pieces: pieces,
@@ -596,7 +607,11 @@
    *  66호 소매길이 23.0 은 그 도면의 정점→밑단중앙 실측값입니다.               */
   var SLEEVE_TYPE = {
     short: { name: '반소매',        len: 23.0, lenGrade: 0.5 },
-    tight: { name: '타이트 긴소매',  len: 59.7, lenGrade: 1.0, cuff: 23.0, cuffGrade: 0.5 }
+    tight: { name: '타이트 긴소매',  len: 59.7, lenGrade: 1.0, cuff: 23.0, cuffGrade: 0.5 },
+    /* 2장소매 — 큰소매·작은소매 **2조각**. 소맷부리는 도면 표기 (23~25)+(4~5) 처럼
+       큰소매 몫과 작은소매 몫으로 나뉜다 (66호 22.15 + 7.01 = 29.16). */
+    two:   { name: '2장소매', len: 59.7, lenGrade: 1.0,
+             cuffBig: 22.15, cuffUnder: 7.01, cuffGrade: 0.5, twoPiece: true }
   };
   var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
 
@@ -664,6 +679,7 @@
   /** 소매 종류에 따라 갈라진다 — 'short' 반소매 / 'tight' 타이트 긴소매 */
   function sleeveGeom(m, opt, AHb, AHf) {
     var stKey0 = SLEEVE_TYPE[opt.sleeveType] ? opt.sleeveType : 'short';
+    if (stKey0 === 'two') return twoSleeveGeom(m, opt, AHb, AHf);
     if (stKey0 === 'tight') return tightSleeveGeom(m, opt, AHb, AHf);
     return shortSleeveGeom(m, opt, AHb, AHf);
   }
@@ -774,6 +790,146 @@
     var W = end[0] - mid[0], D = end[1] - mid[1];
     return [{ p0: mid, c1: [mid[0] + W * K.hemC1, mid[1]],
               c2: [end[0] - W * K.hemC2x, end[1] - D * K.hemC2y], p1: end }];
+  }
+
+  /** 베지어 구간열에서 x = 목표 인 점 — 소매산에서 절개 시작점을 찾는 데 쓴다 */
+  function ptOnSegsAtX(segs, targetX) {
+    var p = sampleSegs(segs, 0.01);
+    for (var i = 1; i < p.length; i++) {
+      var a = p[i - 1], b = p[i];
+      if ((a[0] - targetX) * (b[0] - targetX) <= 0 && Math.abs(b[0] - a[0]) > 1e-9) {
+        var t = (targetX - a[0]) / (b[0] - a[0]);
+        return [targetX, a[1] + (b[1] - a[1]) * t];
+      }
+    }
+    return cp(p[p.length - 1]);
+  }
+  /** 소매산을 x 기준으로 갈라 두 조각이 나눠 갖게 한다 */
+  function splitSegsAtX(segs, targetX) {
+    var p = sampleSegs(segs, 0.01), cut = -1;
+    for (var i = 1; i < p.length; i++) {
+      if ((p[i - 1][0] - targetX) * (p[i][0] - targetX) <= 0) { cut = i; break; }
+    }
+    if (cut < 1) cut = Math.max(1, Math.floor(p.length / 2));
+    return { head: p.slice(0, cut + 1).map(cp), tail: p.slice(cut - 1).map(cp) };
+  }
+  function revPts(a) { return a.slice().reverse(); }
+
+  /* ── 2장소매 (교재 48P) — 큰소매 + 작은소매 ────────────────────────
+   *  소매산·소매길이·팔꿈치선은 **타이트 긴소매와 같다.** 다른 점은 뒤쪽에서 갈라
+   *  두 장으로 만드는 것 —
+   *   · 절개 시작점 = 뒤 소매산 위에서 **x = −AH/4** 인 점 (66호 −10.711, 7.519)
+   *   · 두 조각의 절개변은 그 점에서 갈라져 밑단에서 벌어진다.
+   *     **두 변의 길이가 같아야** 봉제된다 (도면 실측 53.7565 = 53.7565)
+   *   · 작은소매 바깥 뒤 = 소매통 뒤 + 3.0, 큰소매 앞 = 소매통 앞 − 3.0 (도면 `3`)
+   *   · 밑단은 소매길이보다 1.3 내려간다 (도면 `1.3↓`)                        */
+  function twoSleeveGeom(m, opt, AHb, AHf) {
+    var AH = AHb + AHf;
+    var capReduce = (opt.capReduce === undefined) ? K.capReduce : +opt.capReduce;
+    capReduce = Math.max(0, Math.min(1, capReduce));
+    var ST = SLEEVE_TYPE.two, SS = SLEEVE_TYPE.short;
+    var step = (m.B - BASE.B) / GRADE.B;
+    var sleeveLen = (opt.sleeveLen === undefined) ? ST.len + ST.lenGrade * step : +opt.sleeveLen;
+    var cuffBig = (opt.cuffBig === undefined) ? ST.cuffBig + ST.cuffGrade * step : +opt.cuffBig;
+    var cuffUnder = (opt.cuffUnder === undefined) ? ST.cuffUnder + ST.cuffGrade * 0.3 * step : +opt.cuffUnder;
+
+    var cg = capGeom(AH, AHb, AHf, capReduce, K.tightApexShift);
+    var halfB = cg.halfB, halfF = cg.halfF;
+    var elbowY = sleeveLen / 2 + K.tightElbowAdd;
+    var insetY = SS.len + SS.lenGrade * step;
+
+    var splitX = -AH / 4;                                   // 절개 시작 x
+    var splitP = ptOnSegsAtX(cg.capBack, splitX);
+    /* 소매산(정점 → 뒤 소매통)을 절개점에서 자른다.
+       head = 정점~절개점 → **큰소매** 몫, tail = 절개점~뒤 소매통 → **작은소매** 몫 */
+    var capSplit = splitSegsAtX(cg.capBack, splitX);
+
+    var backOutX = -(halfB + K.twoSideOff);
+    var frontInX = halfF - K.twoSideOff;
+    var topY = ptOnSegsAtX(cg.capFront, frontInX)[1];
+    var hemY = sleeveLen, hemLowY = sleeveLen + K.twoHemDrop;
+
+    var bigHemF = [halfF - K.twoFrontHemIn, hemY];
+    var bigHemB = [bigHemF[0] - cuffBig, hemLowY + K.twoBigHemDrop];
+    var undHemB = [backOutX - K.twoHemDrop, hemY];
+    var undHemF = [undHemB[0] + cuffUnder, hemLowY];
+
+    var mkSeam = function (endPt) {
+      var mid = [splitX + (endPt[0] - splitX) * 0.55, elbowY];
+      return splineSegs([splitP, mid, endPt], endTan(V.sub(mid, splitP), CAL.twoSeam.k0), null);
+    };
+    var bigBack = mkSeam(bigHemB);
+    var lenBig = polyLen(sampleSegs(bigBack, 0.02));
+    /* ★ 작은소매 절개변은 큰소매 것과 **길이가 같아야** 봉제된다.
+       밑단 끝 x 를 이분법으로 옮겨 맞춘다 (도면도 53.7565 = 53.7565 로 같다). */
+    var lo = undHemF[0] - 3.0, hi = undHemF[0] + 3.0;
+    for (var it = 0; it < 40; it++) {
+      var mx = (lo + hi) / 2;
+      var L = polyLen(sampleSegs(mkSeam([mx, undHemF[1]]), 0.02));
+      if (L > lenBig) lo = mx; else hi = mx;      // x 를 키우면(앞쪽) 길이가 준다
+    }
+    undHemF = [(lo + hi) / 2, undHemF[1]];
+    var undBack = mkSeam(undHemF);
+
+    var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    var undOuter = splineSegs([[backOutX, topY], [backOutX - K.twoBackElbowOut, elbowY], undHemB],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    var undCapOut = splineSegs([[backOutX, topY], cg.bicepB], endTan([1, -1], 0.8), null);
+
+    var out = {
+      AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
+      sleeveType: 'two', typeName: ST.name, twoPiece: true,
+      cuffBig: cuffBig, cuffUnder: cuffUnder, cuffW: cuffBig + cuffUnder,
+      elbowY: elbowY, insetY: insetY, splitX: splitX, splitP: splitP,
+      backOutX: backOutX, frontInX: frontInX, topY: topY,
+      capBigBack: revPts(capSplit.head),      // 절개점 → 정점
+      capUnderBack: revPts(capSplit.tail),    // 뒤 소매통 → 절개점
+      bigHemF: bigHemF, bigHemB: bigHemB, undHemB: undHemB, undHemF: undHemF,
+      bigBack: bigBack, undBack: undBack, bigFront: bigFront,
+      undOuter: undOuter, undCapOut: undCapOut,
+      seamLenBig: polyLen(sampleSegs(bigBack, 0.02)),
+      seamLenUnder: polyLen(sampleSegs(undBack, 0.02)),
+      underLenB: polyLen(sampleSegs(undOuter, 0.02)),
+      underLenF: polyLen(sampleSegs(bigFront, 0.02)),
+      hemEndB: bigHemB, hemEndF: bigHemF, hemMidB: bigHemB, hemMidF: bigHemF,
+      hemHalfB: cuffBig / 2, hemHalfF: cuffBig / 2, hemBack: null, hemFront: null
+    };
+    for (var k in cg) if (cg.hasOwnProperty(k)) out[k] = cg[k];
+    return out;
+  }
+
+  /** 2장소매 조각 2개 */
+  function twoSleevePieces(s, seam) {
+    function mk(id, name, edges, grain, notches) {
+      var loop = edgesToLoop(edges), sm = buildSeamline(loop, seam);
+      return {
+        id: id, name: name, cutCount: 2, grainline: grain,
+        outline: loop.pts, seamline: sm.seamline,
+        foldEdges: [], seamEdges: sm.seamEdges, seamFoldEdges: [],
+        seamByRole: sm.seamByRole, edges: withSeam(loop.ranges, sm.edgeSeam),
+        internal: [], notches: notches || [], bbox: bboxOf(loop.pts)
+      };
+    }
+    var poly = function (pts) { return lineSegs.apply(null, pts); };
+    var big = mk('sleeveBig', '큰소매', [
+      { name: '앞 소매산', role: 'armhole',   segs: s.capFront },
+      { name: '앞 밑선',   role: 'side',      segs: s.bigFront },
+      { name: '밑단',      role: 'sleeveHem', segs: lineSegs(s.bigHemF, s.bigHemB) },
+      { name: '뒤 절개선', role: 'side',      segs: revSegs(s.bigBack) },
+      { name: '뒤 소매산', role: 'armhole',   segs: poly(s.capBigBack) }
+    ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
+       [{ p: cp(s.splitP), angle: 0, label: '절개 시작' },
+        { p: cp(s.apex), angle: 90, label: '소매산 정점' }]);
+    var und = mk('sleeveUnder', '작은소매', [
+      { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
+      { name: '절개선',     role: 'side',      segs: s.undBack },
+      { name: '밑단',       role: 'sleeveHem', segs: lineSegs(s.undHemF, s.undHemB) },
+      { name: '바깥 뒤선',  role: 'side',      segs: revSegs(s.undOuter) },
+      { name: '소매통 연결', role: 'armhole',  segs: s.undCapOut }
+    ], [[s.backOutX + 2, 15], [s.backOutX + 2, s.sleeveLen - 1.0]],
+       [{ p: cp(s.splitP), angle: 180, label: '절개 시작' }]);
+    return [big, und];
   }
 
   function sleevePiece(s, seam) {
@@ -955,7 +1111,10 @@
     frontArm : { pdx: 0.018507, pdy: 0.084168, hdx: 0.885293, hdy: 0.198793, tR: 0.091475, k0: 1.470229, k1: 1.536268 },
     capBack  : { k0: 1.1487, k1: 1.8359 },
     capFront : { k0: 0.9437, k1: 0.9742 },
-    tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0108 }
+    tightUnder: { eOff: -0.2000, k0: 0.2776, k1: 2.0108 },
+    /* 2장소매 — 절개변·앞경계의 끝 접선 크기 */
+    twoSeam  : { k0: 1.00 },
+    twoFront : { k0: 1.00 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
