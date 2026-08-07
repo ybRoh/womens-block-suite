@@ -1053,6 +1053,11 @@
       : (state.lastError || 'engine.js 가 로드되지 않았습니다.');
     els.resetSize.textContent = state.size;
     els.printBtn.disabled = !state.draft;
+    if (els.pdfBtn) {
+      var pdfOk = !!(state.draft && PDFM() && typeof PDFM().savePdf === 'function');
+      els.pdfBtn.disabled = !pdfOk;
+      els.pdfBtn.title = pdfOk ? '' : 'pdf.js 가 연결되지 않았습니다.';
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1076,13 +1081,14 @@
      인쇄 — print.js 의 applyPageCss / renderTo 를 반드시 거칩니다.
        applyPageCss 를 빼먹으면 롤지(594×가변)가 @page 210×297 로 잘립니다.
      ═══════════════════════════════════════════════════════════════════ */
-  function doPrint() {
+  /** 인쇄·PDF 가 공유하는 레이아웃 생성. 실패하면 null 을 돌려주고 toast 로 알립니다. */
+  function makeLayout(what) {
     var P = PRN();
     if (!P || typeof P.buildPrintLayout !== 'function') {
-      toast('출력 모듈(print.js)이 아직 연결되지 않았습니다. 통합 후 인쇄가 활성화됩니다.');
+      toast('출력 모듈(print.js)이 아직 연결되지 않았습니다. 통합 후 ' + what + '이 활성화됩니다.');
       return null;
     }
-    if (!state.draft) { toast('제도 결과가 없어 인쇄할 수 없습니다.'); return null; }
+    if (!state.draft) { toast('제도 결과가 없어 ' + what + '할 수 없습니다.'); return null; }
 
     var opt = {
       mode: state.printMode,
@@ -1107,9 +1113,16 @@
       return null;
     }
     if (!layout || !layout.pagesSvg || !layout.pagesSvg.length) {
-      toast('인쇄할 페이지가 생성되지 않았습니다.');
+      toast('출력할 페이지가 생성되지 않았습니다.');
       return null;
     }
+    return layout;
+  }
+
+  function doPrint() {
+    var P = PRN();
+    var layout = makeLayout('인쇄');
+    if (!layout) return null;
 
     /* ★ 1. @page 크기 주입 — 롤지는 이게 없으면 A4 로 잘립니다 */
     if (typeof P.applyPageCss === 'function') P.applyPageCss(layout);
@@ -1134,6 +1147,55 @@
 
     if (global.requestAnimationFrame) global.requestAnimationFrame(function () { global.print(); });
     else global.print();
+    return layout;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     PDF 저장 (pdf.js) — 배율이 절대 틀리지 않는 1:1 출력.
+     print.js 가 만든 페이지 SVG 를 그대로 벡터 PDF 로 옮기므로 인쇄본과 같습니다.
+     ═══════════════════════════════════════════════════════════════════ */
+  function PDFM() { return global.NoDartPDF; }
+
+  function pdfFileName() {
+    return '기본무다트원형_' + state.size +
+      '_' + (state.printMode === 'roll' ? '롤지' + state.rollWidthMm + 'mm' : 'A4분할') +
+      '_시접' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset).replace(/\s+/g, '') +
+      '_1대1.pdf';
+  }
+
+  function doSavePdf() {
+    var M = PDFM();
+    if (!M || typeof M.savePdf !== 'function') {
+      toast('PDF 모듈(pdf.js)이 연결되지 않았습니다.');
+      return null;
+    }
+    var layout = makeLayout('PDF 저장');
+    if (!layout) return null;
+    if (els.pdfBtn) { els.pdfBtn.disabled = true; els.pdfBtn.textContent = 'PDF 만드는 중…'; }
+    var done = function () {
+      if (els.pdfBtn) { els.pdfBtn.disabled = false; els.pdfBtn.textContent = 'PDF 저장 · 배율 고정 1:1'; }
+    };
+    try {
+      M.savePdf(layout.pagesSvg, {
+        widthMm: layout.info.pageWidthMm,
+        heightMm: layout.info.pageHeightMm,
+        title: '기본 무다트 원형 ' + state.size,
+        fileName: pdfFileName()
+      }).then(function (blob) {
+        done();
+        toast('PDF ' + layout.pageCount + '장 (' + (blob.size / 1048576).toFixed(1) + 'MB) 저장 — ' +
+              '뷰어에서 "실제 크기 / 100%" 로 인쇄하세요 (배율 고정 1:1)');
+      }, function (e) {
+        done();
+        console.error('[NoDartUI] PDF 생성 실패:', e);
+        toast('PDF 생성 실패: ' + (e && e.message));
+      });
+    } catch (e) {
+      done();
+      console.error('[NoDartUI] PDF 생성 실패:', e);
+      toast('PDF 생성 실패: ' + (e && e.message));
+      return null;
+    }
     return layout;
   }
 
@@ -1267,6 +1329,7 @@
       els.calib.value = state.calibMm;
     });
     els.printBtn.addEventListener('click', function () { doPrint(); });
+    if (els.pdfBtn) els.pdfBtn.addEventListener('click', function () { doSavePdf(); });
 
     /* DXF 내보내기 (SPEC §13) */
     var dxfBtn = $('ndDxfBtn');
@@ -1377,6 +1440,7 @@
       capReduce: $('ndCapReduce'), capReduceVal: $('ndCapReduceVal'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
+      pdfBtn: $('ndPdfBtn'),
       svg: $('ndSvg'), wrap: $('ndCanvasWrap'), canvasEmpty: $('ndCanvasEmpty'), canvasHint: $('ndCanvasHint'),
       zoomIn: $('ndZoomIn'), zoomOut: $('ndZoomOut'), zoomVal: $('ndZoomVal'),
       fitBtn: $('ndFitBtn'), actualBtn: $('ndActualBtn'),

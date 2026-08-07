@@ -7,14 +7,15 @@ OUT  = os.path.join(HERE, '기본원형.html')
 R = lambda n: open(os.path.join(HERE, n), encoding='utf-8').read()
 
 ui_html, ui_css, print_css = R('ui.html'), R('ui.css'), R('print.css')
-engine_js, print_js, dxf_js, ui_js = R('engine.js'), R('print.js'), R('dxf.js'), R('ui.js')
+engine_js, print_js, dxf_js, pdf_js, ui_js = R('engine.js'), R('print.js'), R('dxf.js'), R('pdf.js'), R('ui.js')
 
 # node 전용 export 는 브라우저에서 무해하지만, 혹시 모를 참조 오류를 막기 위해 확인만 한다
-for name, src in (('engine.js', engine_js), ('print.js', print_js), ('dxf.js', dxf_js)):
+for name, src in (('engine.js', engine_js), ('print.js', print_js), ('dxf.js', dxf_js), ('pdf.js', pdf_js)):
     if 'require(' in re.sub(r'typeof require', '', src):
         raise SystemExit(f'{name}: 브라우저에서 동작하지 않는 require() 가 있습니다')
 for name, src in (('ui.css', ui_css), ('print.css', print_css), ('ui.html', ui_html),
-                  ('engine.js', engine_js), ('print.js', print_js), ('dxf.js', dxf_js), ('ui.js', ui_js)):
+                  ('engine.js', engine_js), ('print.js', print_js), ('dxf.js', dxf_js),
+                  ('pdf.js', pdf_js), ('ui.js', ui_js)):
     if re.search(r'https?://(?!www\.w3\.org)', src):
         raise SystemExit(f'{name}: 외부 URL 참조가 있습니다 (self-contained 위반)')
     if '</script' in src.lower() and name.endswith('.js'):
@@ -28,7 +29,7 @@ html = f'''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>기본 무다트 원형 (문화식) · 55·66·77호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
-     원본: 기본원형/{{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, ui.js}}
+     원본: 기본원형/{{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}}
      재생성: python3 기본무다트원형/build.py     생성일: {stamp} -->
 <style>
 /* ══ ui.css ══ */
@@ -50,6 +51,10 @@ html = f'''<!DOCTYPE html>
 <script>
 /* ══ dxf.js ══ */
 {dxf_js}
+</script>
+<script>
+/* ══ pdf.js ══ */
+{pdf_js}
 </script>
 <script>
 /* ══ ui.js ══ */

@@ -87,10 +87,15 @@
           <span class="numwrap"><input type="number" id="ndCalib" value="50" min="30" max="70" step="0.5"><span class="unit">mm</span></span>
         </div>
 
-        <button type="button" class="btn btn-primary btn-wide" id="ndPrintBtn">인쇄 · 1:1 출력</button>
+        <button type="button" class="btn btn-primary btn-wide" id="ndPdfBtn">PDF 저장 · 배율 고정 1:1</button>
+        <p class="hint">PDF 는 좌표를 <b>1 cm = 28.3465 pt</b> 로 직접 찍습니다.
+          인쇄 대화상자의 배율 설정에 영향을 받지 않으므로 <b>이쪽을 권장</b>합니다.
+          PDF 뷰어에서 인쇄할 때만 “실제 크기 / 100%”로 두세요.</p>
+
+        <button type="button" class="btn btn-ghost btn-wide" id="ndPrintBtn">브라우저로 바로 인쇄</button>
 
         <div class="warn" role="note">
-          <b>배율 100% 필수.</b> 인쇄 대화상자의 “페이지에 맞춤 / 배율 맞춤”이 켜져 있으면 1:1이 깨집니다.
+          <b>브라우저 인쇄는 배율 100% 필수.</b> 인쇄 대화상자의 “페이지에 맞춤 / 배율 맞춤”이 켜져 있으면 1:1이 깨집니다.
           <span class="warn-sub">여백 없음 · 배율 100%(실제 크기)로 두고, 첫 장의 5cm 눈금을 자로 확인하세요.</span>
         </div>
       </section>
