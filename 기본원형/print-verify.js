@@ -957,11 +957,12 @@ ok('보정 시 페이지 수 ' + I2.tilePages + '장 (기준 ' + I0.tilePages + 
 
 /* ───────────────── 6. 롤지 모드 ───────────────── */
 section('6. A1 롤지 모드 (폭 ≤ 594mm · 길이 제한 없음 — 페이지 = 패턴 크기)');
-var L3 = NDP.buildPrintLayout(mockDraft({ seam: PER }), { mode: 'roll', rollWidthMm: 594, seam: PER });
+/* 6절은 **분할 없는** 롤 레이아웃을 본다 (rollMaxHmm: 0). 분할은 6-2 절에서 따로. */
+var L3 = NDP.buildPrintLayout(mockDraft({ seam: PER }), { mode: 'roll', rollWidthMm: 594, rollMaxHmm: 0, seam: PER });
 var I3 = L3.info;
 console.log('    용지 = ' + f(I3.pageWidthMm, 1) + ' × ' + f(I3.pageHeightMm, 2) + 'mm  (길이 가변)');
 console.log('    캔버스 = ' + f(I3.canvas.wMm, 2) + ' × ' + f(I3.canvas.hMm, 2) + 'mm   유효폭 = ' + f(I3.worldContentWidthMm, 2) + 'mm');
-ok('분할 없음 — 1장', L3.pageCount === 1 && I3.tilePages === 1);
+ok('길이 제한 없으면 1장', L3.pageCount === 1 && I3.tilePages === 1);
 /* ★ 롤지는 길이 제한이 없다 — 페이지를 A1 규격에 맞추지 않고 **패턴 크기 그대로** 잡는다.
    폭도 롤 폭까지 채우지 않고 배치 폭에 맞춰 줄인다(물리적 롤 폭은 절대 안 넘는다). */
 ok('용지 폭 = 배치 크기 (롤 폭 이내)',
@@ -984,12 +985,39 @@ ok('조각 라벨: 호수·조각명·식서·재단매수', /66호/.test(L3.pag
 ok('롤지에도 골선 표시', L3.pagesSvg[0].indexOf('골선 · 시접 없음') >= 0 &&
   (L3.pagesSvg[0].match(/data-ndp-fold="1"/g) || []).length === 2,
   (L3.pagesSvg[0].match(/data-ndp-fold="1"/g) || []).length + '개 (앞·뒤 각 1)');
-var L4 = NDP.buildPrintLayout(mockDraft({ seam: 0 }), { mode: 'roll', rollWidthMm: 914, seam: 0 });
+var L4 = NDP.buildPrintLayout(mockDraft({ seam: 0 }), { mode: 'roll', rollWidthMm: 914, rollMaxHmm: 0, seam: 0 });
 ok('넓은 롤(914)에서도 용지는 배치 크기', L4.info.pageWidthMm <= 914 + 1e-6 &&
   Math.abs(L4.info.pageWidthMm - (L4.info.canvas.wMm + 30)) < 1e-6,
   f(L4.info.pageWidthMm, 1) + 'mm × ' + f(L4.info.pageHeightMm, 1) + 'mm (배치 ' + f(L4.info.canvas.wMm, 1) + ')');
 ok('길이 제한 없음 — A1 세로(841)보다 길어도 된다',
   NDP.DEFAULTS.rollFitWidth === true, '페이지 = 패턴 크기');
+
+/* ───────────────── 6-2. 롤지 길이 제한 분할 ───────────────── */
+section('6-2. 롤지 길이 제한 — 조각을 자르지 않고 나눈다');
+var LMAX = 841;
+var L3s = NDP.buildPrintLayout(mockDraft({ seam: PER }), { mode: 'roll', rollWidthMm: 594, rollMaxHmm: LMAX, seam: PER });
+var hs = L3s.pagesSvg.map(function (sv) { return +/height="([\d.]+)mm"/.exec(sv)[1]; });
+console.log('    제한 ' + LMAX + 'mm → ' + L3s.pageCount + '장, 길이 ' + hs.map(function (h) { return f(h, 1); }).join(' / ') + 'mm');
+ok('길이가 제한을 넘으면 나눈다', I3.pageHeightMm <= LMAX ? L3s.pageCount === 1 : L3s.pageCount > 1,
+  '무제한 ' + f(I3.pageHeightMm, 1) + 'mm → ' + L3s.pageCount + '장');
+ok('모든 장이 제한 이내', hs.every(function (h) { return h <= LMAX + 1e-6; }), hs.map(function (h) { return f(h, 1); }).join(', '));
+ok('장마다 길이가 같다 (@page 하나로 표현 가능)',
+  hs.every(function (h) { return Math.abs(h - hs[0]) < 1e-6; }), f(hs[0], 2) + 'mm');
+ok('@page 가 실제 장 길이와 일치',
+  L3s.info.pageCss === '@page{size:' + (+L3s.info.pageWidthMm.toFixed(2)) + 'mm ' + (+hs[0].toFixed(2)) + 'mm;margin:0}',
+  L3s.info.pageCss);
+ok('조각이 잘리지 않는다 — 모든 조각이 정확히 한 장에만',
+  (function () {
+    var seen = {};
+    for (var q = 0; q < L3s.pagesSvg.length; q++) {
+      var ids = L3s.pagesSvg[q].match(/data-ndp-piece="([^"]+)"/g) || [];
+      for (var r = 0; r < ids.length; r++) { var id = ids[r]; if (seen[id]) return false; seen[id] = 1; }
+    }
+    return Object.keys(seen).length === L3s.info.placements.length;
+  })(), L3s.info.placements.length + '조각');
+ok('용지 크기가 머리말에 적혀 있다',
+  /용지 \d+ × \d+ mm/.test(L3s.pagesSvg[0]),
+  (/용지 \d+ × \d+ mm/.exec(L3s.pagesSvg[0]) || ['?'])[0]);
 
 /* ───────────────── 7. 네스팅 회전 ───────────────── */
 section('7. 네스팅 회전 / 용지 절약');
@@ -1121,9 +1149,9 @@ var sizeRows = [];
 SIZE_LIST.forEach(function (sz) {
   var dS = mockDraft({ size: sz, seam: PER });
   var LP = NDP.buildPrintLayout(dS, { mode: 'a4', seam: PER });
-  var LR = NDP.buildPrintLayout(mockDraft({ size: sz, seam: PER }), { mode: 'roll', rollWidthMm: 594, seam: PER });
+  var LR = NDP.buildPrintLayout(mockDraft({ size: sz, seam: PER }), { mode: 'roll', rollWidthMm: 594, rollMaxHmm: 0, seam: PER });
   var LU = NDP.buildPrintLayout(mockDraft({ size: sz, seam: 1.0 }), { mode: 'a4', seam: 1.0 });
-  var LRU = NDP.buildPrintLayout(mockDraft({ size: sz, seam: 1.0 }), { mode: 'roll', rollWidthMm: 594, seam: 1.0 });
+  var LRU = NDP.buildPrintLayout(mockDraft({ size: sz, seam: 1.0 }), { mode: 'roll', rollWidthMm: 594, rollMaxHmm: 0, seam: 1.0 });
   sizeRows.push({
     size: sz, info: LP.info, uni: LU.info,
     roll: LR.info, rollU: LRU.info,

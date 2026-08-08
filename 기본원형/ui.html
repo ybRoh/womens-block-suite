@@ -65,7 +65,7 @@
           <label for="ndPrintMode">모드</label>
           <select id="ndPrintMode">
             <option value="a4">A4 타일 (잘라 붙이기)</option>
-            <option value="roll">A1 롤지 (한 장 · 길이 제한 없음)</option>
+            <option value="roll">A1 롤지 (길이 초과 시 자동 분할)</option>
           </select>
         </div>
         <div class="field" id="ndRollRow" hidden>
@@ -74,9 +74,18 @@
             <option value="594">A1 · 롤 594 mm</option>
           </select>
         </div>
+        <div class="field" id="ndRollMaxRow" hidden>
+          <label for="ndRollMax">한 장 최대 길이</label>
+          <select id="ndRollMax">
+            <option value="841" selected>841 mm (A1 세로)</option>
+            <option value="1189">1189 mm (A0 세로)</option>
+            <option value="0">제한 없음 (연속 롤)</option>
+          </select>
+        </div>
         <p class="hint" id="ndRollHint" hidden>
-          A1(594 mm) 폭 고정 · 길이는 조각에 맞춰 늘어납니다.
-          한 줄에 안 들어가면 <b>자동으로 줄바꿈</b>되어 길이가 늘어납니다(77·88호).
+          용지는 <b>패턴 크기 그대로</b>입니다 — 인쇄 대화상자에서 <b>사용자 지정 용지</b>로 두고
+          머리말에 적힌 <b>용지 ○○ × ○○ mm</b> 를 그대로 넣으세요. 「용지에 맞춤」은 반드시 해제.
+          길이가 최대치를 넘으면 <b>조각을 자르지 않고</b> 여러 장으로 나눕니다.
         </p>
         <div class="field" id="ndOverlapRow">
           <label for="ndOverlap">겹침 여백</label>

@@ -305,6 +305,7 @@
     capReduce: 0,          // 소매 제외로 미사용. 엔진 복원 시 UI 도 함께 복원
     printMode: 'a4',
     rollWidthMm: 594,
+    rollMaxHmm: 841,       // 롤지 한 장 최대 길이 — 0 이면 제한 없음
     overlapMm: 10,
     calibMm: 50,
     show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
@@ -1093,6 +1094,7 @@
     var opt = {
       mode: state.printMode,
       rollWidthMm: state.rollWidthMm,
+      rollMaxHmm: state.rollMaxHmm,
       overlapMm: state.overlapMm,
       /* print.js 가 부위별 객체를 이해하면(normalizeSeamOpt/SEAM_DEFAULTS 노출) 그대로 넘기고,
          숫자만 받는 구버전이면 가장 큰 부위값을 넘겨 시접이 모자라게 잘리지 않도록 합니다. */
@@ -1315,10 +1317,14 @@
     els.printMode.addEventListener('change', function () {
       state.printMode = els.printMode.value;
       els.rollRow.hidden = state.printMode !== 'roll';
+    if (els.rollMaxRow) els.rollMaxRow.hidden = state.printMode !== 'roll';
       var rh = $('ndRollHint'); if (rh) rh.hidden = state.printMode !== 'roll';
       els.overlapRow.hidden = state.printMode !== 'a4';
     });
     els.rollWidth.addEventListener('change', function () { state.rollWidthMm = parseInt(els.rollWidth.value, 10); });
+    if (els.rollMax) els.rollMax.addEventListener('change', function () {
+      state.rollMaxHmm = parseInt(els.rollMax.value, 10) || 0; recompute(false);
+    });
     els.overlap.addEventListener('change', function () {
       var v = parseFloat(els.overlap.value);
       state.overlapMm = isFinite(v) ? v : 10;
@@ -1438,7 +1444,7 @@
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
       capReduce: $('ndCapReduce'), capReduceVal: $('ndCapReduceVal'),
-      printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollWidth: $('ndRollWidth'),
+      printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
       svg: $('ndSvg'), wrap: $('ndCanvasWrap'), canvasEmpty: $('ndCanvasEmpty'), canvasHint: $('ndCanvasHint'),

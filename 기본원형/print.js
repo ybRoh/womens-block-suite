@@ -44,7 +44,9 @@ var DEFAULTS = {
   maxCols: 8,            // 네스팅 후보 열 수 탐색 상한
   title: '',             // 페이지 머리말(호수·치수 요약 등)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
-  rollFitWidth: true     // 롤지 페이지를 배치 크기로 줄인다 (길이 제한 없음)
+  rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
+  rollMaxHmm: 841        // 롤지 한 장의 최대 길이(mm). 넘으면 여러 장으로 나눈다.
+                         // 0 이면 제한 없음 — 프린터가 받는 최대 길이로 두세요.
 };
 
 /* ── 부위별 시접 (SPEC §11-1) ─────────────────────────────────────────── */
@@ -1323,11 +1325,35 @@ function buildOverviewPage(ctx, previewInner) {
 /* =========================================================================
  * 7. 롤지(A1 등) 한 장 출력
  * =======================================================================*/
-function buildRollPage(ctx) {
+/** 롤지 페이지 분할 — 조각을 자르지 않고 **선반 경계에서만** 끊는다. */
+function splitRollPages(placed, canvasH, o, k) {
+  var M = o.rollMarginMm, chrome = 2 * M + 26 + 8;
+  var all = { y0: -o.padMm, h: canvasH, idx: placed.map(function (_, i) { return i; }) };
+  var maxH = +o.rollMaxHmm || 0;
+  if (!maxH || chrome + canvasH * k <= maxH + 1e-6) return [all];
+  var usable = (maxH - chrome) / k;
+  var order = placed.map(function (p, i) { return { i: i, y: p.y, b: p.y + p.h }; })
+                    .sort(function (a, b) { return (a.y - b.y) || (a.b - b.b); });
+  var pages = [], cur = null;
+  for (var q = 0; q < order.length; q++) {
+    var it = order[q];
+    if (cur && (it.b + o.padMm) - cur.y0 <= usable + 1e-6) {
+      cur.idx.push(it.i); cur.h = Math.max(cur.h, (it.b + o.padMm) - cur.y0); continue;
+    }
+    if (cur) pages.push(cur);
+    cur = { y0: it.y - o.padMm, h: (it.b - it.y) + 2 * o.padMm, idx: [it.i] };
+  }
+  if (cur) pages.push(cur);
+  return pages;
+}
+
+function buildRollPage(ctx, page, idx, total) {
   var o = ctx.opt, k = ctx.k;
-  var W = ctx.rollWmm, H = ctx.rollHmm;   // declared mm (실제 용지 크기)
-  var M = o.rollMarginMm;
-  var headH = 26;
+  var M = o.rollMarginMm, headH = 26;
+  page = page || { y0: -o.padMm, h: ctx.canvasH, idx: null };
+  var W = ctx.rollWmm;
+  var H = 2 * M + headH + page.h * k + 8;     // ★ 페이지마다 자기 길이
+  total = total || 1; idx = idx || 0;
   var s = [];
   s.push('<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="' + n(W, 3) + 'mm" height="' + n(H, 3) +
     'mm" viewBox="0 0 ' + n(W, 3) + ' ' + n(H, 3) + '" preserveAspectRatio="xMidYMid meet" ' +
@@ -1335,7 +1361,8 @@ function buildRollPage(ctx) {
   s.push('<rect x="0" y="0" width="' + n(W, 3) + '" height="' + n(H, 3) + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(M) + '" y="' + n(M + 6) + '" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-    '기본 무다트 원형 — 1:1 롤지 출력 (폭 ' + n(W, 0) + 'mm)</text>');
+    '기본 무다트 원형 — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
+    (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');
   s.push('<text x="' + n(M) + '" y="' + n(M + 19) + '" font-size="3.4" font-family="sans-serif" fill="#a11">' +
@@ -1347,8 +1374,9 @@ function buildRollPage(ctx) {
   s.push(calibRuler(M + 120, M + 18, k, ''));
 
   s.push('<g transform="translate(' + n(M, 4) + ' ' + n(M + headH, 4) + ') scale(' + n(k, 6) + ')">');
-  s.push(gridLines(0, 0, ctx.canvasW, ctx.canvasH, o.grid));
-  s.push(ctx.bodyMarkup);
+  s.push(gridLines(0, 0, ctx.canvasW, page.h, o.grid));
+  s.push('<g transform="translate(0 ' + n(-(page.y0 + o.padMm), 4) + ')">' +
+    (page.idx ? page.idx.map(function (q) { return ctx.pieceMarkup[q]; }).join('') : ctx.bodyMarkup) + '</g>');
   s.push('</g>');
 
   /* 하단에도 눈금 하나 더 (긴 출력물의 길이방향 왜곡 확인용) */
@@ -1503,6 +1531,20 @@ function buildPrintLayout(draft, opt) {
     }
     ctx.previewW = canvasW; ctx.previewH = canvasH;
     ctx.rollWmm = rollWmm; ctx.rollHmm = rollHmm;
+    /* ★ 프린터가 받는 최대 길이를 넘으면 **여러 장으로 나눈다** — 안 나누면
+       뷰어·드라이버가 규격 용지로 잡아 뒤쪽(대개 소매)을 잘라 버린다. */
+    ctx.rollPages = splitRollPages(placed, canvasH, o, k);
+    /* 장마다 길이가 다르면 @page 로 표현할 수 없다 — **가장 긴 장에 맞춰 통일**한다.
+       짧은 장은 아래가 비는 것뿐이고, 프린터에는 한 가지 용지 크기만 넣으면 된다. */
+    var hMax = 0;
+    ctx.rollPages.forEach(function (pg) { if (pg.h > hMax) hMax = pg.h; });
+    ctx.rollPages.forEach(function (pg) { pg.h = hMax; });
+    rollHmm = 2 * o.rollMarginMm + 26 + hMax * k + 8;
+    ctx.rollHmm = rollHmm;
+    if (ctx.rollPages.length > 1) {
+      warnings.push('롤지 길이 ' + (rollHmm / 10).toFixed(1) + 'cm 가 최대 ' +
+        (o.rollMaxHmm / 10).toFixed(1) + 'cm 를 넘어 ' + ctx.rollPages.length + '장으로 나눴습니다.');
+    }
   }
 
   ctx.placed = placed;
@@ -1517,6 +1559,7 @@ function buildPrintLayout(draft, opt) {
       renderPiece(pieces[i], o, sizeLabel) + '</g>');
   }
   ctx.bodyMarkup = body.join('');
+  ctx.pieceMarkup = body;          // 롤지 분할에서 페이지별로 골라 쓴다
 
   /* 페이지 생성 */
   var pagesSvg = [], pageIds = [];
@@ -1529,8 +1572,11 @@ function buildPrintLayout(draft, opt) {
     pagesSvg = pagesSvg.concat(built.pages);
     pageIds = built.pageIds;
   } else {
-    pagesSvg.push(buildRollPage(ctx));
-    pageIds = [['ROLL']];
+    var rp = ctx.rollPages || [{ y0: -o.padMm, h: ctx.canvasH, idx: null }];
+    for (var rpi = 0; rpi < rp.length; rpi++) {
+      pagesSvg.push(buildRollPage(ctx, rp[rpi], rpi, rp.length));
+      pageIds.push(['ROLL' + (rp.length > 1 ? String(rpi + 1) : '')]);
+    }
   }
 
   /* 배치 정보 */

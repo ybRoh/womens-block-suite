@@ -623,7 +623,7 @@ td.n.n-fail{color:var(--red)}
           <label for="ndPrintMode">모드</label>
           <select id="ndPrintMode">
             <option value="a4">A4 타일 (잘라 붙이기)</option>
-            <option value="roll">A1 롤지 (한 장 · 길이 제한 없음)</option>
+            <option value="roll">A1 롤지 (길이 초과 시 자동 분할)</option>
           </select>
         </div>
         <div class="field" id="ndRollRow" hidden>
@@ -632,9 +632,18 @@ td.n.n-fail{color:var(--red)}
             <option value="594">A1 · 롤 594 mm</option>
           </select>
         </div>
+        <div class="field" id="ndRollMaxRow" hidden>
+          <label for="ndRollMax">한 장 최대 길이</label>
+          <select id="ndRollMax">
+            <option value="841" selected>841 mm (A1 세로)</option>
+            <option value="1189">1189 mm (A0 세로)</option>
+            <option value="0">제한 없음 (연속 롤)</option>
+          </select>
+        </div>
         <p class="hint" id="ndRollHint" hidden>
-          A1(594 mm) 폭 고정 · 길이는 조각에 맞춰 늘어납니다.
-          한 줄에 안 들어가면 <b>자동으로 줄바꿈</b>되어 길이가 늘어납니다(77·88호).
+          용지는 <b>패턴 크기 그대로</b>입니다 — 인쇄 대화상자에서 <b>사용자 지정 용지</b>로 두고
+          머리말에 적힌 <b>용지 ○○ × ○○ mm</b> 를 그대로 넣으세요. 「용지에 맞춤」은 반드시 해제.
+          길이가 최대치를 넘으면 <b>조각을 자르지 않고</b> 여러 장으로 나눕니다.
         </p>
         <div class="field" id="ndOverlapRow">
           <label for="ndOverlap">겹침 여백</label>
@@ -2664,7 +2673,9 @@ var DEFAULTS = {
   maxCols: 8,            // 네스팅 후보 열 수 탐색 상한
   title: '',             // 페이지 머리말(호수·치수 요약 등)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
-  rollFitWidth: true     // 롤지 페이지를 배치 크기로 줄인다 (길이 제한 없음)
+  rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
+  rollMaxHmm: 841        // 롤지 한 장의 최대 길이(mm). 넘으면 여러 장으로 나눈다.
+                         // 0 이면 제한 없음 — 프린터가 받는 최대 길이로 두세요.
 };
 
 /* ── 부위별 시접 (SPEC §11-1) ─────────────────────────────────────────── */
@@ -3943,11 +3954,38 @@ function buildOverviewPage(ctx, previewInner) {
 /* =========================================================================
  * 7. 롤지(A1 등) 한 장 출력
  * =======================================================================*/
-function buildRollPage(ctx) {
+/** 롤지 페이지 분할 — 조각을 자르지 않고 **선반 경계에서만** 끊는다.
+ *  반환: [{ y0, h, idx[] }]  (y0·h 는 world mm, y0 는 pad 제외 배치좌표 기준)      */
+function splitRollPages(placed, canvasH, o, k) {
+  var M = o.rollMarginMm, chrome = 2 * M + 26 + 8;          // 여백 + 머리말 + 하단눈금
+  var all = { y0: -o.padMm, h: canvasH, idx: placed.map(function (_, i) { return i; }) };
+  var maxH = +o.rollMaxHmm || 0;
+  if (!maxH || chrome + canvasH * k <= maxH + 1e-6) return [all];
+  var usable = (maxH - chrome) / k;                          // world mm
+  var order = placed.map(function (p, i) { return { i: i, y: p.y, b: p.y + p.h }; })
+                    .sort(function (a, b) { return (a.y - b.y) || (a.b - b.b); });
+  var pages = [], cur = null;
+  for (var q = 0; q < order.length; q++) {
+    var it = order[q];
+    if (cur && (it.b + o.padMm) - cur.y0 <= usable + 1e-6) {
+      cur.idx.push(it.i);
+      cur.h = Math.max(cur.h, (it.b + o.padMm) - cur.y0);
+      continue;
+    }
+    if (cur) pages.push(cur);
+    cur = { y0: it.y - o.padMm, h: (it.b - it.y) + 2 * o.padMm, idx: [it.i] };
+  }
+  if (cur) pages.push(cur);
+  return pages;
+}
+
+function buildRollPage(ctx, page, idx, total) {
   var o = ctx.opt, k = ctx.k;
-  var W = ctx.rollWmm, H = ctx.rollHmm;   // declared mm (실제 용지 크기)
-  var M = o.rollMarginMm;
-  var headH = 26;
+  var M = o.rollMarginMm, headH = 26;
+  page = page || { y0: -o.padMm, h: ctx.canvasH, idx: null };
+  var W = ctx.rollWmm;
+  var H = 2 * M + headH + page.h * k + 8;     // ★ 페이지마다 자기 길이
+  total = total || 1; idx = idx || 0;
   var s = [];
   s.push('<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="' + n(W, 3) + 'mm" height="' + n(H, 3) +
     'mm" viewBox="0 0 ' + n(W, 3) + ' ' + n(H, 3) + '" preserveAspectRatio="xMidYMid meet" ' +
@@ -3955,7 +3993,8 @@ function buildRollPage(ctx) {
   s.push('<rect x="0" y="0" width="' + n(W, 3) + '" height="' + n(H, 3) + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(M) + '" y="' + n(M + 6) + '" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-    '숙녀복 기본원형 I — 1:1 롤지 출력 (폭 ' + n(W, 0) + 'mm)</text>');
+    '숙녀복 기본원형 I — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
+    (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');
   s.push('<text x="' + n(M) + '" y="' + n(M + 19) + '" font-size="3.4" font-family="sans-serif" fill="#a11">' +
@@ -3967,8 +4006,10 @@ function buildRollPage(ctx) {
   s.push(calibRuler(M + 120, M + 18, k, ''));
 
   s.push('<g transform="translate(' + n(M, 4) + ' ' + n(M + headH, 4) + ') scale(' + n(k, 6) + ')">');
-  s.push(gridLines(0, 0, ctx.canvasW, ctx.canvasH, o.grid));
-  s.push(ctx.bodyMarkup);
+  s.push(gridLines(0, 0, ctx.canvasW, page.h, o.grid));
+  /* 페이지 몫만 그린다 — y 를 페이지 시작으로 당긴다 */
+  s.push('<g transform="translate(0 ' + n(-(page.y0 + o.padMm), 4) + ')">' +
+    (page.idx ? page.idx.map(function (q) { return ctx.pieceMarkup[q]; }).join('') : ctx.bodyMarkup) + '</g>');
   s.push('</g>');
 
   /* 하단에도 눈금 하나 더 (긴 출력물의 길이방향 왜곡 확인용) */
@@ -4123,6 +4164,20 @@ function buildPrintLayout(draft, opt) {
     }
     ctx.previewW = canvasW; ctx.previewH = canvasH;
     ctx.rollWmm = rollWmm; ctx.rollHmm = rollHmm;
+    /* ★ 프린터가 받는 최대 길이를 넘으면 **여러 장으로 나눈다** — 안 나누면
+       뷰어·드라이버가 규격 용지로 잡아 뒤쪽(대개 소매)을 잘라 버린다. */
+    ctx.rollPages = splitRollPages(placed, canvasH, o, k);
+    /* 장마다 길이가 다르면 @page 로 표현할 수 없다 — **가장 긴 장에 맞춰 통일**한다.
+       짧은 장은 아래가 비는 것뿐이고, 프린터에는 한 가지 용지 크기만 넣으면 된다. */
+    var hMax = 0;
+    ctx.rollPages.forEach(function (pg) { if (pg.h > hMax) hMax = pg.h; });
+    ctx.rollPages.forEach(function (pg) { pg.h = hMax; });
+    rollHmm = 2 * o.rollMarginMm + 26 + hMax * k + 8;
+    ctx.rollHmm = rollHmm;
+    if (ctx.rollPages.length > 1) {
+      warnings.push('롤지 길이 ' + (rollHmm / 10).toFixed(1) + 'cm 가 최대 ' +
+        (o.rollMaxHmm / 10).toFixed(1) + 'cm 를 넘어 ' + ctx.rollPages.length + '장으로 나눴습니다.');
+    }
   }
 
   ctx.placed = placed;
@@ -4137,6 +4192,7 @@ function buildPrintLayout(draft, opt) {
       renderPiece(pieces[i], o, sizeLabel) + '</g>');
   }
   ctx.bodyMarkup = body.join('');
+  ctx.pieceMarkup = body;          // 롤지 분할에서 페이지별로 골라 쓴다
 
   /* 페이지 생성 */
   var pagesSvg = [], pageIds = [];
@@ -4149,8 +4205,11 @@ function buildPrintLayout(draft, opt) {
     pagesSvg = pagesSvg.concat(built.pages);
     pageIds = built.pageIds;
   } else {
-    pagesSvg.push(buildRollPage(ctx));
-    pageIds = [['ROLL']];
+    var rp = ctx.rollPages || [{ y0: -o.padMm, h: ctx.canvasH, idx: null }];
+    for (var rpi = 0; rpi < rp.length; rpi++) {
+      pagesSvg.push(buildRollPage(ctx, rp[rpi], rpi, rp.length));
+      pageIds.push(['ROLL' + (rp.length > 1 ? String(rpi + 1) : '')]);
+    }
   }
 
   /* 배치 정보 */
@@ -5747,6 +5806,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     cuffW: null,           // 소맷부리 — null 이면 엔진 기본값
     printMode: 'a4',
     rollWidthMm: 594,
+    rollMaxHmm: 841,       // 롤지 한 장 최대 길이 — 0 이면 제한 없음
     overlapMm: 10,
     calibMm: 50,
     show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
@@ -6648,6 +6708,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     var opt = {
       mode: state.printMode,
       rollWidthMm: state.rollWidthMm,
+      rollMaxHmm: state.rollMaxHmm,
       overlapMm: state.overlapMm,
       /* print.js 가 부위별 객체를 이해하면(normalizeSeamOpt/SEAM_DEFAULTS 노출) 그대로 넘기고,
          숫자만 받는 구버전이면 가장 큰 부위값을 넘겨 시접이 모자라게 잘리지 않도록 합니다. */
@@ -6886,10 +6947,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     els.printMode.addEventListener('change', function () {
       state.printMode = els.printMode.value;
       els.rollRow.hidden = state.printMode !== 'roll';
+    if (els.rollMaxRow) els.rollMaxRow.hidden = state.printMode !== 'roll';
       var rh = $('ndRollHint'); if (rh) rh.hidden = state.printMode !== 'roll';
       els.overlapRow.hidden = state.printMode !== 'a4';
     });
     els.rollWidth.addEventListener('change', function () { state.rollWidthMm = parseInt(els.rollWidth.value, 10); });
+    if (els.rollMax) els.rollMax.addEventListener('change', function () {
+      state.rollMaxHmm = parseInt(els.rollMax.value, 10) || 0; recompute(false);
+    });
     els.overlap.addEventListener('change', function () {
       var v = parseFloat(els.overlap.value);
       state.overlapMm = isFinite(v) ? v : 10;
@@ -7012,7 +7077,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       stage: $('ndStage'),
       sleeveType: $('ndSleeveType'), cuffRow: $('ndCuffRow'), cuffW: $('ndCuffW'),
       sleeveHint: $('ndSleeveHint'),
-      printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollWidth: $('ndRollWidth'),
+      printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
       svg: $('ndSvg'), wrap: $('ndCanvasWrap'), canvasEmpty: $('ndCanvasEmpty'), canvasHint: $('ndCanvasHint'),
