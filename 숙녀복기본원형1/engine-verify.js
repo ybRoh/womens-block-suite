@@ -451,6 +451,33 @@ function sectionSew(m, d) {
      '  차 ' + f2(Math.abs(M.bustDartLegUp - M.bustDartLegLow)) +
      '  (도면 11.966 / 12.597 은 트루잉 전)');
 
+  /* ★ 허리다트 다리와 뒤 옆선은 **직선이 아니라 곡선**이다 (도면 폴리라인 실측).
+     직선으로 두면 뒤 다트가 도면에서 0.44 벌어진다. 현길이 대비 휨 비율로 잰다. */
+  (function () {
+    var bk = d.pieces.filter(function (p) { return p.id === 'back'; })[0];
+    var fr = d.pieces.filter(function (p) { return p.id === 'front'; })[0];
+    function bowRel(p, name) {
+      var e = p.edges.filter(function (x) { return x.name === name; })[0];
+      var pts = p.outline.slice(e.start, e.end + 1), a = pts[0], b = pts[pts.length - 1];
+      var vx = b[0] - a[0], vy = b[1] - a[1], L = Math.hypot(vx, vy), w = 0;
+      pts.forEach(function (q) {
+        var o = ((q[0] - a[0]) * vy - (q[1] - a[1]) * vx) / L;
+        if (Math.abs(o) > Math.abs(w)) w = o;
+      });
+      return { abs: Math.abs(w), rel: Math.abs(w) / L, L: L };
+    }
+    [[bk, '다트 옆다리', 0.01884, '뒤 다트 옆다리'],
+     [bk, '다트 중심다리', 0.01926, '뒤 다트 중심다리'],
+     [bk, '옆선', 0.00563, '뒤 옆선'],
+     [fr, '허리다트 옆다리', 0.00681, '앞 다트 옆다리'],
+     [fr, '허리다트 중심다리', 0.00502, '앞 다트 중심다리']].forEach(function (w) {
+      var r = bowRel(w[0], w[1]);
+      ok(Math.abs(r.rel - w[2]) <= 0.003, w[3] + ' 곡선 휨',
+         '휨 ' + f2(r.abs) + ' / 현 ' + f2(r.L) + ' = ' + r.rel.toFixed(5) +
+         '  (도면 ' + w[2].toFixed(5) + ')');
+    });
+  })();
+
   /* 허리다트 두 다리 — 허리선이 다트축에 수직이 아니라 기하학적으로 조금 다르다.
      0.05 정도는 허리선 곡선이 흡수하지만, 그보다 커지면 제도가 틀어진 것이다. */
   var g = d.geom;

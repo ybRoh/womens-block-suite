@@ -482,10 +482,11 @@
       { name: '뒷목둘레',   role: 'neck',     segs: g.backNeck },
       { name: '어깨선',     role: 'shoulder', segs: lineSegs(g.SNPb, g.SPb) },
       { name: '뒤암홀',     role: 'armhole',  segs: revSegs(g.backArm) },
-      { name: '옆선',       role: 'side',     segs: lineSegs(g.Ub, g.bWaist) },
+      { name: '옆선',       role: 'side',     segs: bowSegs(g.Ub, g.bWaist, CAL.backSideSeam) },
       { name: '허리선(옆)', role: 'hem',      segs: lineSegs(g.bWaist, g.bDartR) },
-      { name: '다트 옆다리', role: 'dart',    segs: lineSegs(g.bDartR, g.bDartTip) },
-      { name: '다트 중심다리', role: 'dart',  segs: lineSegs(g.bDartTip, g.bDartL) },
+      /* 다리는 도면대로 **곡선** — 둘 다 뒤중심 쪽으로 휜다 (직선이면 0.44 벌어진다) */
+      { name: '다트 옆다리', role: 'dart',    segs: revSegs(bowSegs(g.bDartTip, g.bDartR, CAL.dartBackSide)) },
+      { name: '다트 중심다리', role: 'dart',  segs: bowSegs(g.bDartTip, g.bDartL, CAL.dartBackCtr) },
       { name: '허리선(중심)', role: 'hem',    segs: lineSegs(g.bDartL, [0, g.WLb]) },
       { name: '뒤중심',     role: 'fold',     segs: lineSegs([0, g.WLb], g.BNP) }
     ];
@@ -498,8 +499,8 @@
       { name: '가슴다트 아래다리', role: 'dart', segs: lineSegs(g.BP, g.dLo) },
       { name: '옆선(아래)', role: 'side',     segs: lineSegs(g.dLo, g.fWaist) },
       { name: '밑단(옆)',   role: 'hem',      segs: lineSegs(g.fWaist, g.fDartR) },
-      { name: '허리다트 옆다리', role: 'dart', segs: lineSegs(g.fDartR, g.fDartTip) },
-      { name: '허리다트 중심다리', role: 'dart', segs: lineSegs(g.fDartTip, g.fDartL) },
+      { name: '허리다트 옆다리', role: 'dart', segs: revSegs(bowSegs(g.fDartTip, g.fDartR, CAL.dartFrontSide)) },
+      { name: '허리다트 중심다리', role: 'dart', segs: bowSegs(g.fDartTip, g.fDartL, CAL.dartFrontCtr) },
       { name: '밑단(중심)', role: 'hem',      segs: lineSegs(g.fDartL, [0, g.WLf]) },
       { name: '앞중심',     role: 'fold',     segs: lineSegs([0, g.WLf], g.FNP) }
     ];
@@ -823,6 +824,18 @@
     var W = end[0] - mid[0], D = end[1] - mid[1];
     return [{ p0: mid, c1: [mid[0] + W * K.hemC1, mid[1]],
               c2: [end[0] - W * K.hemC2x, end[1] - D * K.hemC2y], p1: end }];
+  }
+
+  /** 다트 다리 · 뒤 옆선처럼 **살짝 휜 직선** — 끝점 둘 + 현 위에 띄운 앵커 하나.
+   *  C 는 {tm, k}: tm 은 현 위의 위치(비율), k 는 **현길이 대비** 수직 오프셋.
+   *  수직 방향은 (끝 − 시작) 을 시계방향 90° 돌린 쪽 = [v.y, −v.x].
+   *  무차원이라 44~88호에서 같은 모양이 유지된다.                                */
+  function bowSegs(A, B, C) {
+    var v = V.sub(B, A), L = Math.hypot(v[0], v[1]);
+    if (!(L > 1e-9) || !C) return lineSegs(A, B);
+    var n = [v[1] / L, -v[0] / L], off = C.k * L;
+    var M = [A[0] + v[0] * C.tm + n[0] * off, A[1] + v[1] * C.tm + n[1] * off];
+    return splineSegs([A, M, B], null, null);
   }
 
   /** 베지어 구간열에서 x = 목표 인 점 — 소매산에서 절개 시작점을 찾는 데 쓴다 */
@@ -1329,6 +1342,14 @@
     /* 절개선 — 도면 bigBack 41점에 적합(편차 0.106). 도면의 절개선은 거의 직선이라
        (호 53.7565 / 현 53.726) 중간 앵커는 팔꿈치선보다 6.8 위로 올라간다. */
     twoSeam  : { mr: 0.172537, my: -6.831831, k0: 0.847411, k1: 0.150000 },
+    /* ★ 허리다트 다리와 뒤 옆선은 **직선이 아니라 곡선**이다 (도면 폴리라인 실측).
+       tm = 중간 앵커의 현 위치(비율), k = 현길이 대비 수직 오프셋 — 둘 다 무차원이라
+       전 호수에 그대로 쓴다. 직선으로 두면 뒤 다트가 도면에서 0.44 벌어진다. */
+    dartBackSide : { tm: 0.0992, k: -0.00850 },   // 뒤 다트 옆다리   (편차 0.076)
+    dartBackCtr  : { tm: 0.1801, k: -0.01350 },   // 뒤 다트 중심다리 (편차 0.029)
+    dartFrontSide: { tm: 0.1377, k: -0.00350 },   // 앞 다트 옆다리   (편차 0.014)
+    dartFrontCtr : { tm: 0.8772, k:  0.00250 },   // 앞 다트 중심다리 (편차 0.006)
+    backSideSeam : { tm: 0.1381, k: -0.00250 },   // 뒤 옆선          (편차 0.031)
     twoFront : { k0: 1.00 },
     /* 작은소매 소매통 연결(3 cm) — 도면 capBackOut 7점에 적합.
        도착 접선은 **수평 고정**이라야 뒤 소매산과 매끄럽게 이어진다. */
