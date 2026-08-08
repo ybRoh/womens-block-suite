@@ -826,6 +826,59 @@ function sectionUnderarm() {
 }
 function f2s(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
 
+/* ══ 암홀·소매산 너치와 이세 배분 ══════════════════════════════════════ */
+function sectionNotches() {
+  console.log('\n[11] 암홀 3등분 너치 — 이세 배분 (겨드랑 구간 0 / ' +
+    E.K.capEaseShare.map(function (v) { return Math.round(v * 100) + '%'; }).join(' · ') + ')');
+  var U = E.util;
+  function cumAt(curve, underarm, q) {
+    var p = U.sampleSegs(curve, 0.02);
+    if (V.dist(p[0], underarm) > V.dist(p[p.length - 1], underarm)) p = p.slice().reverse();
+    var best = Infinity, bi = 0;
+    for (var i = 0; i < p.length; i++) { var dd = V.dist(p[i], q); if (dd < best) { best = dd; bi = i; } }
+    return U.polyLen(p.slice(0, bi + 1));
+  }
+  E.SIZES.forEach(function (sz) {
+    var dd = E.draftLady1(E.measuresForSize(sz), { seam: 0, sleeveType: 'short' });
+    var g = dd.geom, sl = dd.sleeve, bad = [];
+    var sp = dd.pieces.filter(function (p) { return p.id === 'sleeve'; })[0];
+    var pcs = { '뒤': dd.pieces.filter(function (p) { return p.id === 'back'; })[0],
+                '앞': dd.pieces.filter(function (p) { return p.id === 'front'; })[0] };
+    var msg = [];
+    ['뒤', '앞'].forEach(function (side) {
+      var arm = (side === '뒤') ? g.backArm : g.frontArm, U0 = (side === '뒤') ? g.Ub : g.Uf;
+      var cap = (side === '뒤') ? sl.capBack : sl.capFront, B = (side === '뒤') ? sl.bicepB : sl.bicepF;
+      var AL = U.polyLen(U.sampleSegs(arm, 0.02)), CL = U.polyLen(U.sampleSegs(cap, 0.02));
+      /* 앞뒤 이세는 **재배분** 값으로 본다 (뒤 capEaseBack / 앞 나머지) */
+      var capLB = U.polyLen(U.sampleSegs(sl.capBack, 0.02));
+      var capLF = U.polyLen(U.sampleSegs(sl.capFront, 0.02));
+      var easeAll = (capLB + capLF) - (sl.AHb + sl.AHf);
+      var sideEase = (side === '뒤') ? easeAll * E.K.capEaseBack : easeAll * (1 - E.K.capEaseBack);
+      var b = [0], c = [0];
+      for (var q = 1; q < E.K.armNotchDiv; q++) {
+        var bn = pcs[side].notches.filter(function (n) { return n.label === side + '암홀 ' + q + '/3'; })[0];
+        var cn = sp.notches.filter(function (n) { return n.label === side + ' ' + q + '/3'; })[0];
+        if (!bn || !cn) { bad.push(side + ' ' + q + '/3 너치 없음'); return; }
+        b.push(cumAt(arm, U0, bn.p)); c.push(cumAt(cap, B, cn.p));
+      }
+      /* 끝점은 **어깨 맞춤 너치** — 소매산 끝(정점)이 아니다 */
+      var fitN = sp.notches.filter(function (n) { return n.label === '어깨 맞춤'; })[0];
+      b.push(AL); c.push(AL + sideEase);
+      var ease = sideEase, parts = [];
+      for (var i = 0; i < E.K.armNotchDiv; i++) {
+        var e = (c[i + 1] - c[i]) - (b[i + 1] - b[i]);
+        parts.push(e);
+        var want = ease * E.K.capEaseShare[i];
+        if (Math.abs(e - want) > 0.06) bad.push(side + ' ' + i + '번 구간 이세 ' + f2(e) + ' ≠ ' + f2(want));
+      }
+      /* ★ 겨드랑 구간(0번)에는 이세가 없어야 한다 — 있으면 겨드랑이 당기고 주름이 진다 */
+      if (Math.abs(parts[0]) > 0.03) bad.push(side + ' 겨드랑 구간에 이세 ' + f2(parts[0]));
+      msg.push(side + ' ' + parts.map(function (e) { return f2(e); }).join('/'));
+    });
+    ok(bad.length === 0, sz + ' 이세 배분', msg.join(' · ') + (bad.length ? '  → ' + bad.join(', ') : ''));
+  });
+}
+
 function sectionSizes() {
   console.log('\n[6] 전 호수 (44~88호) 정상 제도');
   E.SIZES.forEach(function (sz) {
@@ -879,6 +932,7 @@ if (process.argv.indexOf('--calibrate') >= 0) {
   sectionTwo(m);
   sectionSizes();
   sectionSeam();
+  sectionNotches();
   sectionUnderarm();
   sectionContinuity();
   console.log('\n' + (fails.length ? '실패 ' + fails.length + '건:\n  - ' + fails.join('\n  - ')

@@ -299,6 +299,14 @@
 
     /* ── 반소매 (SPEC §17-2 · 반소매원형 (1).dxf 실측) ── */
     armNotchDiv    : 3,        // 암홀·소매산 너치 등분 수 (3등분 = 1/3 · 2/3 두 곳)
+    /* ★ 이세 배분
+       ① 구간별 — 겨드랑 쪽부터. **아래 구간은 0** 이라야 한다. 거기 이세를 넣으면
+          곡률이 세서 주름이 잡히고 겨드랑이 당긴다. 남은 이세는 위 두 구간에 균등.
+       ② 앞뒤 — 전체 이세를 **뒤 60% / 앞 40%** 로 나눈다. 제도 그대로 두면 앞이
+          오히려 많으므로(66호 앞 1.35 / 뒤 0.90) **어깨 맞춤점을 소매산 위에서 옮겨** 맞춘다.
+          소매산 정점(제도점)은 그대로 두고 **맞춤 너치만** 이동한다. */
+    capEaseShare   : [0.0, 0.5, 0.5],
+    capEaseBack    : 0.6,
     capReduce      : 0,        // 대각선 감소량. 도면 교차검증 결과 0 (대각선 = 암홀 길이)
     sleeveHemInset : 1.5,      // 밑단 들임 (좌우 각)
     sleeveHemDrop  : 0.5,      // 밑단 2등분점 → 끝 하강량
@@ -853,6 +861,22 @@
     }
     return out;
   }
+  /** 곡선 위에서 **끝점(겨드랑)으로부터 호길이 dist** 인 점 + 접선 */
+  function ptAtLenOn(segs, dist, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();
+    var acc = 0;
+    for (var i = 1; i < p.length; i++) {
+      var seg = V.dist(p[i - 1], p[i]);
+      if (acc + seg >= dist) {
+        var t = seg > 1e-9 ? (dist - acc) / seg : 0;
+        return { p: _lerp(p[i - 1], p[i], t), tan: V.norm(V.sub(p[i], p[i - 1])) };
+      }
+      acc += seg;
+    }
+    return { p: cp(p[p.length - 1]), tan: V.norm(V.sub(p[p.length - 1], p[p.length - 2])) };
+  }
+
   /** 암홀 3등분 너치 — 겨드랑에서 1/3 · 2/3 지점. 소매산의 같은 비율 지점과 짝이 된다.
    *  (몸판 암홀과 소매산은 이세분만큼 길이가 다르므로 **비율**로 잡아야 짝이 맞는다) */
   function armNotches(armSegs, underarm, inside, tag) {
@@ -866,15 +890,36 @@
 
   /** 소매산 3등분 너치 — 몸판 암홀 너치와 **같은 비율** 지점이라 짝이 맞는다.
    *  이세분은 구간마다 비례해서 들어간다. */
+  /** 소매산 너치 — 몸판 암홀 3등분 너치의 **짝**.
+   *  ★ 그냥 소매산을 3등분하면 이세가 구간마다 똑같이 들어가 **겨드랑에 주름**이 진다.
+   *    몸판 구간 길이에 **그 구간 몫의 이세만 더해** 자리를 잡는다 (K.capEaseShare).
+   *      1번째(겨드랑~1/3) : 이세 0     ← 여기가 핵심
+   *      2번째(1/3~2/3)    : 이세 40%
+   *      3번째(2/3~어깨)   : 이세 60%
+   *    그래서 아래 구간은 몸판과 **길이가 같아** 이세 없이 그대로 맞물린다. */
   function capNotches(s) {
-    var mid = [s.apexShift, s.sleeveLen * 0.4];
-    return divPts(s.capBack, K.armNotchDiv, true).map(function (w) {
-      return { p: cp(w.p), angle: inwardAngle(w.tan, w.p, mid),
-               label: '뒤 ' + Math.round(w.frac * K.armNotchDiv) + '/' + K.armNotchDiv };
-    }).concat(divPts(s.capFront, K.armNotchDiv, true).map(function (w) {
-      return { p: cp(w.p), angle: inwardAngle(w.tan, w.p, mid),
-               label: '앞 ' + Math.round(w.frac * K.armNotchDiv) + '/' + K.armNotchDiv };
-    }));
+    var mid = [s.apexShift, s.sleeveLen * 0.4], out = [];
+    /* 앞뒤 이세 재배분 — 전체 이세를 뒤 capEaseBack / 앞 나머지 로 나눈다 */
+    var capLB = polyLen(sampleSegs(s.capBack, 0.02)), capLF = polyLen(sampleSegs(s.capFront, 0.02));
+    var easeAll = Math.max(0, (capLB + capLF) - (s.AHb + s.AHf));
+    var easeB = easeAll * K.capEaseBack, easeF = easeAll - easeB;
+    /* 어깨 맞춤점 = 뒤 소매산에서 (뒤암홀 + 뒤이세) 만큼 간 자리. 정점에서 얼마나 밀렸는지도 낸다 */
+    var needB = s.AHb + easeB;
+    /* 뒤 소매산만으로 모자라면 **정점을 넘어 앞 소매산 쪽으로** 넘어간다 (66호 0.45) */
+    var fit = (needB <= capLB) ? ptAtLenOn(s.capBack, needB, true)
+                               : ptAtLenOn(s.capFront, needB - capLB, false);
+    out.push({ p: cp(fit.p), angle: inwardAngle(fit.tan, fit.p, mid), label: '어깨 맞춤' });
+    [[s.capBack, s.AHb, '뒤', easeB], [s.capFront, s.AHf, '앞', easeF]].forEach(function (w) {
+      var AH = w[1];
+      var ease = w[3], accE = 0;
+      for (var q = 1; q < K.armNotchDiv; q++) {
+        accE += ease * (K.capEaseShare[q - 1] || 0);
+        var hit = ptAtLenOn(w[0], AH * q / K.armNotchDiv + accE, true);
+        out.push({ p: cp(hit.p), angle: inwardAngle(hit.tan, hit.p, mid),
+                   label: w[2] + ' ' + q + '/' + K.armNotchDiv });
+      }
+    });
+    return out;
   }
 
   /** 곡선 위 점에서 **조각 안쪽**을 향하는 너치 각도 */
