@@ -1762,7 +1762,9 @@
       FN('neckBack', '뒷목둘레',      '곡선길이',                 NKb,        'back',  [g.nwB * 0.5, -0.9]),
       FN('dartLine', '다트 중심선',   '어깨선 4.5 지점 ↔ 등품/4 + 1.2', g.bDartX, 'back', [g.bDartX, g.BL * 0.8]),
       FN('dartTip',  '뒤 다트끝',     'BL 에서 5.0 위',           K.bDartTipUp, 'back', cp(g.bDartTip)),
-      FN('bDart',    '뒤 허리다트',   '다트 폭 2.0',              K.bDartW,   'back',  [g.bDartX, g.WLb]),
+      FN('bDart',    '뒤 허리다트 폭', '중심 좌우 ' + f1(K.bDartW / 2) + ' 씩 (' +
+                                     f1(K.bDartW / 2) + ' + ' + f1(K.bDartW / 2) + ')',
+                     V.dist(g.bDartL, g.bDartR), 'back', [g.bDartX, g.WLb + 1.4]),
       /* ── 앞판 ── */
       FN('BL',       'BL',          'B/4 + 0.6',              g.BL,       'front', [g.halfW * 0.5, g.BL]),
       FN('WL',       'CF 밑단',      '앞길이',                   g.WLf,      'front', [g.halfW * 0.25, g.WLf]),
@@ -1780,7 +1782,12 @@
       FN('sideDart', '가슴다트',      '앞길이 − 등길이',            g.dartAmt,  'front', [g.halfW - 1.5, g.BL + K.sideDartDrop]),
       FN('bustDart', '다트 다리',     '위 = 아래 (접어 꿰매므로 같아야 한다) · BP→기준점 − 0.3', g.rL, 'front', cp(g.dLo)),
       FN('fDartTip', '허리다트끝',    'BP 아래 2.5',              K.fDartTipDown, 'front', cp(g.fDartTip)),
-      FN('fDart',    '앞 허리다트',   'CF쪽 1.0 · 옆선쪽 1.5',      K.fDartIn + K.fDartOut, 'front', [g.BP[0], g.WLf]),
+      FN('fDart',    '앞 허리다트 폭', 'CF쪽 ' + f1(K.fDartIn) + ' + 옆선쪽 ' + f1(K.fDartOut),
+                     V.dist(g.fDartL, g.fDartR), 'front', [g.BP[0], g.WLf + 1.4]),
+      /* ★ 가슴다트 폭 — 다트 입구(옆선)에 적는다 */
+      FN('bustDartW', '가슴다트 폭',  '옆선에서 벌어지는 양',
+                     V.dist(g.dUpTrue, g.dLo), 'front',
+                     [(g.dUpTrue[0] + g.dLo[0]) / 2 + 1.0, (g.dUpTrue[1] + g.dLo[1]) / 2]),
       FN('seam',     '시접',         (typeof seam === 'number' ? '전 둘레 균일' : '부위별'), (typeof seam === 'number' ? seam : 0), 'both', [0, 0])
     ];
   }
