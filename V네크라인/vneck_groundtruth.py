@@ -1,0 +1,106 @@
+# -*- coding: utf-8 -*-
+"""V네크라인.dxf → dxf-66-groundtruth.json
+   행1(제도 본체)만 쓴다. 행2·행3 은 같은 도형의 사본이라 정보가 없다.
+   로컬좌표: 뒤 = CB 에서 옆선쪽 +x, 위 기준선에서 아래 +y
+             앞 = CF 에서 옆선쪽 +x(왼쪽 자락은 -x), 같은 기준선에서 아래 +y
+"""
+import sys, math, json, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from dxfdump import read_dxf, entities, gf, gv
+
+SRC = sys.argv[1] if len(sys.argv) > 1 else '/Users/ybr/Downloads/V네크라인.dxf'
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dxf-66-groundtruth.json')
+
+CB, CF, TOP = 2022.077, 1961.774, 1694.871      # 뒤 중심 · 앞 중심 · 공통 상단 기준선
+WL = 1657.371                                    # 허리선 (앞뒤 공통)
+
+ents = entities(read_dxf(SRC))
+
+def collect():
+    out = []; i = 0
+    while i < len(ents):
+        e = ents[i]; t = e['type']
+        if t == 'LINE':
+            out.append({'k':'LINE','p':[(gf(e,10),gf(e,20)),(gf(e,11),gf(e,21))]}); i += 1
+        elif t == 'LWPOLYLINE':
+            xs=[float(v) for c,v in e['g'] if c==10]; ys=[float(v) for c,v in e['g'] if c==20]
+            out.append({'k':'LW','p':list(zip(xs,ys))}); i += 1
+        elif t == 'POLYLINE':
+            pts=[]; j=i+1
+            while j < len(ents) and ents[j]['type'] in ('VERTEX','SEQEND'):
+                if ents[j]['type']=='SEQEND': j+=1; break
+                if (int(float(gv(ents[j],70,'0') or 0)) & 16) == 0:
+                    pts.append((gf(ents[j],10), gf(ents[j],20)))
+                j += 1
+            out.append({'k':'PL','p':pts}); i = j
+        elif t == 'POINT':
+            out.append({'k':'PT','p':[(gf(e,10),gf(e,20))]}); i += 1
+        elif t == 'ARC':
+            c=(gf(e,10),gf(e,20)); r=gf(e,40); a0=gf(e,50); a1=gf(e,51)
+            n=24; pts=[(c[0]+r*math.cos(math.radians(a0+(a1-a0)*k/n)),
+                        c[1]+r*math.sin(math.radians(a0+(a1-a0)*k/n))) for k in range(n+1)]
+            out.append({'k':'ARC','p':pts,'c':c,'r':r,'a0':a0,'a1':a1}); i += 1
+        else: i += 1
+    return [o for o in out if o['p']]
+
+IT = collect()
+def row1(o): return all(1655 <= p[1] <= 1705 for p in o['p'])
+IT = [o for o in IT if row1(o)]
+
+def isBack(o): return all(p[0] >= 1990 for p in o['p'])
+def lb(p): return [round(CB - p[0], 4), round(TOP - p[1], 4)]
+def lf(p): return [round(p[0] - CF, 4), round(TOP - p[1], 4)]
+def arclen(q): return round(sum(math.dist(q[i], q[i+1]) for i in range(len(q)-1)), 4)
+
+# ── 이름표 ────────────────────────────────────────────────────────────
+NAME = {   # (side, 시작점 로컬, 끝점 로컬) 근사 매칭
+ ('back', 17): '뒷목둘레', ('back', 32): '뒤 목둘레 안단선',
+ ('back', 65): '뒤 암홀',  ('back', 127): '뒤 암홀 안단선',
+ ('front', 25): None,      ('front', 107): '앞 암홀 안단선',
+ ('front', 57): '앞 암홀',  ('front', 25*2): None,
+}
+
+curves, lines, points, arcs = [], [], [], []
+for o in IT:
+    side = 'back' if isBack(o) else 'front'
+    L = lb if side == 'back' else lf
+    q = [L(p) for p in o['p']]
+    if o['k'] in ('LINE',):
+        lines.append({'side': side, 'local': q, 'len': arclen(q)})
+    elif o['k'] == 'PT':
+        points.append({'side': side, 'local': q[0]})
+    elif o['k'] == 'ARC':
+        arcs.append({'side': side, 'local': q, 'arc': arclen(q), 'r': round(o['r'], 4)})
+    else:
+        nm = NAME.get((side, len(q)))
+        if nm is None and side == 'front' and len(q) == 25:
+            nm = 'V 네크라인' if abs(q[0][1] - 28.2) < 0.2 else 'V 네크라인 안단선'
+        curves.append({'name': nm or ('%s-%d' % (side, len(q))), 'side': side,
+                       'n': len(q), 'arc': arclen(q), 'local': q})
+
+curves.sort(key=lambda c: (c['side'], c['name']))
+lines.sort(key=lambda l: (l['side'], -l['len']))
+
+doc = {
+ 'note': ('66호 V 네크라인 원본 DXF — 행1(제도 본체)에서 뽑은 좌표. 스플라인 fit 정점만.'
+          ' 앞: CF=%g, 뒤: CB=%g, 공통 상단 기준선 y=%g, 허리선 y=%g (원본 도면 좌표)' % (CF, CB, TOP, WL)),
+ 'ref': {'CB': CB, 'CF': CF, 'TOP': TOP, 'WL_DXF': WL,
+         'backLen': round(TOP - WL, 4), 'B': 87.6,
+         'BL': 21.9, 'armpitY': 18.9, 'sideXback': 23.8, 'sideXfront': 23.5},
+ 'curves': curves, 'lines': lines, 'points': points, 'arcs': arcs,
+}
+json.dump(doc, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+print('wrote', OUT)
+for c in curves:
+    print('  %-18s %-5s n=%-4d arc=%8.3f  (%7.3f,%7.3f) -> (%7.3f,%7.3f)'
+          % (c['name'], c['side'], c['n'], c['arc'], c['local'][0][0], c['local'][0][1],
+             c['local'][-1][0], c['local'][-1][1]))
+print('\n-- lines --')
+for l in lines:
+    print('  %-5s (%8.3f,%8.3f) -> (%8.3f,%8.3f)  %7.3f'
+          % (l['side'], l['local'][0][0], l['local'][0][1], l['local'][1][0], l['local'][1][1], l['len']))
+print('\n-- points --')
+for p in points: print('  %-5s (%7.3f,%7.3f)' % (p['side'], p['local'][0], p['local'][1]))
+print('\n-- arcs --')
+for a in arcs: print('  %-5s r=%8.3f  (%7.3f,%7.3f) -> (%7.3f,%7.3f)  arc=%6.3f'
+                     % (a['side'], a['r'], a['local'][0][0], a['local'][0][1], a['local'][-1][0], a['local'][-1][1], a['arc']))
