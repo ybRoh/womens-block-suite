@@ -343,7 +343,8 @@ function sectionSkeleton(m, d) {
     ['앞 겨드랑 U',    P.front.U,     [21.0, 21.6]],
     ['앞 BP',          P.front.BP,    [9.0, 23.916]],
     ['가슴다트 위끝',  P.front.dartUp,  [20.678, 26.528]],
-    ['가슴다트 아래끝', P.front.dartLow, [20.516, 29.023]],
+    /* ⚠ 도면의 (20.516, 29.023) 은 **트루잉 전** 위치다 (아래 다리를 0.63 길게 그린 것).
+       완성 패턴은 두 다리를 같게 맞추므로 그만큼 BP 쪽으로 당겨진다 — 아래에서 따로 잰다. */
     ['허리다트끝',     P.front.waistDartTip, [9.0, 26.4163]],
     ['허리다트 CF쪽',  P.front.waistDartL,   [8.0, 40.0]],
     ['허리다트 옆선쪽', P.front.waistDartR,  [10.5, 40.0]],
@@ -425,8 +426,12 @@ function sectionSew(m, d) {
      '뒤 ' + f2(M.sideBack) + ' / 앞 ' + f2(M.sideFront) + '  차 ' + f2(Math.abs(M.sideBack - M.sideFront)));
   ok(Math.abs(M.shoulderBack - M.shoulderFront) <= TOL_SEW, '어깨선 (뒤 = 앞)',
      '뒤 ' + f2(M.shoulderBack) + ' / 앞 ' + f2(M.shoulderFront));
-  ok(Math.abs(M.bustDartOpen - (m.frontLen - m.backLen)) <= 0.02, '가슴다트 = 앞길이 − 등길이',
-     f2(M.bustDartOpen) + ' / ' + f2(m.frontLen - m.backLen));
+  /* 가슴다트 벌어짐 — 교재 규칙은 `앞길이 − 등길이`. 그 규칙의 목적이 "접으면 앞 옆선이
+     뒤 옆선과 같아진다" 이므로 엔진은 거기서 각을 조금 열어 옆선을 **정확히** 맞춘다.
+     그래서 규칙값보다 0.1 남짓 크다 — 옆선 일치(위 항목)가 0.000 인 것이 그 대가다. */
+  ok(Math.abs(M.bustDartOpen - (m.frontLen - m.backLen)) <= 0.20, '가슴다트 ≈ 앞길이 − 등길이',
+     f2(M.bustDartOpen) + ' / 규칙 ' + f2(m.frontLen - m.backLen) +
+     '  (옆선을 정확히 맞추려 연 각도분 ' + f2(M.bustDartOpen - (m.frontLen - m.backLen)) + ')');
   if (M.sleeveCapEase !== null) {
     ok(M.sleeveCapEase > 0.8 && M.sleeveCapEase <= 3.0, '소매산 이세분 (0.8 ~ 3.0)',
        f2(M.sleeveCapEase) + '  도면 실측 2.279');
@@ -437,9 +442,33 @@ function sectionSew(m, d) {
        '뒤 ' + f2(M.sleeveCapLenBack) + '≥' + f2(M.armholeBack) +
        ' / 앞 ' + f2(M.sleeveCapLenFront) + '≥' + f2(M.armholeFront));
   }
-  // 다트 다리 — 도면과 같은 트루잉이라 0.6 정도 차이가 정상 (BP 에서 잰 길이)
-  note('가슴다트 다리 위 ' + f2(M.bustDartLegUp) + ' / 아래 ' + f2(M.bustDartLegLow) +
-       '  (도면과 같은 ±0.3 트루잉 — 바깥 끝에서 맞춰 봉제)');
+  /* ★★ 다트는 접어서 꿰맨다 — **두 다리 길이가 같아야** 한다.
+     다르면 접었을 때 끝이 안 맞아 옆선/허리선에 턱이 지고 그만큼 잘라내야 한다.
+     도면은 가슴다트를 위 11.966 / 아래 12.597 (차 0.63) 로 그리는데 그 차이가
+     **접어서 잘라내는 트루잉분**이다. 완성 패턴은 둘 다 위 다리 길이로 맞춘다. */
+  ok(Math.abs(M.bustDartLegUp - M.bustDartLegLow) <= 0.01, '★ 가슴다트 두 다리 길이 같음',
+     '위 ' + f2(M.bustDartLegUp) + ' / 아래 ' + f2(M.bustDartLegLow) +
+     '  차 ' + f2(Math.abs(M.bustDartLegUp - M.bustDartLegLow)) +
+     '  (도면 11.966 / 12.597 은 트루잉 전)');
+
+  /* 허리다트 두 다리 — 허리선이 다트축에 수직이 아니라 기하학적으로 조금 다르다.
+     0.05 정도는 허리선 곡선이 흡수하지만, 그보다 커지면 제도가 틀어진 것이다. */
+  var g = d.geom;
+  [['앞 허리다트', g.fDartTip, g.fDartL, g.fDartR],
+   ['뒤 허리다트', g.bDartTip, g.bDartL, g.bDartR]].forEach(function (w) {
+    var a = V.dist(w[1], w[2]), b = V.dist(w[1], w[3]);
+    ok(Math.abs(a - b) <= 0.08, w[0] + ' 두 다리 길이',
+       f2(a) + ' / ' + f2(b) + '  차 ' + f2(Math.abs(a - b)) + ' (허리선 기울기 탓 · 허용 0.08)');
+  });
+
+  /* 전 호수에서도 가슴다트 두 다리가 같고 옆선이 맞는가 */
+  E.SIZES.forEach(function (sz) {
+    var dd = E.draftLady1(E.measuresForSize(sz), { seam: 0 }), MM = dd.measures;
+    var dl = Math.abs(MM.bustDartLegUp - MM.bustDartLegLow);
+    var ds = Math.abs(MM.sideBack - MM.sideFront);
+    ok(dl <= 0.01 && ds <= 0.01, sz + ' 다트 다리 = · 옆선 =',
+       '다리차 ' + f2(dl) + ' · 옆선차 ' + f2(ds) + ' · 벌어짐 ' + f2(MM.bustDartOpen));
+  });
 }
 
 function sectionSleeve(m, d) {

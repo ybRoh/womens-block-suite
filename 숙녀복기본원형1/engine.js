@@ -390,28 +390,53 @@
     var bpDx = bpx - SNPf[0];
     var BP = [bpx, SNPf[1] + Math.sqrt(Math.max(m.bpLen * m.bpLen - bpDx * bpDx, 0.01))];
 
-    // 옆선 가슴다트 — 위 다리는 옆선 위 (BL + 5.0) 을 향하되 0.3 짧게,
-    //                 아래 다리는 0.3 길게, 두 끝 사이 벌어짐 = 앞길이 − 등길이
+    /* 옆선 가슴다트 — 두 다리 모두 **다트 기준점까지의 길이 rA**, 벌어짐 = 앞길이 − 등길이.
+     *
+     * ★ 다트는 접어서 꿰매므로 **두 다리 길이가 같아야** 한다. 다르면 접었을 때
+     *   끝점이 안 맞아 옆선에 턱이 지고, 그만큼 잘라내야 한다.
+     *
+     * 도면(숙녀복기본원형1.dxf 실측) —
+     *   · BP →(21.000, 26.600) 12.2964 는 **다트 기준선(작도선)** 이지 다리가 아니다.
+     *   · 위 다리 = 옆선(위)이 끝나는 곳 (20.678, 26.528) → **11.9662** (= rA − 0.33)
+     *   · 아래 다리 BP →(20.516, 29.023) → **12.5972** (= rA + 0.30)
+     *   · 두 끝 사이 벌어짐 |위−아래| = 2.5003 = 앞길이 − 등길이 ✔
+     * 즉 도면은 두 다리가 **0.63 차이**난다. 그 차이는 접어서 잘라내는 트루잉분이므로
+     * 완성 패턴은 **둘 다 위 다리 길이(rA − 0.3)** 로 맞춘다.
+     *
+     * ⚠ 한때 BP→(21,26.6) 을 위 다리로 착각해 rA 로 늘렸다가 도면에서 0.33 밀렸다.
+     *   도면에서 **작도선과 완성선을 구분**할 것 — 여기선 옆선이 끝나는 점이 다리 끝이다. */
     var dFoot = [halfW, BL + K.sideDartDrop];
     var uUp = V.norm(V.sub(dFoot, BP));
     var rA = V.dist(BP, dFoot);
-    var rU = Math.max(0.5, rA - K.sideDartTrue);
-    var rL = rA + K.sideDartTrue;
-    var cosT = (rU * rU + rL * rL - dartAmt * dartAmt) / (2 * rU * rL);
-    var dTheta = Math.acos(Math.max(-1, Math.min(1, cosT)));
+    var rU = Math.max(0.5, rA - K.sideDartTrue), rL = rU;   // ★ 두 다리 같은 길이
     var aU = Math.atan2(uUp[1], uUp[0]);
     var dUp = [BP[0] + rU * Math.cos(aU), BP[1] + rU * Math.sin(aU)];
-    var dLo = [BP[0] + rL * Math.cos(aU + dTheta), BP[1] + rL * Math.sin(aU + dTheta)];
+    var loAt = function (th) { return [BP[0] + rL * Math.cos(aU + th), BP[1] + rL * Math.sin(aU + th)]; };
 
-    /* 옆선 — 교재 규칙(위 다리 −0.3) 그대로 두면 앞 옆선(봉제 길이)이 뒤 옆선과
-       저절로 맞는다 (66호 차 0.007 cm). 그래서 기본은 규칙점을 그대로 쓴다.
-       opt.trueSide = true 를 주면 차이를 0 으로 강제하지만, 그만큼(≈0.03) 도면에서 밀린다. */
+    /* 다트 벌어짐 — 교재 규칙은 `앞길이 − 등길이`. 그 규칙의 **목적**이
+       "다트를 접으면 앞 옆선이 뒤 옆선과 같아진다" 이므로, 각을 거기서 조금 열어
+       **앞 옆선 = 뒤 옆선** 을 정확히 맞춘다 (66호 2.500 → 2.59, 0.09 차).
+       다리 길이는 둘 다 rA 로 고정이라 이 조정은 다리 길이를 건드리지 않는다.
+       opt.trueSide === false 를 주면 규칙값(앞길이 − 등길이) 그대로 쓴다. */
     var sideBack = V.dist(Ub, bWaist);
     var fWaist = [halfW - K.waistIn, WLf];
+    var th0 = 2 * Math.asin(Math.max(-1, Math.min(1, dartAmt / (2 * rU))));
+    var sideUpLen = V.dist(Uf, dUp);
+    var frontAt = function (th) { return sideUpLen + V.dist(loAt(th), fWaist); };
+    var dTheta = th0;
+    if (opt.trueSide !== false) {
+      var lo = Math.max(1e-4, th0 - 0.30), hi = th0 + 0.30;
+      if ((frontAt(lo) - sideBack) * (frontAt(hi) - sideBack) < 0) {
+        for (var it = 0; it < 60; it++) {            // 각을 키우면 앞 옆선이 짧아진다
+          var mt = (lo + hi) / 2;
+          if (frontAt(mt) > sideBack) lo = mt; else hi = mt;
+        }
+        dTheta = (lo + hi) / 2;
+      }
+    }
+    var dLo = loAt(dTheta);
     var sideLow = V.dist(dLo, fWaist);
-    var dUpTrue = (opt.trueSide === true)
-      ? pointOnRayAtDist(BP, uUp, Uf, Math.max(0.5, sideBack - sideLow), rU)
-      : dUp;
+    var dUpTrue = dUp;
 
     // 앞 허리다트 — 중심 = BP 아래 수직, 끝은 BP 에서 2.5 아래
     var fDartTip = [BP[0], BP[1] + K.fDartTipDown];
@@ -1663,7 +1688,7 @@
       FN('armFront', '앞 암홀',      '곡선길이',                 AHf,        'front', [g.fPitchX + 1.0, g.BL * 0.55]),
       FN('neckFront','앞목둘레',      '곡선길이',                 NKf,        'front', [g.nwF * 0.45, g.nwF * 0.55]),
       FN('sideDart', '가슴다트',      '앞길이 − 등길이',            g.dartAmt,  'front', [g.halfW - 1.5, g.BL + K.sideDartDrop]),
-      FN('bustDart', '다트 다리',     '위 −0.3 · 아래 +0.3 (트루잉)', g.rL,      'front', cp(g.dLo)),
+      FN('bustDart', '다트 다리',     '위 = 아래 (접어 꿰매므로 같아야 한다) · BP→기준점 − 0.3', g.rL, 'front', cp(g.dLo)),
       FN('fDartTip', '허리다트끝',    'BP 아래 2.5',              K.fDartTipDown, 'front', cp(g.fDartTip)),
       FN('fDart',    '앞 허리다트',   'CF쪽 1.0 · 옆선쪽 1.5',      K.fDartIn + K.fDartOut, 'front', [g.BP[0], g.WLf]),
       FN('seam',     '시접',         (typeof seam === 'number' ? '전 둘레 균일' : '부위별'), (typeof seam === 'number' ? seam : 0), 'both', [0, 0])
