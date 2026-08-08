@@ -956,22 +956,27 @@ ok('용지 크기는 그대로 210×297mm', I2.pageWidthMm === 210 && I2.pageHei
 ok('보정 시 페이지 수 ' + I2.tilePages + '장 (기준 ' + I0.tilePages + '장)', I2.tilePages >= I0.tilePages);
 
 /* ───────────────── 6. 롤지 모드 ───────────────── */
-section('6. A1 롤지 모드 (폭 594mm)');
+section('6. A1 롤지 모드 (폭 ≤ 594mm · 길이 제한 없음 — 페이지 = 패턴 크기)');
 var L3 = NDP.buildPrintLayout(mockDraft({ seam: PER }), { mode: 'roll', rollWidthMm: 594, seam: PER });
 var I3 = L3.info;
 console.log('    용지 = ' + f(I3.pageWidthMm, 1) + ' × ' + f(I3.pageHeightMm, 2) + 'mm  (길이 가변)');
 console.log('    캔버스 = ' + f(I3.canvas.wMm, 2) + ' × ' + f(I3.canvas.hMm, 2) + 'mm   유효폭 = ' + f(I3.worldContentWidthMm, 2) + 'mm');
 ok('분할 없음 — 1장', L3.pageCount === 1 && I3.tilePages === 1);
-ok('용지 폭 = 594mm', I3.pageWidthMm === 594);
+/* ★ 롤지는 길이 제한이 없다 — 페이지를 A1 규격에 맞추지 않고 **패턴 크기 그대로** 잡는다.
+   폭도 롤 폭까지 채우지 않고 배치 폭에 맞춰 줄인다(물리적 롤 폭은 절대 안 넘는다). */
+ok('용지 폭 = 배치 크기 (롤 폭 이내)',
+  I3.pageWidthMm <= 594 + 1e-6 && Math.abs(I3.pageWidthMm - (I3.canvas.wMm + 30)) < 1e-6,
+  f(I3.pageWidthMm, 2) + 'mm = 배치 ' + f(I3.canvas.wMm, 2) + ' + 여백 30');
 var mw = /width="([\d.]+)mm"/.exec(L3.pagesSvg[0]), mh = /height="([\d.]+)mm"/.exec(L3.pagesSvg[0]);
 var mvb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(L3.pagesSvg[0]);
-ok('SVG width 속성 = 594mm', mw && +mw[1] === 594, mw ? mw[1] + 'mm' : '?');
+ok('SVG width 속성 = 용지 폭', mw && near(+mw[1], I3.pageWidthMm, 0.01), mw ? mw[1] + 'mm' : '?');
 ok('SVG viewBox 가 mm 와 1:1', mvb && near(+mvb[1], +mw[1], 1e-6) && near(+mvb[2], +mh[1], 1e-6),
   mvb ? '0 0 ' + mvb[1] + ' ' + mvb[2] + '  vs  ' + mw[1] + 'mm × ' + mh[1] + 'mm' : '?');
 ok('조각이 롤 유효폭 안에 들어감', I3.canvas.wMm <= I3.worldContentWidthMm + 1e-6,
   f(I3.canvas.wMm, 2) + ' ≤ ' + f(I3.worldContentWidthMm, 2) + 'mm');
 ok('롤지 폭 초과 경고 없음', I3.warnings.filter(function (w) { return w.indexOf('초과') >= 0; }).length === 0);
-ok('@page 가 가변 길이 반영', I3.pageCss === '@page{size:594mm ' + (+I3.pageHeightMm.toFixed(2)) + 'mm;margin:0}', I3.pageCss);
+ok('@page 가 가변 폭·길이 반영',
+  I3.pageCss === '@page{size:' + (+I3.pageWidthMm.toFixed(2)) + 'mm ' + (+I3.pageHeightMm.toFixed(2)) + 'mm;margin:0}', I3.pageCss);
 ok('롤지에도 5cm 눈금', (L3.pagesSvg[0].match(/data-ndp-calib="1"/g) || []).length >= 2,
   (L3.pagesSvg[0].match(/data-ndp-calib="1"/g) || []).length + '개 (가로 2 + 세로 1)');
 ok('조각 라벨: 호수·조각명·식서·재단매수', /66호/.test(L3.pagesSvg[0]) && /뒷판/.test(L3.pagesSvg[0]) &&
@@ -980,8 +985,11 @@ ok('롤지에도 골선 표시', L3.pagesSvg[0].indexOf('골선 · 시접 없음
   (L3.pagesSvg[0].match(/data-ndp-fold="1"/g) || []).length === 2,
   (L3.pagesSvg[0].match(/data-ndp-fold="1"/g) || []).length + '개 (앞·뒤 각 1)');
 var L4 = NDP.buildPrintLayout(mockDraft({ seam: 0 }), { mode: 'roll', rollWidthMm: 914, seam: 0 });
-ok('롤 폭 914mm 선택 가능', L4.info.pageWidthMm === 914,
-  '914mm → ' + f(L4.info.pageHeightMm, 1) + 'mm 길이, 유효폭 ' + f(L4.info.worldContentWidthMm, 1) + 'mm');
+ok('넓은 롤(914)에서도 용지는 배치 크기', L4.info.pageWidthMm <= 914 + 1e-6 &&
+  Math.abs(L4.info.pageWidthMm - (L4.info.canvas.wMm + 30)) < 1e-6,
+  f(L4.info.pageWidthMm, 1) + 'mm × ' + f(L4.info.pageHeightMm, 1) + 'mm (배치 ' + f(L4.info.canvas.wMm, 1) + ')');
+ok('길이 제한 없음 — A1 세로(841)보다 길어도 된다',
+  NDP.DEFAULTS.rollFitWidth === true, '페이지 = 패턴 크기');
 
 /* ───────────────── 7. 네스팅 회전 ───────────────── */
 section('7. 네스팅 회전 / 용지 절약');

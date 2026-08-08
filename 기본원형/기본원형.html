@@ -593,7 +593,7 @@ td.n.n-fail{color:var(--red)}
           <label for="ndPrintMode">모드</label>
           <select id="ndPrintMode">
             <option value="a4">A4 타일 (잘라 붙이기)</option>
-            <option value="roll">A1 · 롤지 (한 장)</option>
+            <option value="roll">A1 롤지 (한 장 · 길이 제한 없음)</option>
           </select>
         </div>
         <div class="field" id="ndRollRow" hidden>
@@ -1938,7 +1938,8 @@ var DEFAULTS = {
   overview: true,        // A4 모드 1페이지에 전체배치 축소도 + 사용법
   maxCols: 8,            // 네스팅 후보 열 수 탐색 상한
   title: '',             // 페이지 머리말(호수·치수 요약 등)
-  rollMarginMm: 15       // 롤지 상하좌우 여백
+  rollMarginMm: 15,      // 롤지 상하좌우 여백
+  rollFitWidth: true     // 롤지 페이지를 배치 크기로 줄인다 (길이 제한 없음)
 };
 
 /* ── 부위별 시접 (SPEC §11-1) ─────────────────────────────────────────── */
@@ -3387,7 +3388,14 @@ function buildPrintLayout(draft, opt) {
       warnings.push('조각 폭 ' + (canvasW / 10).toFixed(1) + 'cm 가 롤지 유효폭 ' + (usableW / 10).toFixed(1) +
                     'cm 를 초과합니다. 조각 하나가 A1 폭보다 넓어 잘립니다 — A4 타일 모드를 쓰세요.');
     }
+    /* ★ 롤지는 **길이 제한이 없다** — 페이지를 A1 규격(594×841)에 맞추지 않고
+       **패턴이 차지하는 크기 그대로** 잡는다. 폭도 롤 폭까지 채우지 않고 배치 폭에
+       맞춰 줄인다 (594 로 고정하면 좌우가 비어 롤이 낭비되고, 뷰어가 A1 로 인식해
+       841 에서 잘리기도 한다). 폭은 물리적 롤 폭을 절대 넘지 않는다. */
     rollHmm = 2 * o.rollMarginMm + 26 + canvasH * k + 8;
+    if (o.rollFitWidth !== false) {
+      rollWmm = Math.min(rollWmm, 2 * o.rollMarginMm + canvasW * k);
+    }
     ctx.previewW = canvasW; ctx.previewH = canvasH;
     ctx.rollWmm = rollWmm; ctx.rollHmm = rollHmm;
   }

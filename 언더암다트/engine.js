@@ -1157,16 +1157,18 @@
     var edges = (s.sleeveType === 'tight') ? [
       { name: '앞 소매산',   role: 'armhole',   segs: s.capFront },
       { name: '앞 밑선',     role: 'side',      segs: s.underFront },      // 곡선
-      { name: '밑단',        role: 'sleeveHem', segs: lineSegs(s.hemF, s.hemFlat) },
-      { name: '밑단(뒤)',    role: 'sleeveHem', segs: s.hemBack },          // 0.3 하강
+      /* ★ 밑단은 **한 줄 C2 스플라인** — 직선 + 곡선으로 이어 붙이면 2등분점에서
+         곡률이 튀어 눈에 꺾여 보인다 (실제로 지적받았다). */
+      { name: '밑단',        role: 'sleeveHem', segs: splineSegs([s.hemF, s.hemFlat, s.hemB], null, null) },
       { name: '뒤 밑선',     role: 'side',      segs: lineSegs(s.hemB, s.bicepB) },  // 직선
       { name: '뒤 소매산',   role: 'armhole',   segs: revSegs(s.capBack) }
     ] : [
       { name: '앞 소매산',   role: 'armhole',   segs: s.capFront },
       { name: '앞 밑선',     role: 'side',      segs: lineSegs(s.bicepF, s.hemEndF) },
-      { name: '앞 밑단',     role: 'sleeveHem', segs: revSegs(s.hemFront) },
-      { name: '밑단 중앙',   role: 'sleeveHem', segs: lineSegs(s.hemMidF, s.hemMidB) },
-      { name: '뒤 밑단',     role: 'sleeveHem', segs: s.hemBack },
+      /* ★ 밑단은 **한 줄 C2 스플라인** (2등분점 두 개를 앵커로) — 곡선·직선·곡선으로
+         이어 붙이면 2등분점에서 곡률이 튀어 꺾여 보인다. */
+      { name: '밑단',        role: 'sleeveHem',
+        segs: splineSegs([s.hemEndF, s.hemMidF, s.hemMidB, s.hemEndB], null, null) },
       { name: '뒤 밑선',     role: 'side',      segs: lineSegs(s.hemEndB, s.bicepB) },
       { name: '뒤 소매산',   role: 'armhole',   segs: revSegs(s.capBack) }
     ];
