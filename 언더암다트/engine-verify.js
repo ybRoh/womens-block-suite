@@ -349,7 +349,8 @@ function sectionSkeleton(m, d) {
        (기준 원형은 BP 아래 2.5 = 도면 (9.0, 26.4163)) */
     ['허리다트끝(BP)', P.front.waistDartTip, [9.0, 23.9165]],
     ['허리다트 CF쪽',  P.front.waistDartL,   [8.0, 40.0]],
-    ['허리다트 옆선쪽', P.front.waistDartR,  [10.5, 40.0]],
+    /* ★ 이 원형은 허리다트가 **1 + 1** (기준 원형 1 + 1.5) */
+    ['허리다트 옆선쪽', P.front.waistDartR,  [10.0, 40.0]],
     ['앞 허리 옆점',   P.front.waist, [19.8, 40.0]]
   ];
   want.forEach(function (w) {
@@ -424,16 +425,19 @@ function sectionTangent(m) {
 function sectionSew(m, d) {
   console.log('\n[3] 봉제 정합 — 맞물리는 두 변의 길이 (허용 ' + TOL_SEW + ' cm)');
   var M = d.measures;
-  ok(Math.abs(M.sideBack - M.sideFront) <= TOL_SEW, '옆선 (뒤 = 앞)',
-     '뒤 ' + f2(M.sideBack) + ' / 앞 ' + f2(M.sideFront) + '  차 ' + f2(Math.abs(M.sideBack - M.sideFront)));
+  /* ★ 이 원형은 가슴다트를 **1.5 고정**으로 줄였다 (기준 원형 2.5 = 앞길이 − 등길이).
+     줄인 만큼(1.0) 앞 옆선이 길어지는 것이 정상 — 제도 2 에서 허리다트를 접어 흡수한다. */
+  var sideGap = M.sideFront - M.sideBack, wantGap = (m.frontLen - m.backLen) - E.K.bustDartAmt;
+  ok(Math.abs(sideGap - wantGap) <= 0.10, '옆선 차 = 줄인 가슴다트분',
+     '뒤 ' + f2(M.sideBack) + ' / 앞 ' + f2(M.sideFront) + '  차 ' + f2(sideGap) +
+     '  (가슴다트를 ' + f2(wantGap) + ' 줄인 값)');
   ok(Math.abs(M.shoulderBack - M.shoulderFront) <= TOL_SEW, '어깨선 (뒤 = 앞)',
      '뒤 ' + f2(M.shoulderBack) + ' / 앞 ' + f2(M.shoulderFront));
   /* 가슴다트 벌어짐 — 교재 규칙은 `앞길이 − 등길이`. 그 규칙의 목적이 "접으면 앞 옆선이
      뒤 옆선과 같아진다" 이므로 엔진은 거기서 각을 조금 열어 옆선을 **정확히** 맞춘다.
      그래서 규칙값보다 0.1 남짓 크다 — 옆선 일치(위 항목)가 0.000 인 것이 그 대가다. */
-  ok(Math.abs(M.bustDartOpen - (m.frontLen - m.backLen)) <= 0.20, '가슴다트 ≈ 앞길이 − 등길이',
-     f2(M.bustDartOpen) + ' / 규칙 ' + f2(m.frontLen - m.backLen) +
-     '  (옆선을 정확히 맞추려 연 각도분 ' + f2(M.bustDartOpen - (m.frontLen - m.backLen)) + ')');
+  ok(Math.abs(M.bustDartOpen - E.K.bustDartAmt) <= 0.01, '가슴다트 = ' + f2(E.K.bustDartAmt) + ' 고정',
+     f2(M.bustDartOpen) + '  (기준 원형은 앞길이 − 등길이 = ' + f2(m.frontLen - m.backLen) + ')');
   if (M.sleeveCapEase !== null) {
     ok(M.sleeveCapEase > 0.8 && M.sleeveCapEase <= 3.0, '소매산 이세분 (0.8 ~ 3.0)',
        f2(M.sleeveCapEase) + '  도면 실측 2.279');
@@ -497,8 +501,11 @@ function sectionSew(m, d) {
     var dd = E.draftLady1(E.measuresForSize(sz), { seam: 0 }), MM = dd.measures;
     var dl = Math.abs(MM.bustDartLegUp - MM.bustDartLegLow);
     var ds = Math.abs(MM.sideBack - MM.sideFront);
-    ok(dl <= 0.01 && ds <= 0.01, sz + ' 다트 다리 = · 옆선 =',
-       '다리차 ' + f2(dl) + ' · 옆선차 ' + f2(ds) + ' · 벌어짐 ' + f2(MM.bustDartOpen));
+    var mm2 = E.measuresForSize(sz), want = (mm2.frontLen - mm2.backLen) - E.K.bustDartAmt;
+    ok(dl <= 0.01 && Math.abs((MM.sideFront - MM.sideBack) - want) <= 0.10,
+       sz + ' 다트 다리 = · 옆선 차 = 줄인 분량',
+       '다리차 ' + f2(dl) + ' · 옆선차 ' + f2(MM.sideFront - MM.sideBack) + ' (기대 ' + f2(want) +
+       ') · 벌어짐 ' + f2(MM.bustDartOpen));
   });
 }
 
@@ -828,7 +835,9 @@ function sectionSizes() {
     if (err) { ok(false, sz, err); return; }
     var M = d.measures;
     var bad = [];
-    if (Math.abs(M.sideBack - M.sideFront) > TOL_SEW) bad.push('옆선 불일치');
+    /* 이 원형은 가슴다트를 줄인 만큼 앞 옆선이 길다 — 그 값과 맞는지 본다 */
+    var wantG = (m.frontLen - m.backLen) - E.K.bustDartAmt;
+    if (Math.abs((M.sideFront - M.sideBack) - wantG) > TOL_SEW) bad.push('옆선 차 ' + f2(M.sideFront - M.sideBack) + ' ≠ ' + f2(wantG));
     if (M.sideBack < 10) bad.push('옆선 ' + f2(M.sideBack) + ' 너무 짧음');
     if (M.sleeveCapEase !== null && (M.sleeveCapEase <= 0.5 || M.sleeveCapEase > 3.0))
       bad.push('이세분 ' + f2(M.sleeveCapEase));

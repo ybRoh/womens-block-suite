@@ -1112,6 +1112,7 @@ td.n.n-fail{color:var(--red)}
     fDartOut     : 1.5,        // 앞 허리다트 옆선 쪽 다리 (도면 `1.5→`)
 
     /* ── 반소매 (SPEC §17-2 · 반소매원형 (1).dxf 실측) ── */
+    armNotchDiv    : 3,        // 암홀·소매산 너치 등분 수 (3등분 = 1/3 · 2/3 두 곳)
     capReduce      : 0,        // 대각선 감소량. 도면 교차검증 결과 0 (대각선 = 암홀 길이)
     sleeveHemInset : 1.5,      // 밑단 들임 (좌우 각)
     sleeveHemDrop  : 0.5,      // 밑단 2등분점 → 끝 하강량
@@ -1336,10 +1337,12 @@ td.n.n-fail{color:var(--red)}
       notches: [
         { p: cp(g.SPb),  angle: angDeg(perpToward(g.bShDir, g.SPb, g.Ub)),   label: '어깨점' },
         { p: cp(g.SNPb), angle: angDeg(perpToward(g.bShDir, g.SNPb, g.BNP)), label: '목옆점' },
-        { p: cp(g.Ub),   angle: 180,                                          label: '옆선 BL' },
+        { p: cp(g.Ub),   angle: 180,                                          label: '옆선 BL' }
+      ].concat(armNotches(g.backArm, g.Ub, [g.bDartX, g.BL], '뒤암홀')).concat([
+        /* ↑ 암홀 3등분 너치 — 소매산의 같은 비율 지점과 짝이 된다 */
         { p: cp(g.bDartL), angle: -90,                                        label: '다트' },
         { p: cp(g.bDartR), angle: -90,                                        label: '다트' }
-      ],
+      ]),
       bbox: bboxOf(backLoop.pts)
     };
     var frontPiece = {
@@ -1356,12 +1359,13 @@ td.n.n-fail{color:var(--red)}
       notches: [
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.FNP)), label: '목옆점' },
-        { p: cp(g.Uf),   angle: 180,                                          label: '옆선 BL' },
+        { p: cp(g.Uf),   angle: 180,                                          label: '옆선 BL' }
+      ].concat(armNotches(g.frontArm, g.Uf, [g.BP[0], g.BL], '앞암홀')).concat([
         { p: cp(g.dUpTrue), angle: 180,                                       label: '가슴다트' },
         { p: cp(g.dLo),  angle: 180,                                          label: '가슴다트' },
         { p: cp(g.fDartL), angle: -90,                                        label: '허리다트' },
         { p: cp(g.fDartR), angle: -90,                                        label: '허리다트' }
-      ],
+      ]),
       bbox: bboxOf(frontLoop.pts)
     };
 
@@ -1640,6 +1644,60 @@ td.n.n-fail{color:var(--red)}
               c2: [end[0] - W * K.hemC2x, end[1] - D * K.hemC2y], p1: end }];
   }
 
+  /** 곡선을 n 등분한 안쪽 지점들 — **겨드랑(끝점) 쪽에서부터** 잰다.
+   *  암홀 3등분 너치처럼 "곡선 길이의 몇 분의 몇" 으로 잡는 자리에 쓴다.
+   *  몸판 암홀과 소매산은 길이가 다르므로(이세분) 같은 **비율** 로 잡아야 짝이 맞는다. */
+  function divPts(segs, nDiv, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();          // 겨드랑이 배열 앞으로 오게
+    var L = polyLen(p), out = [];
+    for (var q = 1; q < nDiv; q++) {
+      var want = L * q / nDiv, acc = 0, pt = p[p.length - 1], tan = [1, 0];
+      for (var i = 1; i < p.length; i++) {
+        var seg = V.dist(p[i - 1], p[i]);
+        if (acc + seg >= want) {
+          var t = seg > 1e-9 ? (want - acc) / seg : 0;
+          pt = _lerp(p[i - 1], p[i], t);
+          tan = V.norm(V.sub(p[i], p[i - 1]));
+          break;
+        }
+        acc += seg;
+      }
+      out.push({ p: pt, tan: tan, frac: q / nDiv });
+    }
+    return out;
+  }
+  /** 암홀 3등분 너치 — 겨드랑에서 1/3 · 2/3 지점. 소매산의 같은 비율 지점과 짝이 된다.
+   *  (몸판 암홀과 소매산은 이세분만큼 길이가 다르므로 **비율**로 잡아야 짝이 맞는다) */
+  function armNotches(armSegs, underarm, inside, tag) {
+    var p0 = sampleSegs(armSegs, 0.05)[0];
+    var fromEnd = V.dist(p0, underarm) > 1e-6;          // 겨드랑이 곡선의 끝쪽인가
+    return divPts(armSegs, K.armNotchDiv, fromEnd).map(function (w) {
+      return { p: cp(w.p), angle: inwardAngle(w.tan, w.p, inside),
+               label: tag + ' ' + Math.round(w.frac * K.armNotchDiv) + '/' + K.armNotchDiv };
+    });
+  }
+
+  /** 소매산 3등분 너치 — 몸판 암홀 너치와 **같은 비율** 지점이라 짝이 맞는다.
+   *  이세분은 구간마다 비례해서 들어간다. */
+  function capNotches(s) {
+    var mid = [s.apexShift, s.sleeveLen * 0.4];
+    return divPts(s.capBack, K.armNotchDiv, true).map(function (w) {
+      return { p: cp(w.p), angle: inwardAngle(w.tan, w.p, mid),
+               label: '뒤 ' + Math.round(w.frac * K.armNotchDiv) + '/' + K.armNotchDiv };
+    }).concat(divPts(s.capFront, K.armNotchDiv, true).map(function (w) {
+      return { p: cp(w.p), angle: inwardAngle(w.tan, w.p, mid),
+               label: '앞 ' + Math.round(w.frac * K.armNotchDiv) + '/' + K.armNotchDiv };
+    }));
+  }
+
+  /** 곡선 위 점에서 **조각 안쪽**을 향하는 너치 각도 */
+  function inwardAngle(tan, at, inside) {
+    var nr = [tan[1], -tan[0]];
+    if (nr[0] * (inside[0] - at[0]) + nr[1] * (inside[1] - at[1]) < 0) nr = [-nr[0], -nr[1]];
+    return angDeg(nr);
+  }
+
   /** 다트 다리 · 뒤 옆선처럼 **살짝 휜 직선** — 끝점 둘 + 현 위에 띄운 앵커 하나.
    *  C 는 {tm, k}: tm 은 현 위의 위치(비율), k 는 **현길이 대비** 수직 오프셋.
    *  수직 방향은 (끝 − 시작) 을 시계방향 90° 돌린 쪽 = [v.y, −v.x].
@@ -1832,6 +1890,13 @@ td.n.n-fail{color:var(--red)}
     return out;
   }
 
+  /** 점이 이 점열 위에 있는가 (2장소매에서 너치를 어느 조각에 붙일지 고를 때) */
+  function onPts(q, pts) {
+    if (!pts || !pts.length) return false;
+    for (var i = 0; i < pts.length; i++) if (V.dist(q, pts[i]) < 0.06) return true;
+    return false;
+  }
+
   /** 2장소매 조각 2개 */
   function twoSleevePieces(s, seam) {
     function mk(id, name, edges, grain, notches) {
@@ -1861,7 +1926,8 @@ td.n.n-fail{color:var(--red)}
         { p: cp(s.apex), angle: 90, label: '소매산 정점' },
         /* 앞 합인 — 도면 마크 (11.6975, 11.4023) */
         { p: cp(s.pBF), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBF))), label: '앞 합인' },
-        { p: cp(vB.top), angle: 0, label: '트임 끝 (9)' }]);
+        { p: cp(vB.top), angle: 0, label: '트임 끝 (9)' }]
+       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capBigFront) || onPts(nt.p, s.capBigBack); })));
     var und = mk('sleeveUnder', '작은소매', [
       { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
       { name: '절개선',     role: 'side',      segs: vU.seamHead },
@@ -1875,7 +1941,8 @@ td.n.n-fail{color:var(--red)}
        [{ p: cp(s.splitP), angle: 180, label: '절개 시작' },
         /* 뒤 합인 — 도면 마크 (−14.9255, 11.7312). 절개점과 소매통 사이라 작은소매 몫 */
         { p: cp(s.pBB), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBB))), label: '뒤 합인' },
-        { p: cp(vU.top), angle: 180, label: '트임 끝 (9)' }]);
+        { p: cp(vU.top), angle: 180, label: '트임 끝 (9)' }]
+       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capUnderBack); })));
     return [big, und];
   }
 
@@ -1938,7 +2005,7 @@ td.n.n-fail{color:var(--red)}
       seamByRole: sm.seamByRole,
       edges: withSeam(loop.ranges, sm.edgeSeam),
       internal: sleeveInternal(s),
-      notches: (s.sleeveType === 'tight') ? [
+      notches: capNotches(s).concat((s.sleeveType === 'tight') ? [
         { p: cp(s.apex), angle: 90,            label: '소매산 정점' },
         { p: cp(s.pBB),  angle: inward(s.pBB), label: '뒤 합인' },
         { p: cp(s.pBF),  angle: inward(s.pBF), label: '앞 합인' },
@@ -1951,7 +2018,7 @@ td.n.n-fail{color:var(--red)}
         { p: cp(s.pBF),  angle: inward(s.pBF), label: '앞 합인' },
         { p: cp(s.hemMidB), angle: -90,        label: '뒤 밑단 2등분' },
         { p: cp(s.hemMidF), angle: -90,        label: '앞 밑단 2등분' }
-      ],
+      ]),
       bbox: bboxOf(loop.pts)
     };
   }
