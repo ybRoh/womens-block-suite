@@ -21596,7 +21596,7 @@ td.n.n-fail{color:var(--red)}
   &lt;header class=&quot;topbar&quot;&gt;
     &lt;div class=&quot;brand&quot;&gt;
       &lt;h1&gt;V 네크라인&lt;/h1&gt;
-      &lt;p class=&quot;sub&quot;&gt;교재 p.103 · 민소매 V 네크라인 · 몸판 2조각 + 안단 4조각&lt;/p&gt;
+      &lt;p class=&quot;sub&quot;&gt;교재 p.103 · 민소매 V 네크라인 · 앞면(자락) · 앞면(자락 없음) · 뒷면 + 안단 5 = 8조각&lt;/p&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;sizetabs&quot; id=&quot;ndSizeTabs&quot; role=&quot;tablist&quot; aria-label=&quot;호수 선택&quot;&gt;
@@ -21633,7 +21633,10 @@ td.n.n-fail{color:var(--red)}
         &lt;p class=&quot;hint&quot;&gt;교재가 범위로 준 값(진동 올림 1.9~3.1 · 다트끝 BP 앞 1.3~1.9)을 여기서 고릅니다.
           기본값은 66호 원본 도면과 같습니다.&lt;/p&gt;
         &lt;p class=&quot;hint&quot;&gt;&lt;b&gt;앞면은 앞중심을 넘어 반대 옆선까지 가는 자락&lt;/b&gt;입니다 — 좌우 대칭으로 2장 재단해 겹칩니다.
-          다트분을 0 으로 두면 앞뒤 옆선 길이가 정확히 맞습니다.&lt;/p&gt;
+          자락은 한쪽만 늘어나 있어 그것만으로는 대칭 앞판을 못 만들므로
+          &lt;b&gt;「앞면 (자락 없음)」&lt;/b&gt; 조각을 함께 냅니다 — 앞중심을 &lt;b&gt;골선&lt;/b&gt;으로 놓고 1장 재단하면
+          좌우 대칭 V 네크라인이 되고, 자락 스타일에서는 밑에 받치는 앞판이 됩니다.&lt;/p&gt;
+        &lt;p class=&quot;hint&quot;&gt;다트분을 0 으로 두면 앞뒤 옆선 길이가 정확히 맞습니다.&lt;/p&gt;
       &lt;/section&gt;
 
       &lt;section class=&quot;block&quot;&gt;
@@ -22212,7 +22215,8 @@ td.n.n-fail{color:var(--red)}
     var backNeck = curveBackNeck(BNP, SNPb, bShDir);
     var backArm  = curveArmhole(Ub, SPb, bShDir, bPitchX, armY, true);
     var frontArm = curveArmhole(Uf, SPf, fShDir, fPitchX, armY, false);
-    var vNeck    = curveVNeck(SNPf, vMark, Vcf, Vend, fShDir);   // 목옆점 → 자락 끝
+    var vc       = curveVNeck(SNPf, vMark, Vcf, Vend, fShDir);   // 목옆점 → 자락 끝
+    var vNeck    = vc.all;
 
     return {
       m: m, opt: { shEase: shEase, facing: facing, armRise: armRise, dartAmount: dartAmt,
@@ -22226,7 +22230,8 @@ td.n.n-fail{color:var(--red)}
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
       dartLo: dartLo, dartHi: dartHi, dartTip: dartTip, dartLeg: dartLeg, dartAng: dartAng,
       vMark: vMark, Vcf: Vcf, Vend: Vend, wrapWaist: wrapWaist,
-      backNeck: backNeck, backArm: backArm, frontArm: frontArm, vNeck: vNeck
+      backNeck: backNeck, backArm: backArm, frontArm: frontArm,
+      vNeck: vNeck, vNeckUp: vc.up            // 앞중심까지만 (자락 없는 앞판이 쓴다)
     };
   }
 
@@ -22414,6 +22419,41 @@ td.n.n-fail{color:var(--red)}
       g.frontArm, [g.fPitchX * 0.4, g.BL], fac, sideF, shF, seam, 2);
     var frontNeckFacing = facingPiece(&#x27;frontNeckFacing&#x27;, &#x27;앞면 목둘레 안단&#x27;,
       g.vNeck, [g.fSideX * 0.6, WL - 3], fac, shF, wrapE, seam, 2);
+    var cf = { p: [0, 0], d: [0, 1] };                         // 앞중심
+    var plainNeckFacing = facingPiece(&#x27;frontPlainNeckFacing&#x27;, &#x27;앞면(자락없음) 목둘레 안단&#x27;,
+      g.vNeckUp, [g.fSideX * 0.5, g.BL], fac, shF, cf, seam, 1);
+
+    /* ── 자락 없는 앞면 ──────────────────────────────────────────────
+     *  자락 앞판은 한쪽만 늘어나 있어 그것만으로는 좌우 대칭 앞판을 만들 수 없다.
+     *  앞중심에서 끊은 반쪽을 따로 낸다 — 앞중심을 골선으로 놓고 1장 재단하면
+     *  좌우 대칭 V 네크라인이 되고, 자락 스타일에서는 밑에 받치는 앞판이 된다. */
+    var plainEdges = [
+      { name: &#x27;어깨선&#x27;,    role: &#x27;shoulder&#x27;, segs: lineSegs(g.SNPf, g.SPf) },
+      { name: &#x27;앞암홀&#x27;,    role: &#x27;armhole&#x27;,  segs: revSegs(g.frontArm) },
+      { name: &#x27;옆선 위&#x27;,   role: &#x27;side&#x27;,     segs: lineSegs(g.Uf, g.dartHi) },
+      { name: &#x27;다트&#x27;,      role: &#x27;dart&#x27;,     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
+      { name: &#x27;옆선 아래&#x27;, role: &#x27;side&#x27;,     segs: lineSegs(g.dartLo, g.fWaist) },
+      { name: &#x27;허리선&#x27;,    role: &#x27;hem&#x27;,      segs: lineSegs(g.fWaist, [0, WL]) },
+      { name: &#x27;앞중심&#x27;,    role: &#x27;fold&#x27;,     segs: lineSegs([0, WL], g.Vcf) },   // 골선 (시접 0)
+      { name: &#x27;V 네크라인&#x27;, role: &#x27;neck&#x27;,    segs: revSegs(g.vNeckUp) }          // 앞중심 → 목옆점
+    ];
+    var plainLoop = edgesToLoop(plainEdges), plainSeam = buildSeamline(plainLoop, seam);
+    var frontPlain = {
+      id: &#x27;frontPlain&#x27;, name: &#x27;앞면 (자락 없음)&#x27;, cutCount: 1, kind: &#x27;body&#x27;,
+      grainline: [[g.fSideX * 0.4, g.BL], [g.fSideX * 0.4, WL - 2.0]],
+      outline: plainLoop.pts, seamline: plainSeam.seamline, foldEdges: plainSeam.foldEdges,
+      seamEdges: plainSeam.seamEdges, seamFoldEdges: plainSeam.seamFoldEdges,
+      seamByRole: plainSeam.seamByRole, edges: withSeam(plainLoop.ranges, plainSeam.edgeSeam),
+      internal: frontInternal(g).filter(function (x) { return x.id !== &#x27;wrapLine&#x27;; }),
+      notches: [
+        { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: &#x27;어깨점&#x27; },
+        { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: &#x27;목옆점&#x27; },
+        { p: cp(g.Uf),   angle: 180,                                          label: &#x27;겨드랑&#x27; },
+        { p: cp(g.dartHi), angle: 180, label: &#x27;다트 위&#x27; },
+        { p: cp(g.dartLo), angle: 180, label: &#x27;다트 아래&#x27; }
+      ].concat(armNotches(g.frontArm, g.Uf, [g.fPitchX / 2, g.armY], &#x27;앞암홀&#x27;)),
+      bbox: bboxOf(plainLoop.pts)
+    };
 
     /* 몸판에도 안단선을 그려 넣는다 (교재 도면의 `안단선`) */
     function facingLineOf(p) {
@@ -22429,7 +22469,13 @@ td.n.n-fail{color:var(--red)}
       L(&#x27;facingArm&#x27;,  &#x27;dashed&#x27;, facingLineOf(frontArmFacing),  &#x27;암홀 안단선&#x27;)
     ]);
 
-    var pieces = [frontPiece, backPiece, frontNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
+    frontPlain.internal = frontPlain.internal.concat([
+      L(&#x27;facingNeck&#x27;, &#x27;dashed&#x27;, facingLineOf(plainNeckFacing), &#x27;V 목둘레 안단선&#x27;),
+      L(&#x27;facingArm&#x27;,  &#x27;dashed&#x27;, facingLineOf(frontArmFacing),  &#x27;암홀 안단선&#x27;)
+    ]);
+
+    var pieces = [frontPiece, frontPlain, backPiece,
+                  frontNeckFacing, plainNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
 
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.vNeck);
@@ -22503,7 +22549,7 @@ td.n.n-fail{color:var(--red)}
     var M = [Vcf[0] + u[0] * L * Cl.mt + u[1] * L * Cl.moff,
              Vcf[1] + u[1] * L * Cl.mt - u[0] * L * Cl.moff];
     var low = splineSegs([Vcf, M, Vend], endTan(tA, Cl.k0), endTan([-1, Cl.slope], Cl.k1));
-    return up.concat(low);
+    return { all: up.concat(low), up: up, low: low };
   }
 
   /* ══════════════════════════════════════════════════════════════════

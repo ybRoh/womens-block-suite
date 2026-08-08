@@ -181,7 +181,34 @@ E.SIZES.forEach(function (sz) {
     if (bad) { fails++; console.log('  ✗ %s %s  최대 점간격 %.3f · 시접선 %d점', sz, p.name, mx, p.seamline ? p.seamline.length : 0); }
   });
 });
-console.log('  ✓ 전 호수 6조각 점간격 ≤ 0.06 cm · 시접선 생성 확인');
+console.log('  ✓ 전 호수 8조각 점간격 ≤ 0.06 cm · 시접선 생성 확인');
+
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 6. 자락 없는 앞면 — 자락 앞면과 같은 변을 써야 한다');
+console.log('════════════════════════════════════════════════════════════');
+E.SIZES.forEach(function (sz) {
+  var mm = E.measuresForSize(sz), gg = E.geom(mm), dd = E.draftVNeck(mm, { seam: 0 });
+  var pl = dd.pieces.filter(function (p) { return p.id === 'frontPlain'; })[0];
+  var wr = dd.pieces.filter(function (p) { return p.id === 'front'; })[0];
+  var line = [];
+  function chk(c, m) { if (!c) { line.push(m); fails++; } }
+  chk(!!pl, '조각 없음');
+  if (pl) {
+    /* 앞중심은 골선(시접 0) 이어야 하고, 폭은 옆선 x 와 같아야 한다 */
+    var fold = pl.edges.filter(function (e) { return e.role === 'fold'; })[0];
+    chk(!!fold, '앞중심 골선 없음');
+    chk(Math.abs(pl.bbox.w - gg.fSideX) <= 0.25, '폭 ' + pl.bbox.w.toFixed(2) + ' ≠ 옆선 ' + gg.fSideX.toFixed(2));
+    chk(Math.abs(pl.bbox.h - wr.bbox.h) <= 0.01, '높이가 자락 앞판과 다름');
+    /* V 네크라인 위쪽 길이 = 자락 앞판 목둘레 − 앞중심 아래쪽 */
+    var upLen = U.sLen(gg.vNeckUp), allLen = U.sLen(gg.vNeck);
+    chk(upLen > 0 && upLen < allLen, 'V 위쪽 곡선 길이');
+    console.log('  ' + (line.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+      '폭 ' + f(pl.bbox.w, 6, 2) + ' · 높이 ' + f(pl.bbox.h, 6, 2) +
+      ' · V 위쪽 ' + f(upLen, 6, 2) + ' (자락 전체 ' + f(allLen, 6, 2) + ')' +
+      ' · 앞중심 시접 ' + f(fold ? fold.seam : -1, 4, 1));
+  }
+  if (line.length) console.log('      → ' + line.join(' · '));
+});
 
 console.log('\n════════════════════════════════════════════════════════════');
 console.log((fails ? ' 실패 ' + fails + '건' : ' 전체 통과') + ' · 참고 ' + warns + '건');

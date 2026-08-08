@@ -369,7 +369,8 @@
     var backNeck = curveBackNeck(BNP, SNPb, bShDir);
     var backArm  = curveArmhole(Ub, SPb, bShDir, bPitchX, armY, true);
     var frontArm = curveArmhole(Uf, SPf, fShDir, fPitchX, armY, false);
-    var vNeck    = curveVNeck(SNPf, vMark, Vcf, Vend, fShDir);   // 목옆점 → 자락 끝
+    var vc       = curveVNeck(SNPf, vMark, Vcf, Vend, fShDir);   // 목옆점 → 자락 끝
+    var vNeck    = vc.all;
 
     return {
       m: m, opt: { shEase: shEase, facing: facing, armRise: armRise, dartAmount: dartAmt,
@@ -383,7 +384,8 @@
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
       dartLo: dartLo, dartHi: dartHi, dartTip: dartTip, dartLeg: dartLeg, dartAng: dartAng,
       vMark: vMark, Vcf: Vcf, Vend: Vend, wrapWaist: wrapWaist,
-      backNeck: backNeck, backArm: backArm, frontArm: frontArm, vNeck: vNeck
+      backNeck: backNeck, backArm: backArm, frontArm: frontArm,
+      vNeck: vNeck, vNeckUp: vc.up            // 앞중심까지만 (자락 없는 앞판이 쓴다)
     };
   }
 
@@ -571,6 +573,41 @@
       g.frontArm, [g.fPitchX * 0.4, g.BL], fac, sideF, shF, seam, 2);
     var frontNeckFacing = facingPiece('frontNeckFacing', '앞면 목둘레 안단',
       g.vNeck, [g.fSideX * 0.6, WL - 3], fac, shF, wrapE, seam, 2);
+    var cf = { p: [0, 0], d: [0, 1] };                         // 앞중심
+    var plainNeckFacing = facingPiece('frontPlainNeckFacing', '앞면(자락없음) 목둘레 안단',
+      g.vNeckUp, [g.fSideX * 0.5, g.BL], fac, shF, cf, seam, 1);
+
+    /* ── 자락 없는 앞면 ──────────────────────────────────────────────
+     *  자락 앞판은 한쪽만 늘어나 있어 그것만으로는 좌우 대칭 앞판을 만들 수 없다.
+     *  앞중심에서 끊은 반쪽을 따로 낸다 — 앞중심을 골선으로 놓고 1장 재단하면
+     *  좌우 대칭 V 네크라인이 되고, 자락 스타일에서는 밑에 받치는 앞판이 된다. */
+    var plainEdges = [
+      { name: '어깨선',    role: 'shoulder', segs: lineSegs(g.SNPf, g.SPf) },
+      { name: '앞암홀',    role: 'armhole',  segs: revSegs(g.frontArm) },
+      { name: '옆선 위',   role: 'side',     segs: lineSegs(g.Uf, g.dartHi) },
+      { name: '다트',      role: 'dart',     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
+      { name: '옆선 아래', role: 'side',     segs: lineSegs(g.dartLo, g.fWaist) },
+      { name: '허리선',    role: 'hem',      segs: lineSegs(g.fWaist, [0, WL]) },
+      { name: '앞중심',    role: 'fold',     segs: lineSegs([0, WL], g.Vcf) },   // 골선 (시접 0)
+      { name: 'V 네크라인', role: 'neck',    segs: revSegs(g.vNeckUp) }          // 앞중심 → 목옆점
+    ];
+    var plainLoop = edgesToLoop(plainEdges), plainSeam = buildSeamline(plainLoop, seam);
+    var frontPlain = {
+      id: 'frontPlain', name: '앞면 (자락 없음)', cutCount: 1, kind: 'body',
+      grainline: [[g.fSideX * 0.4, g.BL], [g.fSideX * 0.4, WL - 2.0]],
+      outline: plainLoop.pts, seamline: plainSeam.seamline, foldEdges: plainSeam.foldEdges,
+      seamEdges: plainSeam.seamEdges, seamFoldEdges: plainSeam.seamFoldEdges,
+      seamByRole: plainSeam.seamByRole, edges: withSeam(plainLoop.ranges, plainSeam.edgeSeam),
+      internal: frontInternal(g).filter(function (x) { return x.id !== 'wrapLine'; }),
+      notches: [
+        { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
+        { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: '목옆점' },
+        { p: cp(g.Uf),   angle: 180,                                          label: '겨드랑' },
+        { p: cp(g.dartHi), angle: 180, label: '다트 위' },
+        { p: cp(g.dartLo), angle: 180, label: '다트 아래' }
+      ].concat(armNotches(g.frontArm, g.Uf, [g.fPitchX / 2, g.armY], '앞암홀')),
+      bbox: bboxOf(plainLoop.pts)
+    };
 
     /* 몸판에도 안단선을 그려 넣는다 (교재 도면의 `안단선`) */
     function facingLineOf(p) {
@@ -586,7 +623,13 @@
       L('facingArm',  'dashed', facingLineOf(frontArmFacing),  '암홀 안단선')
     ]);
 
-    var pieces = [frontPiece, backPiece, frontNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
+    frontPlain.internal = frontPlain.internal.concat([
+      L('facingNeck', 'dashed', facingLineOf(plainNeckFacing), 'V 목둘레 안단선'),
+      L('facingArm',  'dashed', facingLineOf(frontArmFacing),  '암홀 안단선')
+    ]);
+
+    var pieces = [frontPiece, frontPlain, backPiece,
+                  frontNeckFacing, plainNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
 
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.vNeck);
@@ -660,7 +703,7 @@
     var M = [Vcf[0] + u[0] * L * Cl.mt + u[1] * L * Cl.moff,
              Vcf[1] + u[1] * L * Cl.mt - u[0] * L * Cl.moff];
     var low = splineSegs([Vcf, M, Vend], endTan(tA, Cl.k0), endTan([-1, Cl.slope], Cl.k1));
-    return up.concat(low);
+    return { all: up.concat(low), up: up, low: low };
   }
 
   /* ══════════════════════════════════════════════════════════════════
