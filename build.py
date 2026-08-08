@@ -19,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APPS = [
     ('기본원형',        '기본원형',        True),
     ('숙녀복기본원형1',  '숙녀복 기본원형1', True),
+    ('언더암다트',      '언더암 다트 원형', True),
     ('숙녀복기본원형2',  '숙녀복 기본원형2', False),
 ]
 
