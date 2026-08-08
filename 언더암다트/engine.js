@@ -473,6 +473,12 @@
       ? K.dartTipGap + K.dartTipGapGrade * ((m.B - BASE.B) / GRADE.B) : +opt.dartTipGap;
     var bis = V.norm(V.add(V.norm(V.sub(dUpTrue, BP)), V.norm(V.sub(uaDLo, BP))));
     var uaDartTip = [BP[0] + bis[0] * dartGap, BP[1] + bis[1] * dartGap];
+    /* 완성선 밑단 — 옆선에 직각으로 출발, 다트 닫힌 자리에 수평 도착 */
+    var uaSideDir = V.norm(V.sub(uaWaist, uaDLo));
+    var uaHemStart = [uaSideDir[1], -uaSideDir[0]];                 // 옆선 수직
+    if (uaHemStart[0] > 0) uaHemStart = [-uaHemStart[0], -uaHemStart[1]];   // 앞중심 쪽으로
+    var uaHem = splineSegs([uaWaist, fDartL],
+      endTan(uaHemStart, CAL.uaHem.k0), endTan([-1, 0], CAL.uaHem.k1));
 
     /* ───────── 곡선 ───────── */
     /* 품선 2등분점 — 뒤 등품선은 상단 기준선(0)~BL, 앞 앞품선은 어깨 기울기점(3.4)~BL */
@@ -496,7 +502,8 @@
       fDartTip: fDartTip, fDartL: fDartL, fDartR: fDartR,
       /* ── 언더암 다트 (제도 2) ── */
       uaRot: uaRot, uaDLo: uaDLo, uaWaist: uaWaist, uaDartTip: uaDartTip,
-      uaOpen: V.dist(dUpTrue, uaDLo), uaGap: dartGap,
+      uaOpen: V.dist(dUpTrue, uaDLo), uaGap: dartGap, uaHem: uaHem,
+      uaHemLen: polyLen(sampleSegs(uaHem, 0.02)), uaDrop: uaWaist[1] - WLf,
       dartOpenStage1: V.dist(dUpTrue, dLo),
       shLenFront: V.dist(SNPf, SPf), sideBack: sideBack,
       sideUp: V.dist(Uf, dUpTrue), sideLow: sideLow,
@@ -548,8 +555,10 @@
       { name: '언더암다트 위다리', role: 'dart', segs: lineSegs(g.dUpTrue, g.uaDartTip) },
       { name: '언더암다트 아래다리', role: 'dart', segs: lineSegs(g.uaDartTip, g.uaDLo) },
       { name: '옆선(아래)', role: 'side',     segs: lineSegs(g.uaDLo, g.uaWaist) },
-      /* 허리다트 옆다리가 중심다리에 포개졌으므로 밑단이 이어진다 (허리다트 사라짐) */
-      { name: '밑단(옆)',   role: 'hem',      segs: lineSegs(g.uaWaist, g.fDartL) },
+      /* ★ 완성선 — 허리다트를 접으면 옆선 쪽 밑단이 1.5 남짓 돌아간다. 옆선은 그대로 두고
+         **밑단만 매끄럽게 이어 그린다.** 옆선에는 직각으로 출발해 다트가 닫힌 자리
+         (허리다트 중심다리 끝) 에 **수평으로 도착**하므로 앞중심 쪽 허리선과 안 꺾인다. */
+      { name: '밑단(옆)',   role: 'hem',      segs: g.uaHem },
       { name: '밑단(중심)', role: 'hem',      segs: lineSegs(g.fDartL, [0, g.WLf]) },
       { name: '앞중심',     role: 'fold',     segs: lineSegs([0, g.WLf], g.FNP) }
     ]);
@@ -1390,6 +1399,8 @@
     /* 2장소매 — 절개변·앞경계의 끝 접선 크기 */
     /* 절개선 — 도면 bigBack 41점에 적합(편차 0.106). 도면의 절개선은 거의 직선이라
        (호 53.7565 / 현 53.726) 중간 앵커는 팔꿈치선보다 6.8 위로 올라간다. */
+    /* 언더암 다트 완성선 밑단 — 옆선 직각 출발 · 다트 닫힌 자리 수평 도착 */
+    uaHem    : { k0: 1.00, k1: 1.00 },
     twoSeam  : { mr: 0.172537, my: -6.831831, k0: 0.847411, k1: 0.150000 },
     /* ★ 허리다트 다리와 뒤 옆선은 **직선이 아니라 곡선**이다 (도면 폴리라인 실측).
        tm = 중간 앵커의 현 위치(비율), k = 현길이 대비 수직 오프셋 — 둘 다 무차원이라

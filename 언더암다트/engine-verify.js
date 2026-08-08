@@ -799,11 +799,21 @@ function sectionUnderarm() {
     if (gap < 1.29 || gap > 1.91) bad.push('다트끝 간격 ' + f2s(gap));
     /* ④ 언더암 다트가 원래 가슴다트보다 커야 한다 (허리다트분이 더해졌으므로) */
     if (!(g.uaOpen > g.dartOpenStage1 + 1.0)) bad.push('다트 벌어짐이 안 커짐');
-    /* ⑤ 제도 2 에는 허리다트가 없어야 한다 */
+    /* ⑤ 완성선 밑단 — 옆선에 **직각** 출발, 다트 닫힌 자리에 **수평** 도착 */
+    var hp = sampleSegs(g.uaHem, 0.02);
+    var ang = function (a, b) { return Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; };
+    var sideA = ang(g.uaDLo, g.uaWaist), startA = ang(hp[0], hp[2]);
+    var perp = Math.abs(Math.abs(((startA - sideA) % 360 + 360) % 360) - 90);
+    if (perp > 2) bad.push('밑단이 옆선에 직각이 아님 ' + f2s(perp) + '°');
+    var endA = Math.abs(ang(hp[hp.length - 3], hp[hp.length - 1]));
+    if (Math.abs(endA - 180) > 1) bad.push('밑단 도착이 수평이 아님 ' + f2s(endA) + '°');
+    /* ⑥ 제도 2 에는 허리다트가 없어야 한다 */
     if (f2.edges.some(function (e) { return e.name.indexOf('허리다트') === 0; })) bad.push('허리다트가 남아 있음');
+    /* ⑦ 옆선은 그대로 두는 방식이라 앞 밑단이 그만큼 내려간다 — 값만 기록 */
     ok(bad.length === 0, sz + ' 언더암 다트',
        '회전 ' + f2s(g.uaRot * 180 / Math.PI) + '° · 벌어짐 ' + f2s(g.dartOpenStage1) + ' → ' + f2s(g.uaOpen) +
-       ' · 다트끝 BP에서 ' + f2s(gap) + (bad.length ? '  → ' + bad.join(', ') : ''));
+       ' · 다트끝 BP에서 ' + f2s(gap) + ' · 옆 밑단 ' + f2s(g.uaDrop) + ' 내려감' +
+       (bad.length ? '  → ' + bad.join(', ') : ''));
   });
   function rot(g) { return g.fDartL; }
 }
