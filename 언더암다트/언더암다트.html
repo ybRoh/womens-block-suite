@@ -1285,11 +1285,16 @@ td.n.n-fail{color:var(--red)}
       ? K.dartTipGap + K.dartTipGapGrade * ((m.B - BASE.B) / GRADE.B) : +opt.dartTipGap;
     var bis = V.norm(V.add(V.norm(V.sub(dUpTrue, BP)), V.norm(V.sub(uaDLo, BP))));
     var uaDartTip = [BP[0] + bis[0] * dartGap, BP[1] + bis[1] * dartGap];
-    /* 완성선 밑단 — 옆선에 직각으로 출발, 다트 닫힌 자리에 수평 도착 */
+    /* ★ 완성선 밑단 — **옆선 끝에서 앞중심까지 한 줄 스플라인**.
+       다트가 닫힌 자리에서 한 번 꺾어 두 도막으로 그렸더니 그 앞이 평평하고
+       그 뒤가 뚝 떨어지는 S 가 났다. 완만한 한 줄이라야 한다.
+       · 옆선 끝: 옆선에 **직각**으로 출발 (앞뒤를 붙였을 때 옆선이 안 꺾인다)
+       · 앞중심: **수평** 도착 (골선이라 접었을 때 매끄러워야 한다)
+       다트 닫힌 자리(fDartL)는 지나가지 않고 그 아래로 완만히 흐른다 — 트루잉이다. */
     var uaSideDir = V.norm(V.sub(uaWaist, uaDLo));
     var uaHemStart = [uaSideDir[1], -uaSideDir[0]];                 // 옆선 수직
     if (uaHemStart[0] > 0) uaHemStart = [-uaHemStart[0], -uaHemStart[1]];   // 앞중심 쪽으로
-    var uaHem = splineSegs([uaWaist, fDartL],
+    var uaHem = splineSegs([uaWaist, [0, WLf]],
       endTan(uaHemStart, CAL.uaHem.k0), endTan([-1, 0], CAL.uaHem.k1));
 
     /* ───────── 곡선 ───────── */
@@ -1370,8 +1375,7 @@ td.n.n-fail{color:var(--red)}
       /* ★ 완성선 — 허리다트를 접으면 옆선 쪽 밑단이 1.5 남짓 돌아간다. 옆선은 그대로 두고
          **밑단만 매끄럽게 이어 그린다.** 옆선에는 직각으로 출발해 다트가 닫힌 자리
          (허리다트 중심다리 끝) 에 **수평으로 도착**하므로 앞중심 쪽 허리선과 안 꺾인다. */
-      { name: '밑단(옆)',   role: 'hem',      segs: g.uaHem },
-      { name: '밑단(중심)', role: 'hem',      segs: lineSegs(g.fDartL, [0, g.WLf]) },
+      { name: '밑단',       role: 'hem',      segs: g.uaHem },
       { name: '앞중심',     role: 'fold',     segs: lineSegs([0, g.WLf], g.FNP) }
     ]);
 
