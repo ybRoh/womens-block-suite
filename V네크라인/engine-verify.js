@@ -89,8 +89,10 @@ okPt('BP',             g.BP,           [9.5, 24.2]);
 okPt('V 통과점 (1(3/8))', g.vMark,      [5.559, 5.788]);
 okPt('앞중심 V 점',      g.Vcf,          [0, 14.6]);
 okPt('자락 끝',         g.Vend,         [-23.5, 28.2]);
-okPt('다트 아래 다리',    g.dartLo,      [23.5, 26.6]);
-okPt('다트 위 다리',      g.dartHi,      [23.675, 25.111]);
+/* 다트 위치는 B/8 = 10.95 인데 도면에는 10.9 로 반올림해 그려져 있다
+   (기본원형의 앞 옆선 23.4 → 23.5 반올림과 같은 경우). 그래서 이 두 점만 0.06 을 준다. */
+okPt('다트 아래 다리',    g.dartLo,      [23.5, 26.6],  0.06);
+okPt('다트 위 다리',      g.dartHi,      [23.675, 25.111], 0.06);
 ok  ('다트 다리 길이',    g.dartLeg,     14.2042, TOL_PT);
 ok  ('앞품선 x',        g.fPitchX,      17.15, TOL_PT);
 ok  ('어깨선 길이',      g.shLenFrontSeam, 13.091, TOL_LEN);
@@ -149,8 +151,11 @@ E.SIZES.forEach(function (sz) {
   var sideCut = Math.abs(M.sideBack - M.sideFront);
   var line = [];
   function chk(cond, msg) { if (!cond) { line.push(msg); fails++; } }
+  var sideSewn = Math.abs(M.sideBack - M.sideFrontSewn);
   chk(shDiff <= 0.10, '어깨 ' + shDiff.toFixed(2));
-  chk(sideCut <= 0.10, '옆선(재단) ' + sideCut.toFixed(2));
+  /* 트루잉 켬 → 봉제 후 옆선이 뒤와 같아야 한다 · 끔 → 교재 도면대로 재단 길이가 같다 */
+  if (M.sideTrue) chk(sideSewn <= 0.05, '옆선(봉제) ' + sideSewn.toFixed(3));
+  else            chk(sideCut  <= 0.10, '옆선(재단) ' + sideCut.toFixed(3));
   chk(gg.armY > 0 && gg.armY < gg.WL, '겨드랑 위치');
   chk(M.vDepth < gg.WL, 'V 깊이');
   /* 안단 길이 = 대응 몸판 변 길이 (안단은 겉과 같은 변에 붙는다) */
@@ -158,15 +163,26 @@ E.SIZES.forEach(function (sz) {
   chk(!!nf, '앞 목둘레 안단 없음');
   console.log('  ' + (line.length ? '✗ ' : '✓ ') + pad(sz, 5) +
     '어깨 뒤 ' + f(M.shoulderBackSeam, 6) + ' 앞 ' + f(M.shoulderFrontSeam, 6) + ' (차 ' + f(shDiff, 5) + ')' +
-    ' · 옆선 재단 뒤 ' + f(M.sideBack, 6, 2) + ' 앞 ' + f(M.sideFront, 6, 2) +
-    ' · 봉제 앞 ' + f(M.sideFrontSewn, 6, 2) +
+    ' · 옆선 뒤 ' + f(M.sideBack, 6, 2) + ' 앞 재단 ' + f(M.sideFront, 6, 2) +
+    ' 앞 봉제 ' + f(M.sideFrontSewn, 6, 2) + ' (밑단 내림 ' + f(M.hemDrop, 5, 2) + ')' +
     ' · 암홀 ' + f(M.armholeTotal, 6, 2) + ' · 목둘레 ' + f(M.neckTotal, 6, 2));
   if (line.length) console.log('      → ' + line.join(' · '));
 });
 
-console.log('\n  ※ 교재 제도 그대로면 앞 옆선은 다트분만큼 짧아진다 (봉제 후 뒤보다 ' +
-  (d66.measures.sideBack - d66.measures.sideFrontSewn).toFixed(2) + ' cm 부족).');
-console.log('     다트를 접어 옆선을 맞추려면 UI 의 「다트분」을 0 으로 두거나 뒤 옆선을 같이 줄여야 한다.');
+/* 트루잉을 끈 상태(= 교재 도면 그대로)도 함께 확인 */
+console.log('');
+E.SIZES.forEach(function (sz) {
+  var M = E.draftVNeck(E.measuresForSize(sz), { seam: 0, sideTrue: false }).measures;
+  var d1 = Math.abs(M.sideBack - M.sideFront);
+  var pass = d1 <= 0.10;
+  if (!pass) fails++;
+  console.log('  ' + (pass ? '✓ ' : '✗ ') + pad(sz, 5) + '트루잉 끔(교재 도면) — 재단 뒤 ' +
+    f(M.sideBack, 6, 2) + ' 앞 ' + f(M.sideFront, 6, 2) +
+    ' · 봉제 앞 ' + f(M.sideFrontSewn, 6, 2) +
+    ' → 뒤보다 ' + f(M.sideBack - M.sideFrontSewn, 5, 2) + ' 부족');
+});
+console.log('\n  ※ 기본은 트루잉 켬 — 다트 아래 옆선을 늘리고 밑단을 다시 그려 봉제 후 뒤와 맞춘다.');
+console.log('     교재 도면 그대로 보려면 UI 의 「옆선 트루잉」을 끄면 된다.');
 warns++;
 
 console.log('\n════════════════════════════════════════════════════════════');
@@ -197,13 +213,17 @@ E.SIZES.forEach(function (sz) {
     /* 앞중심은 골선(시접 0) 이어야 하고, 폭은 옆선 x 와 같아야 한다 */
     var fold = pl.edges.filter(function (e) { return e.role === 'fold'; })[0];
     chk(!!fold, '앞중심 골선 없음');
-    chk(Math.abs(pl.bbox.w - gg.fSideX) <= 0.25, '폭 ' + pl.bbox.w.toFixed(2) + ' ≠ 옆선 ' + gg.fSideX.toFixed(2));
+    /* 다트 위 다리는 옆선보다 조금 바깥으로 나간다 (접으면 들어온다) — 그 값까지 폭에 든다 */
+    var wMax = Math.max(gg.fSideX, gg.dartHi[0]);
+    chk(Math.abs(pl.bbox.w - wMax) <= 0.05,
+        '폭 ' + pl.bbox.w.toFixed(2) + ' ≠ max(옆선 ' + gg.fSideX.toFixed(2) + ', 다트 위 다리 ' + gg.dartHi[0].toFixed(2) + ')');
     chk(Math.abs(pl.bbox.h - wr.bbox.h) <= 0.01, '높이가 자락 앞판과 다름');
     /* V 네크라인 위쪽 길이 = 자락 앞판 목둘레 − 앞중심 아래쪽 */
     var upLen = U.sLen(gg.vNeckUp), allLen = U.sLen(gg.vNeck);
     chk(upLen > 0 && upLen < allLen, 'V 위쪽 곡선 길이');
     console.log('  ' + (line.length ? '✗ ' : '✓ ') + pad(sz, 5) +
-      '폭 ' + f(pl.bbox.w, 6, 2) + ' · 높이 ' + f(pl.bbox.h, 6, 2) +
+      '폭 ' + f(pl.bbox.w, 6, 2) + ' (옆선 ' + f(gg.fSideX, 5, 2) + ' + 다트다리 튀어나옴 ' +
+      f(gg.dartHi[0] - gg.fSideX, 4, 2) + ') · 높이 ' + f(pl.bbox.h, 6, 2) +
       ' · V 위쪽 ' + f(upLen, 6, 2) + ' (자락 전체 ' + f(allLen, 6, 2) + ')' +
       ' · 앞중심 시접 ' + f(fold ? fold.seam : -1, 4, 1));
   }

@@ -31,28 +31,30 @@
   /* 스타일 값 — 교재가 범위로 준 것(진동 올림 1.9~3.1 등)은 사용자가 고를 수 있게 UI 로 뺐다.
      기본값은 원본 66호 DXF 와 같다. 엔진 K 와 이름이 1:1 대응된다. */
   var STYLE_KEYS = [
-    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, hint: '가슴선(B/4)에서 위로 · 교재 1.9~3.1' },
-    { k: 'facing',     label: '안단너비',   min: 2,  max: 8,  step: 0.5, hint: '목둘레·암홀 공통 · 교재 4' },
-    { k: 'vDepth',     label: 'V 깊이',    min: 8,  max: 30, step: 0.5, hint: '앞중심 · 기본 B/6' },
-    { k: 'wrapDrop',   label: '자락 끝',    min: 0,  max: 12, step: 0.5, hint: 'BP 에서 아래로 · 교재 4' },
-    { k: 'dartAmount', label: '다트분',     min: 0,  max: 4,  step: 0.1, hint: '가슴다트 · 교재 1.5' },
-    { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1, hint: '허리선에서 위로 · 교재 10.9' }
+    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, hint: '가슴선(B/4)에서 위로 · 원본 도면 1.9~3.1' },
+    { k: 'facing',     label: '안단너비',   min: 2,  max: 8,  step: 0.5, hint: '목둘레·암홀 공통 · 기본 4' },
+    { k: 'vDepth',     label: 'V 깊이',    min: 8,  max: 30, step: 0.5, hint: '앞중심 · 기본 = 앞목깊이 + 7.0' },
+    { k: 'wrapUp',     label: '자락 끝',    min: 2,  max: 20, step: 0.5, hint: '허리선에서 위로 · 기본 9.3' },
+    { k: 'dartAmount', label: '다트분',     min: 0,  max: 4,  step: 0.1, hint: '가슴다트 · 기본 1.5' },
+    { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1, hint: '허리선에서 위로 · 기본 B/8' }
   ];
   function styleDefaults() {
     var E = ENG(), K = (E && E.K) || {}, m = state.m || {};
     return {
+      sideTrue:   (K.sideTrue === undefined) ? true : !!K.sideTrue,
       armRise:    (K.armRise    === undefined) ? 3.0  : K.armRise,
       facing:     (K.facing     === undefined) ? 4.0  : K.facing,
-      vDepth:     (m.B ? m.B / (K.vDepthDiv || 6) : 14.6),
-      wrapDrop:   (K.wrapDrop   === undefined) ? 4.0  : K.wrapDrop,
+      vDepth:     (m.B ? m.B / 12 + (K.frontNeckDeep || 0.3) + (K.vDepthAdd || 7.0) : 14.6),
+      wrapUp:     (K.wrapUp     === undefined) ? 9.3  : K.wrapUp,
       dartAmount: (K.dartAmount === undefined) ? 1.5  : K.dartAmount,
-      dartRise:   (K.dartRise   === undefined) ? 10.9 : K.dartRise
+      dartRise:   (m.B ? m.B / (K.dartRiseDiv || 8) : 10.95)
     };
   }
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
   function styleOpt(opt) {
     opt = opt || {};
     var st = state.style || {};
+    if (st.sideTrue !== undefined && st.sideTrue !== null) opt.sideTrue = !!st.sideTrue;
     for (var i = 0; i < STYLE_KEYS.length; i++) {
       var k = STYLE_KEYS[i].k;
       if (st[k] !== null && st[k] !== undefined && isFinite(st[k])) opt[k] = +st[k];
@@ -328,6 +330,7 @@
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
   function buildStyleFields() {
+    if (els.sideTrue) els.sideTrue.checked = state.style.sideTrue !== false;
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
@@ -1341,11 +1344,15 @@
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
+    if (els.sideTrue) els.sideTrue.addEventListener('change', function () {
+      state.style.sideTrue = !!els.sideTrue.checked;
+      recompute(false);
+    });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
       state.style = styleDefaults();
       buildStyleFields();
       recompute(true);
-      toast('스타일을 교재값으로 되돌렸습니다.');
+      toast('스타일을 기본값으로 되돌렸습니다.');
     });
     els.sizeTabs.addEventListener('click', function (e) {
       var b = e.target.closest('.sizetab');
@@ -1476,7 +1483,9 @@
     var std = stdMeasures(size);
     state.size = size;
     if (std) state.m = std;
-    state.style.vDepth = styleDefaults().vDepth;      // V 깊이는 B/6 이라 호수를 따라간다
+    var sd = styleDefaults();                        // 호수를 따라가는 값은 다시 잡는다
+    state.style.vDepth = sd.vDepth;
+    state.style.dartRise = sd.dartRise;
     buildStyleFields();
     Array.prototype.forEach.call(els.sizeTabs.querySelectorAll('.sizetab'), function (b) {
       var on = b.dataset.size === size;
@@ -1503,7 +1512,7 @@
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), sideTrue: $('ndSideTrue'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),

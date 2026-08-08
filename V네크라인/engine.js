@@ -267,13 +267,14 @@
     frontShDrop  : 5.4,        // 앞 어깨선이 고정치수선과 만나는 y
     neckDiagRatio: 2 / 3,      // 기본 원형 앞목 곡선이 지나는 목 사각 대각선 비율
     vNeckMark    : 1.0,        // V선 통과점 = 대각선 2/3 점에서 모서리 쪽 1.0 (도면 `1(⅜)`)
-    vDepthDiv    : 6,          // V 깊이 = B/6 (= 앞목너비 × 2) — 상단 기준선에서 아래
-    wrapDrop     : 4.0,        // 자락 끝(반대 옆선) = BP 에서 아래로 4.0
+    vDepthAdd    : 7.0,        // V 깊이 = 앞목깊이 + 7.0 (상단 기준선에서 아래) — 66호 14.6
+    wrapUp       : 9.3,        // 자락 끝(반대 옆선) = 허리선에서 위로 9.3 — 66호 상단에서 28.2
     dartAmount   : 1.5,        // 가슴다트 분량 (도면 `1.5(⅝) 다트`)
-    dartRise     : 10.9,       // 다트 아래 다리 = 허리선에서 위로 10.9
+    dartRiseDiv  : 8,          // 다트 아래 다리 = 허리선에서 위로 B/8 — 66호 10.95
     dartTipBack  : 0,          // 다트 끝을 BP 앞에서 멈춤 (교재 권장 1.3~1.9 · 기본 0 = BP)
     dartTipMin   : 1.3,
-    dartTipMax   : 1.9
+    dartTipMax   : 1.9,
+    sideTrue     : true        // 앞 옆선을 다트분만큼 늘려 봉제 후 뒤와 맞춘다 (교재 도면엔 없음)
   };
 
   /* ── 곡선 캘리브레이션 ─────────────────────────────────────────────
@@ -291,7 +292,10 @@
        low = 앞중심 V 점 → 중간 앵커 → 반대 옆선 (접선은 up 끝과 이어 G1) */
     vNeckUp  : { k0: 0.600000, k1: 0.500000, endAng: 48.0000, startAng: -11.0 },  // 편차 0.053
     vNeckLow : { k0: 0.995100, k1: 0.660800, slope: 0.167200,
-                 mt: 0.430200, moff: 0.090000 }                                  // 편차 0.068
+                 mt: 0.430200, moff: 0.090000 },                                 // 편차 0.068
+    /* 밑단 — 언더암다트 원형의 uaHem 과 같은 값. 두 도막으로 그리면 앞이 평평하고
+       뒤가 뚝 떨어지는 S 가 나서, 옆선 끝 → 앞중심을 한 줄로 완만하게 긋는다. */
+    hem      : { k0: 1.00, k1: 1.00 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
@@ -314,10 +318,11 @@
     var facing   = num(opt.facing,       K.facing);
     var armRise  = num(opt.armRise,      K.armRise);
     var dartAmt  = num(opt.dartAmount,   K.dartAmount);
-    var dartRise = num(opt.dartRise,     K.dartRise);
-    var vDepth   = num(opt.vDepth,       B / K.vDepthDiv);
-    var wrapDrop = num(opt.wrapDrop,     K.wrapDrop);
+    var dartRise = num(opt.dartRise,     B / K.dartRiseDiv);
+    var vDepth   = num(opt.vDepth,       nw + K.frontNeckDeep + K.vDepthAdd);
+    var wrapUp   = num(opt.wrapUp,       K.wrapUp);
     var dartTipBack = num(opt.dartTipBack, K.dartTipBack);
+    var sideTrue = (opt.sideTrue === undefined || opt.sideTrue === null) ? K.sideTrue : !!opt.sideTrue;
 
     var BL   = B / 4;               // 가슴선 — 앞뒤 공통 (상단 기준선에서 아래)
     var armY = BL - armRise;        // 겨드랑 높이 (민소매라 가슴선보다 올린다)
@@ -346,7 +351,6 @@
     var SPf = V.add(SNPf, V.mul(fShDir, shLenFront));
     var shLenFrontSeam = V.dist(SNPf, SPf);
     var Uf = [fSideX, armY];
-    var fWaist = [fSideX, WL];
     var BP = [m.bpSpan / 2, SNPf[1] + m.bpLen];
 
     /* 가슴다트 — 아래 다리를 옆선에 두고 BP 를 중심으로 다트분만큼 돌려 위 다리를 만든다 */
@@ -357,12 +361,25 @@
     var dartTip = (dartTipBack > 0)
       ? V.add(BP, V.mul(V.norm(V.sub(dartLo, BP)), dartTipBack)) : cp(BP);
 
+    /* ── 옆선 트루잉 ────────────────────────────────────────────────
+     *  가슴다트를 접으면 앞 옆선이 다트분만큼 짧아져 뒤(18.6)와 안 맞는다.
+     *  다트 아래쪽 옆선을 그만큼 늘리고 밑단을 다시 그린다.
+     *  늘림량은 "다트분" 이 아니라 **접은 뒤 뒤 옆선과 같아지는 값** 으로 잡는다
+     *  (다트 위 다리가 옆선보다 조금 바깥으로 나가 있어 다트분과 미세하게 다르다).
+     *  교재 도면 그대로 보려면 opt.sideTrue = false. */
+    var sideBackLen = WL - armY;                       // 뒤 옆선 (겨드랑 → 허리)
+    var sideUpper = V.dist(Uf, dartHi);                // 앞 옆선 위쪽 (겨드랑 → 다트 위 다리)
+    var hemDrop = 0;
+    if (sideTrue && dartAmt > 0)
+      hemDrop = Math.max(0, (dartLo[1] + (sideBackLen - sideUpper)) - WL);
+    var fWaist = [fSideX, WL + hemDrop];
+
     /* V 네크라인 — 목옆점 → 대각선 통과점 → 앞중심 V 점 → 반대 옆선(자락 끝) */
     var diagCorner = [nw, FNP[1]];
     var diag2 = [nw * K.neckDiagRatio, FNP[1] * K.neckDiagRatio];
     var vMark = V.add(diag2, V.mul(V.norm(V.sub(diagCorner, diag2)), K.vNeckMark));
     var Vcf  = [0, vDepth];
-    var Vend = [-fSideX, BP[1] + wrapDrop];
+    var Vend = [-fSideX, WL - wrapUp];
     var wrapWaist = [-fSideX, WL];
 
     /* ───────── 곡선 ───────── */
@@ -371,10 +388,11 @@
     var frontArm = curveArmhole(Uf, SPf, fShDir, fPitchX, armY, false);
     var vc       = curveVNeck(SNPf, vMark, Vcf, Vend, fShDir);   // 목옆점 → 자락 끝
     var vNeck    = vc.all;
+    var frontHem = curveFrontHem(fWaist, [0, WL], V.norm(V.sub(fWaist, dartLo)));
 
     return {
       m: m, opt: { shEase: shEase, facing: facing, armRise: armRise, dartAmount: dartAmt,
-                   dartRise: dartRise, vDepth: vDepth, wrapDrop: wrapDrop, dartTipBack: dartTipBack },
+                   dartRise: dartRise, vDepth: vDepth, wrapUp: wrapUp, dartTipBack: dartTipBack },
       nw: nw, WL: WL, BL: BL, armY: armY, shEase: shEase, facing: facing,
       bSideX: bSideX, bPitchX: bPitchX, bSpX: bSpX, bShDir: bShDir, bNeckCorner: bNeckCorner,
       BNP: BNP, SNPb: SNPb, SPb: SPb, Ub: Ub, bWaist: bWaist,
@@ -383,6 +401,8 @@
       fSideX: fSideX, fPitchX: fPitchX, fShDir: fShDir,
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
       dartLo: dartLo, dartHi: dartHi, dartTip: dartTip, dartLeg: dartLeg, dartAng: dartAng,
+      sideTrue: sideTrue, hemDrop: hemDrop, sideBackLen: sideBackLen, sideUpper: sideUpper,
+      frontHem: frontHem,
       vMark: vMark, Vcf: Vcf, Vend: Vend, wrapWaist: wrapWaist,
       backNeck: backNeck, backArm: backArm, frontArm: frontArm,
       vNeck: vNeck, vNeckUp: vc.up            // 앞중심까지만 (자락 없는 앞판이 쓴다)
@@ -518,7 +538,7 @@
       { name: '옆선 위',  role: 'side',     segs: lineSegs(g.Uf, g.dartHi) },
       { name: '다트',     role: 'dart',     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
       { name: '옆선 아래', role: 'side',    segs: lineSegs(g.dartLo, g.fWaist) },
-      { name: '허리선',   role: 'hem',      segs: lineSegs(g.fWaist, g.wrapWaist) },
+      { name: '밑단',     role: 'hem',      segs: g.frontHem.concat(lineSegs([0, WL], g.wrapWaist)) },
       { name: '자락 끝',  role: 'side',     segs: lineSegs(g.wrapWaist, g.Vend) },
       { name: 'V 네크라인', role: 'neck',   segs: revSegs(g.vNeck) }      // 자락 끝 → 목옆점
     ];
@@ -587,7 +607,7 @@
       { name: '옆선 위',   role: 'side',     segs: lineSegs(g.Uf, g.dartHi) },
       { name: '다트',      role: 'dart',     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
       { name: '옆선 아래', role: 'side',     segs: lineSegs(g.dartLo, g.fWaist) },
-      { name: '허리선',    role: 'hem',      segs: lineSegs(g.fWaist, [0, WL]) },
+      { name: '밑단',      role: 'hem',      segs: g.frontHem },
       { name: '앞중심',    role: 'fold',     segs: lineSegs([0, WL], g.Vcf) },   // 골선 (시접 0)
       { name: 'V 네크라인', role: 'neck',    segs: revSegs(g.vNeckUp) }          // 앞중심 → 목옆점
     ];
@@ -634,8 +654,8 @@
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.vNeck);
     var sideBack = V.dist(g.Ub, g.bWaist);
-    var sideFrontCut = V.dist(g.Uf, g.dartHi) + g.opt.dartAmount + V.dist(g.dartLo, g.fWaist);
-    var sideFrontSewn = V.dist(g.Uf, g.dartHi) + V.dist(g.dartLo, g.fWaist);
+    var sideFrontCut = g.sideUpper + g.opt.dartAmount + V.dist(g.dartLo, g.fWaist);
+    var sideFrontSewn = g.sideUpper + V.dist(g.dartLo, g.fWaist);
 
     return {
       pieces: pieces,
@@ -646,6 +666,7 @@
         neckBack: r4(NKb), neckFront: r4(NKf), neckTotal: r4(NKb + NKf),
         sideBack: r4(sideBack), sideFront: r4(sideFrontCut), sideFrontSewn: r4(sideFrontSewn),
         armRise: r4(g.opt.armRise), facing: r4(fac),
+        sideTrue: g.sideTrue, hemDrop: r4(g.hemDrop),
         vDepth: r4(g.opt.vDepth), wrapWidth: r4(g.fSideX * 2),
         dartAmount: r4(g.opt.dartAmount), dartLeg: r4(g.dartLeg),
         dartAngleDeg: r4(g.dartAng * 180 / Math.PI),
@@ -681,6 +702,16 @@
     var H = [U[0] - C.hdx * dx, armY - C.hdy * dy];
     var pin = perpToward(shDir, SP, U);
     return splineSegs([U, H, P, SP], endTan([-1, 0], C.k0), endTan(V.mul(pin, -1), C.k1));
+  }
+
+  /** 앞 밑단 : 옆선(내려간 자리) → 앞중심 — **한 줄 스플라인** (언더암다트 원형과 같은 방식)
+   *  · 옆선 끝: 옆선에 **직각**으로 출발 (앞뒤를 붙였을 때 옆선이 꺾이지 않는다)
+   *  · 앞중심: **수평** 도착 (자락 없는 앞판은 골선이라 접었을 때 매끄러워야 한다)
+   *  트루잉을 끄면 두 끝 y 가 같아 그냥 수평선이 된다. */
+  function curveFrontHem(side, cf, sideDir) {
+    var st = [sideDir[1], -sideDir[0]];                       // 옆선에 수직
+    if (st[0] > 0) st = [-st[0], -st[1]];                     // 앞중심 쪽으로
+    return splineSegs([side, cf], endTan(st, CAL.hem.k0), endTan([-1, 0], CAL.hem.k1));
   }
 
   /** V 네크라인 : 목옆점 → 대각선 통과점 → 앞중심 V 점 → 반대 옆선(자락 끝)
@@ -1018,6 +1049,7 @@
       L('shExt',    'dashed', [g.SPf, [K.fixedX, K.frontShDrop]], '어깨선 연장'),
       L('bpLen',    'dashed', [g.SNPf, g.BP], '유장'),
       L('bpSpan',   'dashed', [[g.BP[0], 0], [g.BP[0], g.BP[1]]], '유폭'),
+      L('hemLevel', 'dashed', [[-g.fSideX, g.WL], [g.fSideX, g.WL]], '허리선 (다트 접은 뒤 밑단)'),
       L('dartMid',  'dashed', [g.BP, [(g.dartHi[0] + g.dartLo[0]) / 2, (g.dartHi[1] + g.dartLo[1]) / 2]], '다트 중심'),
       L('BP',       'point',  [g.BP], 'BP'),
       L('SP',       'point',  [g.SPf], 'SP'),
@@ -1053,11 +1085,13 @@
       FN('neckW',    '앞목너비',   'B/12',                     nw,        'front', [nw * 0.5, -K.frontNeckLift]),
       FN('neckD',    '앞목깊이',   'B/12 + 0.3',              g.FNP[1],  'front', [0.6, g.FNP[1] * 0.5]),
       FN('vMark',    'V 통과점',   '목 사각 대각선 2/3 점에서 모서리 쪽 1.0', K.vNeckMark, 'front', cp(g.vMark)),
-      FN('vDepth',   'V 깊이',     'B/6 (앞중심)',             g.opt.vDepth, 'front', [0.8, g.opt.vDepth]),
-      FN('wrapEnd',  '자락 끝',    'BP 에서 아래로 ' + f1(g.opt.wrapDrop), g.Vend[1], 'front', cp(g.Vend)),
+      FN('vDepth',   'V 깊이',     '앞목깊이 + ' + f1(K.vDepthAdd) + ' (앞중심)', g.opt.vDepth, 'front', [0.8, g.opt.vDepth]),
+      FN('wrapEnd',  '자락 끝',    '허리선에서 위로 ' + f1(g.opt.wrapUp), g.Vend[1], 'front', cp(g.Vend)),
       FN('bpLen',    '유장',       '앞목옆점에서 수직 유장',      m.bpLen,   'front', [(g.SNPf[0] + g.BP[0]) / 2, (g.SNPf[1] + g.BP[1]) / 2]),
       FN('bpSpan',   '유폭',       '유폭/2',                   g.BP[0],   'front', [g.BP[0] * 0.5, g.BP[1] - 1.2]),
-      FN('dart',     '가슴다트',   '다트분 ' + f1(g.opt.dartAmount) + ' · 아래 다리 = 허리선 위 ' + f1(g.opt.dartRise),
+      FN('hemDrop',  '옆선 늘림',  (g.sideTrue ? '다트를 접어도 뒤 옆선과 맞도록 밑단을 내림' : '트루잉 끔 — 교재 도면 그대로'),
+                                                              g.hemDrop, 'front', [g.fSideX * 0.8, g.WL + g.hemDrop * 0.5]),
+      FN('dart',     '가슴다트',   '다트분 ' + f1(g.opt.dartAmount) + ' · 아래 다리 = 허리선 위 B/8 = ' + f1(g.opt.dartRise),
                                                               g.opt.dartAmount, 'front', [(g.BP[0] + g.fSideX) / 2, (g.dartHi[1] + g.dartLo[1]) / 2]),
       FN('shFront',  '앞 어깨선',  '뒤 어깨선 − 이세 ' + f1(g.shEase), g.shLenFront, 'front', [(g.SNPf[0] + g.SPf[0]) / 2, (g.SNPf[1] + g.SPf[1]) / 2]),
       FN('armFront', '앞 암홀',    '곡선길이',                  AHf,       'front', [g.fPitchX + 1.0, g.BL * 0.5]),
