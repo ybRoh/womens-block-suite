@@ -301,10 +301,13 @@
     /* ★ 이 원형은 허리다트를 **BP 중심으로 접어** 언더암으로 보낸다.
        그러려면 허리다트끝이 BP 에 있어야 회전이 정확히 닫힌다 (기준 원형은 2.5 아래). */
     fDartTipDown : 0.0,        // 앞 허리다트끝 = BP (회전 중심)
-    /* 다트를 BP 까지 박지 않고 남기는 거리 — 교재 `1.3(하) ~ 1.9(상)`.
-       66호 1.6 · 호수당 ±0.15 → 44호 1.3 / 88호 1.9 */
-    dartTipGap     : 1.6,
-    dartTipGapGrade: 0.15,
+    /* ★ 다트는 **BP 에서 시작**한다 (패턴상 다트끝 = BP).
+       교재의 `1.3(하) ~ 1.9(상)` 은 **봉제 지시** — 박을 때 BP 못 미쳐 끝내라는 뜻이라
+       패턴에는 반영하지 않는다. 필요하면 opt.dartTipGap 으로 띄울 수 있다. */
+    dartTipGap     : 0,
+    dartTipGapGrade: 0,
+    sewGapLo       : 1.3,      // 봉제 지시용 표기 (하한)
+    sewGapHi       : 1.9,      // 봉제 지시용 표기 (상한)
     fDartIn      : 1.0,        // 앞 허리다트 CF 쪽 다리  (도면 `←1`)
     /* ★ 이 원형은 기준 원형과 다트 크기가 다르다 —
        허리다트 1 + 1.5 → **1 + 1** · 옆선 가슴다트 2.5 → **1.5** */
@@ -494,6 +497,41 @@
        · 옆선 끝: 옆선에 **직각**으로 출발 (앞뒤를 붙였을 때 옆선이 안 꺾인다)
        · 앞중심: **수평** 도착 (골선이라 접었을 때 매끄러워야 한다)
        다트 닫힌 자리(fDartL)는 지나가지 않고 그 아래로 완만히 흐른다 — 트루잉이다. */
+    /* ★ 뒤 옆선을 앞에 맞춰 늘린다.
+       이 원형은 가슴다트를 1.5 로 줄여 **앞 옆선이 그만큼 길다**. 뒤 허리 옆점을
+       내려 길이를 맞추고, 뒤 허리선도 앞과 같은 방식으로 **한 줄로 매끄럽게** 다시 긋는다.
+       (허리다트 두 끝도 그 곡선 위에 얹는다 — 안 그러면 허리선이 다트에서 튄다) */
+    var sideFrontLen = V.dist(Uf, dUpTrue) + V.dist(dLo, fWaist);
+    var bSideAt = function (y) {
+      return polyLen(sampleSegs(bowSegs(Ub, [halfW - K.waistIn, y], CAL.backSideSeam), 0.02));
+    };
+    if (opt.matchBackSide !== false) {
+      var yLo = WLb, yHi = WLb + 8;
+      for (var bi = 0; bi < 48; bi++) {
+        var ym = (yLo + yHi) / 2;
+        if (bSideAt(ym) < sideFrontLen) yLo = ym; else yHi = ym;
+      }
+      bWaist = [halfW - K.waistIn, (yLo + yHi) / 2];
+      sideBack = bSideAt(bWaist[1]);      // 늘린 값으로 갱신 (measures 가 이걸 쓴다)
+    }
+    /* 뒤 허리선(완성선) — 옆선에 직각 출발 · 뒤중심에 수평 도착 */
+    var bSideDir = V.norm(V.sub(bWaist, Ub));
+    var bHemStart = [bSideDir[1], -bSideDir[0]];
+    if (bHemStart[0] > 0) bHemStart = [-bHemStart[0], -bHemStart[1]];
+    var bHem = splineSegs([bWaist, [0, WLb]], endTan(bHemStart, CAL.uaHem.k0), endTan([-1, 0], CAL.uaHem.k1));
+    /* 허리다트 두 끝을 그 곡선 위로 올린다 */
+    var bHemPts = sampleSegs(bHem, 0.02);
+    var yOnHem = function (x) {
+      for (var i = 1; i < bHemPts.length; i++) {
+        var a1 = bHemPts[i - 1], b1 = bHemPts[i];
+        if ((a1[0] - x) * (b1[0] - x) <= 0 && Math.abs(b1[0] - a1[0]) > 1e-9)
+          return a1[1] + (b1[1] - a1[1]) * (x - a1[0]) / (b1[0] - a1[0]);
+      }
+      return WLb;
+    };
+    bDartL = [bDartL[0], yOnHem(bDartL[0])];
+    bDartR = [bDartR[0], yOnHem(bDartR[0])];
+
     var uaSideDir = V.norm(V.sub(uaWaist, uaDLo));
     var uaHemStart = [uaSideDir[1], -uaSideDir[0]];                 // 옆선 수직
     if (uaHemStart[0] > 0) uaHemStart = [-uaHemStart[0], -uaHemStart[1]];   // 앞중심 쪽으로
@@ -520,6 +558,7 @@
       fWaist: fWaist, BP: BP, dFoot: dFoot, dUp: dUp, dUpTrue: dUpTrue, dLo: dLo,
       rU: rU, rL: rL, dartOpen: V.dist(dUp, dLo),
       fDartTip: fDartTip, fDartL: fDartL, fDartR: fDartR,
+      bHem: bHem, sideFrontLen: sideFrontLen, bWaistDrop: bWaist[1] - WLb,
       /* ── 언더암 다트 (제도 2) ── */
       uaRot: uaRot, uaDLo: uaDLo, uaWaist: uaWaist, uaDartTip: uaDartTip,
       uaOpen: V.dist(dUpTrue, uaDLo), uaGap: dartGap, uaHem: uaHem,
@@ -545,11 +584,12 @@
       { name: '어깨선',     role: 'shoulder', segs: lineSegs(g.SNPb, g.SPb) },
       { name: '뒤암홀',     role: 'armhole',  segs: revSegs(g.backArm) },
       { name: '옆선',       role: 'side',     segs: bowSegs(g.Ub, g.bWaist, CAL.backSideSeam) },
-      { name: '허리선(옆)', role: 'hem',      segs: lineSegs(g.bWaist, g.bDartR) },
+      /* 허리선은 옆선 끝 → 뒤중심 **한 줄 완성선**을 다트에서 잘라 쓴다 */
+      { name: '허리선(옆)', role: 'hem',      segs: lineSegs.apply(null, splitSegsAtX(g.bHem, g.bDartR[0]).head) },
       /* 다리는 도면대로 **곡선** — 둘 다 뒤중심 쪽으로 휜다 (직선이면 0.44 벌어진다) */
       { name: '다트 옆다리', role: 'dart',    segs: revSegs(bowSegs(g.bDartTip, g.bDartR, CAL.dartBackSide)) },
       { name: '다트 중심다리', role: 'dart',  segs: bowSegs(g.bDartTip, g.bDartL, CAL.dartBackCtr) },
-      { name: '허리선(중심)', role: 'hem',    segs: lineSegs(g.bDartL, [0, g.WLb]) },
+      { name: '허리선(중심)', role: 'hem',    segs: lineSegs.apply(null, splitSegsAtX(g.bHem, g.bDartL[0]).tail) },
       { name: '뒤중심',     role: 'fold',     segs: lineSegs([0, g.WLb], g.BNP) }
     ];
     /* 제도 1 = 기준 원형 그대로(가슴다트 + 허리다트).
@@ -1902,6 +1942,8 @@
       /* ★ 가슴다트 폭 — 다트 입구(옆선)에 적는다 */
       FN('uaDartW',  '언더암다트 폭', '제도 2 — 허리다트를 접어 합친 양',
                      g.uaOpen, 'front', [(g.dUpTrue[0] + g.uaDLo[0]) / 2 + 1.0, (g.dUpTrue[1] + g.uaDLo[1]) / 2 + 1.2]),
+      FN('uaSew',    '다트 봉제',   'BP 까지 박지 않고 ' + f1(K.sewGapLo) + '~' + f1(K.sewGapHi) + ' 남기고 끝낸다 (패턴 다트끝은 BP)',
+                     K.sewGapHi, 'front', [g.BP[0] + 1.2, g.BP[1] - 1.0]),
       FN('bustDartW', '가슴다트 폭',  '제도 1 — 옆선에서 벌어지는 양',
                      V.dist(g.dUpTrue, g.dLo), 'front',
                      [(g.dUpTrue[0] + g.dLo[0]) / 2 + 1.0, (g.dUpTrue[1] + g.dLo[1]) / 2]),

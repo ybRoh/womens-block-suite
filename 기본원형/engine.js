@@ -410,7 +410,7 @@
         { p: cp(SPb),  angle: angDeg(perpToward(bShDir, SPb, Ub)),  label: '어깨점' },
         { p: cp(SNPb), angle: angDeg(perpToward(bShDir, SNPb, BNP)), label: '목옆점' },
         { p: cp(Ub),   angle: 180,                                   label: '옆선 BL' }
-      ],
+      ].concat(armNotches(backArm, Ub, [bPitchX / 2, AD], '뒤암홀')),
       bbox: bboxOf(backOutline)
     };
     var frontPiece = {
@@ -431,7 +431,7 @@
         { p: cp(SPf),  angle: angDeg(perpToward(fShDir, SPf, Uf)),   label: '어깨점' },
         { p: cp(SNPf), angle: angDeg(perpToward(fShDir, SNPf, FNP)), label: '목옆점' },
         { p: cp(Uf),   angle: 180,                                    label: '옆선 BL' }   // 조각 안쪽 = −x
-      ],
+      ].concat(armNotches(frontArm, Uf, [fPitchX / 2, AD], '앞암홀')),
       bbox: bboxOf(frontOutline)
     };
 
@@ -634,7 +634,7 @@
         { p: cp(s.pBF),  angle: inward(s.pBF), label: '앞 합인' },
         { p: cp(s.hemMidB), angle: -90,        label: '뒤 밑단 2등분' },
         { p: cp(s.hemMidF), angle: -90,        label: '앞 밑단 2등분' }
-      ],
+      ].concat(capNotches(s)),
       bbox: bboxOf(loop.pts)
     };
   }
@@ -989,6 +989,60 @@
       return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
     return null;
   }
+  /* ── 암홀·소매산 3등분 너치 (숙녀복1 엔진과 같은 규칙) ────────────────
+   *  ① 몸판 암홀을 3등분 · 소매산은 **몸판 구간 + 그 구간 몫의 이세** 자리
+   *  ② 겨드랑 구간 이세 0 — 거기 이세를 넣으면 주름이 지고 겨드랑이 당긴다
+   *  ③ 전체 이세는 뒤 60% / 앞 40% — 어깨 맞춤 너치를 옮겨 맞춘다            */
+  var ARM_DIV = 3, EASE_SHARE = [0.0, 0.5, 0.5], EASE_BACK = 0.6;
+  function _ptAtLen(segs, dist, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();
+    var acc = 0;
+    for (var i = 1; i < p.length; i++) {
+      var g2 = V.dist(p[i - 1], p[i]);
+      if (acc + g2 >= dist) {
+        var t = g2 > 1e-9 ? (dist - acc) / g2 : 0;
+        return { p: [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * t, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * t],
+                 tan: V.norm(V.sub(p[i], p[i - 1])) };
+      }
+      acc += g2;
+    }
+    var n2 = p.length;
+    return { p: cp(p[n2 - 1]), tan: V.norm(V.sub(p[n2 - 1], p[n2 - 2])) };
+  }
+  function _inward(tan, at, inside) {
+    var nr = [tan[1], -tan[0]];
+    if (nr[0] * (inside[0] - at[0]) + nr[1] * (inside[1] - at[1]) < 0) nr = [-nr[0], -nr[1]];
+    return angDeg(nr);
+  }
+  function armNotches(armSegs, underarm, inside, tag) {
+    var p0 = sampleSegs(armSegs, 0.05)[0];
+    var fromEnd = V.dist(p0, underarm) > 1e-6;
+    var L = polyLen(sampleSegs(armSegs, 0.02)), out = [];
+    for (var q = 1; q < ARM_DIV; q++) {
+      var h = _ptAtLen(armSegs, L * q / ARM_DIV, fromEnd);
+      out.push({ p: cp(h.p), angle: _inward(h.tan, h.p, inside), label: tag + ' ' + q + '/' + ARM_DIV });
+    }
+    return out;
+  }
+  function capNotches(s) {
+    var mid = [s.apexShift || 0, s.sleeveLen * 0.4], out = [];
+    var cB = polyLen(sampleSegs(s.capBack, 0.02)), cF = polyLen(sampleSegs(s.capFront, 0.02));
+    var easeAll = Math.max(0, (cB + cF) - (s.AHb + s.AHf));
+    var eB = easeAll * EASE_BACK, eF = easeAll - eB, needB = s.AHb + eB;
+    var fit = (needB <= cB) ? _ptAtLen(s.capBack, needB, true) : _ptAtLen(s.capFront, needB - cB, false);
+    out.push({ p: cp(fit.p), angle: _inward(fit.tan, fit.p, mid), label: '어깨 맞춤' });
+    [[s.capBack, s.AHb, '뒤', eB], [s.capFront, s.AHf, '앞', eF]].forEach(function (w) {
+      var accE = 0;
+      for (var q = 1; q < ARM_DIV; q++) {
+        accE += w[3] * (EASE_SHARE[q - 1] || 0);
+        var h = _ptAtLen(w[0], w[1] * q / ARM_DIV + accE, true);
+        out.push({ p: cp(h.p), angle: _inward(h.tan, h.p, mid), label: w[2] + ' ' + q + '/' + ARM_DIV });
+      }
+    });
+    return out;
+  }
+
   function cp(p) { return [p[0], p[1]]; }
   function r4(v) { return Math.round(v * 1e4) / 1e4; }
   function angDeg(v) { return Math.round(Math.atan2(v[1], v[0]) * 180 / Math.PI * 1e3) / 1e3; }
