@@ -26,7 +26,7 @@
     B: '가슴둘레 B', backLen: '등길이', shoulderW: '어깨너비', backW: '등품',
     frontW: '앞품', bpLen: '유장', bpSpan: '유폭'
   };
-  var FIELD_NOTE = { backLen: '앞길이 대신 앞내림 1.3' };
+  var FIELD_NOTE = { frontLen: '앞길이 − 등길이 = 앞 등길이 차이치수', bpLen: '앞목 옆점에서 잰다' };
   var SLEEVE_KEYS = {};                        // 소매 제외 (2026-08-07)
   /* 스타일 값 — 교재가 범위로 준 것(진동 올림 1.9~3.1 등)은 사용자가 고를 수 있게 UI 로 뺐다.
      기본값은 원본 66호 DXF 와 같다. 엔진 K 와 이름이 1:1 대응된다. */
@@ -1017,42 +1017,50 @@
     put('sumNkB', num(M.neckBack)); put('sumNkF', num(M.neckFront)); put('sumNkT', num(M.neckTotal));
     put('sumSdB', num(M.sideBack)); put('sumSdF', num(M.sideFront));
 
-    /* 어깨 이세분 (SPEC §5-1 2차) */
+    /* 어깨 이세분 — 이 원형은 교재가 0.3~0.6 을 준다 (도면 `이세분 0.3~0.6`) */
     var ease = num(M.shoulderEase);
     if (ease !== null) {
-      var ok = ease >= 0.6 - 1e-6 && ease <= 1.0 + 1e-6;
+      var ok = ease >= 0.3 - 1e-6 && ease <= 0.6 + 1e-6;
       mark('sumShEok', ok ? 'pass' : 'fail');
-      checks.push({ k: ok ? 'ok' : 'bad', t: '어깨 이세분 ' + f2(ease) + ' cm ' + (ok ? '(0.6~1.0)' : '(0.6~1.0 벗어남)') });
+      checks.push({ k: ok ? 'ok' : 'bad', t: '어깨 이세분 ' + f2(ease) + ' cm ' + (ok ? '(0.3~0.6)' : '(0.3~0.6 벗어남)') });
     } else mark('sumShEok', null);
 
-    /* 실제 봉제 솔기 (SPEC §9-3 1차 검사) */
+    /* 어깨 솔기 — 이 원형은 앞을 **이세분만큼 짧게** 재단하고(도면 `이세분 커트`)
+       뒤를 그만큼 이세로 먹여 붙인다. 그래서 |뒤 − 앞| = 이세분 이 정상이다. */
     var sbs = num(M.shoulderBackSeam), sfs = num(M.shoulderFrontSeam);
     if (sbs !== null && sfs !== null) {
-      var dd = Math.abs(sbs - sfs), okS = dd <= 0.10 + 1e-9;
+      var dd = Math.abs(sbs - sfs);
+      var okS = (ease === null) ? dd <= 0.10 : Math.abs(dd - ease) <= 0.05;
       put('sumShSeam', f2(sbs) + ' / ' + f2(sfs));
       mark('sumShSeamok', okS ? 'pass' : 'fail');
-      checks.push({ k: okS ? 'ok' : 'bad', t: '실제 어깨 솔기 차 ' + f2(dd) + ' cm (≤0.10)' });
+      checks.push({ k: okS ? 'ok' : 'bad',
+        t: '어깨 솔기 차 ' + f2(dd) + ' cm = 이세분 ' + (ease === null ? '—' : f2(ease)) +
+           (okS ? ' (뒤를 이세로 먹인다)' : ' — 어긋남') });
     } else { put('sumShSeam', '—'); mark('sumShSeamok', null); }
 
     /* 옆선 — SPEC §5-2 일치 + §9-5 진동깊이 경고 */
     var sb = num(M.sideBack), sf = num(M.sideFront);
     var sideWarnOn = false, minSide = null;
     if (sb !== null && sf !== null) {
-      var diff = Math.abs(sb - sf), okSide = diff <= 0.05;
-      checks.push({ k: okSide ? 'ok' : 'bad', t: '앞뒤 옆선 ' + (okSide ? '일치' : '차이 ' + f2(diff) + ' cm') });
-      minSide = Math.min(sb, sf);
+      /* 앞 옆선은 **다트분만큼 길게 재단**하고 접으면 뒤와 같아진다 (앞 등길이 차이치수 = 다트분) */
+      var sfSewn = num(M.sideFrontSewn);
+      var diff = Math.abs(sb - (sfSewn === null ? sf : sfSewn)), okSide = diff <= 0.05;
+      checks.push({ k: okSide ? 'ok' : 'bad',
+        t: okSide ? ('앞뒤 옆선 일치 — 앞 재단 ' + f2(sf) + ' 에서 다트분을 접으면 ' + f2(sfSewn) + ' = 뒤 ' + f2(sb))
+                  : ('다트를 접은 뒤 앞뒤 옆선 차이 ' + f2(diff) + ' cm') });
+      minSide = Math.min(sb, sfSewn === null ? sf : sfSewn);
       sideWarnOn = minSide < SIDE_WARN_CM;
       mark('sumSdBok', sb < SIDE_WARN_CM ? 'fail' : (okSide ? 'pass' : 'fail'));
-      mark('sumSdFok', sf < SIDE_WARN_CM ? 'fail' : (okSide ? 'pass' : 'fail'));
+      mark('sumSdFok', okSide ? 'pass' : 'fail');
       put('sumSdB', sb, sb < SIDE_WARN_CM ? 'fail' : null);
-      put('sumSdF', sf, sf < SIDE_WARN_CM ? 'fail' : null);
+      put('sumSdF', sf);
     } else { mark('sumSdBok', null); mark('sumSdFok', null); }
 
     els.sideWarn.hidden = !sideWarnOn;
     if (sideWarnOn) {
       els.sideWarnDetail.textContent =
         '옆선 ' + f2(minSide) + ' cm (기준 ' + f1(SIDE_WARN_CM) + ' cm 미만). ' +
-        '진동깊이 B/4+0.6 은 호수당 +1.5 로 커지는데 등길이는 +0.5 라서 큰 호수일수록 옆선이 짧아집니다. ' +
+        '가슴선 B/4 는 호수당 +1.5 로 커지는데 등길이는 +0.5 라서 큰 호수일수록 옆선이 짧아집니다. ' +
         '등길이를 늘리면 옆선이 회복됩니다.';
       checks.push({ k: 'bad', t: '진동이 깊습니다 — 옆선 ' + f2(minSide) + ' cm < ' + f1(SIDE_WARN_CM) });
     }

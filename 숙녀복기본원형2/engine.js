@@ -862,6 +862,10 @@
       L('shCut',    'dashed', [g.SPf, g.fShGuide], '이세분 커트'),
       L('bpLen',    'dashed', [g.SNPf, g.BP], '유장'),
       L('bpSpan',   'dashed', [[g.BP[0], 0], [g.BP[0], g.BP[1]]], '유폭/2'),
+      /* 다트 접는 선 — 재단선이 아니라 **봉제선**이라 외곽선이 아닌 기준선으로 긋는다.
+         바깥의 작은 삼각(다트 위·아래 다리 끝 → 트루잉 점)은 접으면 겹쳐 옆선이 이어진다. */
+      L('dartLegHi','line',   [g.BP, g.dartHi], '다트 (위 다리)'),
+      L('dartLegLo','line',   [g.BP, g.dartLo], '다트 (아래 다리)'),
       L('dartMid',  'dashed', [g.BP, g.dartT], '다트 중심'),
       L('sideGuide','dashed', [[g.fSideX, g.BL], [g.fSideX, g.BL + 6.2]], '겨드랑 → 다트 (6.2)'),
       L('BP',       'point',  [g.BP], 'BP'),
