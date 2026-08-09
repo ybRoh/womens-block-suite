@@ -22790,6 +22790,19 @@ td.n.n-fail{color:var(--red)}
         if (ml &lt; 1e-9) { out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]); continue; }
         var mu = [mm[0] / ml, mm[1] / ml];
         var cosHalf = mu[0] * nNext[0] + mu[1] * nNext[1];
+        /* ★ 변 안쪽의 급격한 **볼록** 꺾임(턴 &gt; ~91°)은 곡선 샘플링에서 안 나온다 —
+           조립 잔재(예: 골선 캡 끝의 0.04 세그먼트)다. 마이터를 뻗치면 시접의
+           최대 3배 가시가 생기므로 bevel 두 점으로 자른다.
+           오목(다트 꼭짓점 등)은 기존대로 마이터+자기교차 제거에 맡긴다. */
+        if (cosHalf &lt; 0.7) {
+          var dp_ = segDir[(gi - 1 + n) % n], dn_ = segDir[gi];
+          var cr_ = dp_[0] * dn_[1] - dp_[1] * dn_[0];
+          if (ccw ? cr_ &gt; 0 : cr_ &lt; 0) {
+            out.push([P[0] + nPrev[0] * s, P[1] + nPrev[1] * s]);
+            out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]);
+            continue;
+          }
+        }
         var kk = s / Math.max(cosHalf, 1 / LIMIT);
         out.push([P[0] + mu[0] * kk, P[1] + mu[1] * kk]);
       }
@@ -22805,13 +22818,18 @@ td.n.n-fail{color:var(--red)}
       var sA = edgeSeam[k], sB = edgeSeam[kNext];
       var cornerIdx = list[list.length - 1];              // 다음 변과 공유하는 outline 인덱스
       var P = pts[cornerIdx];
-      // 모서리 소유 변: 한쪽이 골선이면 골선 쪽(골선 위 x=0 연장점이므로), 아니면 끝나는 변
-      var cornOwner = (sA === 0) ? k : (sB === 0 ? kNext : k);
+      /* ★ 모서리 소유 변: 골선(시접 0) 연장 캡은 **시접 있는 이웃 변** 소유 —
+         골선 변의 시접선은 &quot;골선에서 거리 0&quot; 이어야 하고(SPEC §11-2),
+         캡 점은 이웃 변 시접의 끝이지 골선의 이탈이 아니다. 그 외엔 끝나는 변. */
+      var cornOwner = (sA === 0) ? kNext : k;
       var nPrev = segNrm[(cornerIdx - 1 + n) % n], nNext = segNrm[cornerIdx];
 
-      /* 양쪽 변의 오프셋 직선 — 조립 때 &quot;모서리 뒤로 되돌아간 점&quot; 을 걸러내는 데 쓴다 */
-      var LA = { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev };
-      var LB = { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext };
+      /* 양쪽 변의 오프셋 직선 — 조립 때 &quot;모서리 뒤로 되돌아간 점&quot; 을 걸러내는 데 쓴다.
+         ★ 시접 0(골선) 변의 &quot;오프셋선&quot;은 골선 자신이라 이웃 변 오프셋 점 전부가
+         안쪽으로 찍혀 behind 컷이 모서리 근방 2cm 를 후벼 판다 — 골선 쪽은 null 로
+         꺼서 되짚음 제거는 ①번 내적 조건 + ④-0 골선 클램프에 맡긴다. */
+      var LA = sA &gt; 0 ? { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev } : null;
+      var LB = sB &gt; 0 ? { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext } : null;
       var CR = { p: cp(P), r: Math.max(sA, sB) * 2 + 0.2 };   // 되짚음 판정을 쓸 모서리 반경
       if (Math.abs(sA - sB) &lt; 1e-12) {                    // ── 등폭 → 이등분선 마이터
         if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
@@ -22822,8 +22840,9 @@ td.n.n-fail{color:var(--red)}
         corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner], la: LA, lb: LB, cr: CR });
         continue;
       }
-      // ── 이폭 → 두 오프셋선의 교점
-      var A = LA.p, Bp = LB.p;
+      // ── 이폭 → 두 오프셋선의 교점 (시접 0 쪽 오프셋선은 그 변 자신 = P 통과)
+      var A = LA ? LA.p : [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA];
+      var Bp = LB ? LB.p : [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB];
       var X = lineX(A, segDir[(cornerIdx - 1 + n) % n], Bp, segDir[cornerIdx]);
       var lim = Math.max(sA, sB) * LIMIT;
       if (X &amp;&amp; V.dist(X, P) &lt;= lim) corners.push({ pts: [X], own: [cornOwner], la: LA, lb: LB, cr: CR });
@@ -29291,6 +29310,19 @@ td.n.n-fail{color:var(--red)}
         if (ml &lt; 1e-9) { out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]); continue; }
         var mu = [mm[0] / ml, mm[1] / ml];
         var cosHalf = mu[0] * nNext[0] + mu[1] * nNext[1];
+        /* ★ 변 안쪽의 급격한 **볼록** 꺾임(턴 &gt; ~91°)은 곡선 샘플링에서 안 나온다 —
+           조립 잔재(예: 골선 캡 끝의 0.04 세그먼트)다. 마이터를 뻗치면 시접의
+           최대 3배 가시가 생기므로 bevel 두 점으로 자른다.
+           오목(다트 꼭짓점 등)은 기존대로 마이터+자기교차 제거에 맡긴다. */
+        if (cosHalf &lt; 0.7) {
+          var dp_ = segDir[(gi - 1 + n) % n], dn_ = segDir[gi];
+          var cr_ = dp_[0] * dn_[1] - dp_[1] * dn_[0];
+          if (ccw ? cr_ &gt; 0 : cr_ &lt; 0) {
+            out.push([P[0] + nPrev[0] * s, P[1] + nPrev[1] * s]);
+            out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]);
+            continue;
+          }
+        }
         var kk = s / Math.max(cosHalf, 1 / LIMIT);
         out.push([P[0] + mu[0] * kk, P[1] + mu[1] * kk]);
       }
@@ -29306,13 +29338,18 @@ td.n.n-fail{color:var(--red)}
       var sA = edgeSeam[k], sB = edgeSeam[kNext];
       var cornerIdx = list[list.length - 1];              // 다음 변과 공유하는 outline 인덱스
       var P = pts[cornerIdx];
-      // 모서리 소유 변: 한쪽이 골선이면 골선 쪽(골선 위 x=0 연장점이므로), 아니면 끝나는 변
-      var cornOwner = (sA === 0) ? k : (sB === 0 ? kNext : k);
+      /* ★ 모서리 소유 변: 골선(시접 0) 연장 캡은 **시접 있는 이웃 변** 소유 —
+         골선 변의 시접선은 &quot;골선에서 거리 0&quot; 이어야 하고(SPEC §11-2),
+         캡 점은 이웃 변 시접의 끝이지 골선의 이탈이 아니다. 그 외엔 끝나는 변. */
+      var cornOwner = (sA === 0) ? kNext : k;
       var nPrev = segNrm[(cornerIdx - 1 + n) % n], nNext = segNrm[cornerIdx];
 
-      /* 양쪽 변의 오프셋 직선 — 조립 때 &quot;모서리 뒤로 되돌아간 점&quot; 을 걸러내는 데 쓴다 */
-      var LA = { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev };
-      var LB = { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext };
+      /* 양쪽 변의 오프셋 직선 — 조립 때 &quot;모서리 뒤로 되돌아간 점&quot; 을 걸러내는 데 쓴다.
+         ★ 시접 0(골선) 변의 &quot;오프셋선&quot;은 골선 자신이라 이웃 변 오프셋 점 전부가
+         안쪽으로 찍혀 behind 컷이 모서리 근방 2cm 를 후벼 판다 — 골선 쪽은 null 로
+         꺼서 되짚음 제거는 ①번 내적 조건 + ④-0 골선 클램프에 맡긴다. */
+      var LA = sA &gt; 0 ? { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev } : null;
+      var LB = sB &gt; 0 ? { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext } : null;
       var CR = { p: cp(P), r: Math.max(sA, sB) * 2 + 0.2 };   // 되짚음 판정을 쓸 모서리 반경
       if (Math.abs(sA - sB) &lt; 1e-12) {                    // ── 등폭 → 이등분선 마이터
         if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
@@ -29323,8 +29360,9 @@ td.n.n-fail{color:var(--red)}
         corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner], la: LA, lb: LB, cr: CR });
         continue;
       }
-      // ── 이폭 → 두 오프셋선의 교점
-      var A = LA.p, Bp = LB.p;
+      // ── 이폭 → 두 오프셋선의 교점 (시접 0 쪽 오프셋선은 그 변 자신 = P 통과)
+      var A = LA ? LA.p : [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA];
+      var Bp = LB ? LB.p : [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB];
       var X = lineX(A, segDir[(cornerIdx - 1 + n) % n], Bp, segDir[cornerIdx]);
       var lim = Math.max(sA, sB) * LIMIT;
       if (X &amp;&amp; V.dist(X, P) &lt;= lim) corners.push({ pts: [X], own: [cornOwner], la: LA, lb: LB, cr: CR });
