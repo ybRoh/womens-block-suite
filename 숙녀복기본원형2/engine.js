@@ -296,8 +296,9 @@
     cuffW        : 24.0,       // 소매부리 (66호) — UI 에서 조절
     cuffWGrade   : 0.5,
     elbowAdd     : 2.5,        // 팔꿈치선 = 소매길이/2 + 2.5
-    elbowDart    : 4.5,        // 팔꿈치 다트분 (도면 `다트분 4.5`)
-    elbowTipGap  : 4.4,        // 다트 끝을 중심선에서 이만큼 떼어 놓는다 (도면 `3.8~5`)
+    elbowDart    : 4.5,        // 팔꿈치 다트분 (도면 `다트분 4.5`) — **소맷부리에 입이 난다**
+    elbowTipDrop : 4.4,        // 다트 끝 = 팔꿈치선에서 **아래로** (도면 `↓3.8~5`)
+    cuffDartDrop : 0.3,        // 다트 두 다리를 소맷부리선에서 0.3 내림 (도면 `0.3↓` 두 개)
     cuffBackDrop : 0.3         // 소맷부리 뒤쪽 끝 내림 (도면 `0.3↓`)
   };
 
@@ -306,8 +307,9 @@
   var CAL = {
     /* 소매산 — 마크를 대각선에 수직으로 미는 양 (뒤는 볼록 +, 앞 하단은 오목) */
     /* 소매산 — 대각선의 t 지점에서 수직으로 떨어진 양 (뒤 볼록 · 앞 아래 오목) */
-    sleeveCap: { tB1: 0.30, oB1: -0.8, tB2: 0.72, oB2: 1.8,
-                 tF1: 0.28, oF1: 1.7,  tF2: 0.70, oF2: -1.2, k0: 1.0, k1: 1.0 },
+    /* 자리(t)는 AH 에서 계산한다 — 여기 값은 **대각선에서 수직으로 벗어나는 양**만.
+       + 바깥(볼록) · − 안쪽(오목). 이 조합이 이세분 3.39 (교재 기대 2~4) 를 낸다. */
+    sleeveCap: { oB1: -1.2, oB2: 2.0, oF1: 1.9, oF2: -1.2, k0: 1.0, k1: 1.0 },
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
     frontNeck: { along: 0.3009, a1: -20.40, k0: 1.3493, k1: 0.8123 },                      // 편차 0.007
     backArm  : { d1: 0.2275, a0: 2.9376, k0: 0.7656, kA: 0.7750, kB: 0.6902, k1: 1.4753 }, // 편차 0.043
@@ -467,10 +469,10 @@
         { name: '소매산 뒤', role: 'armhole', segs: sv.capBack },              // 뒤 겨드랑 → 정점
         { name: '소매산 앞', role: 'armhole', segs: sv.capFront },             // 정점 → 앞 겨드랑
         { name: '앞 밑선',  role: 'side',    segs: lineSegs(sv.capF, sv.hemF) },
-        { name: '소맷부리', role: 'sleeveHem', segs: lineSegs(sv.hemF, sv.hemB) },
-        { name: '뒤 밑선(아래)', role: 'side', segs: lineSegs(sv.hemB, sv.dartB) },
-        { name: '팔꿈치 다트',  role: 'dart', segs: lineSegs(sv.dartB, sv.dartTip, sv.dartA) },
-        { name: '뒤 밑선(위)',  role: 'side', segs: lineSegs(sv.dartA, sv.capB) }
+        { name: '소맷부리(앞)', role: 'sleeveHem', segs: lineSegs(sv.hemF, sv.dartA) },
+        { name: '팔꿈치 다트',  role: 'dart', segs: lineSegs(sv.dartA, sv.dartTip, sv.dartB) },
+        { name: '소맷부리(뒤)', role: 'sleeveHem', segs: lineSegs(sv.dartB, sv.hemB) },
+        { name: '뒤 밑선',  role: 'side',    segs: lineSegs(sv.hemB, sv.capB) }
       ];
       var sLoop = edgesToLoop(sleeveEdges), sSeam = buildSeamline(sLoop, seam);
       /* 소매산 너치 — 몸판 암홀 3등분과 대응시킨다.
@@ -611,17 +613,23 @@
        소매산 길이 ≈ AH + 이세분(2~4) 이 된다.
        위쪽은 볼록(+), 아래쪽은 오목(−) — 도면의 ≠ 마크가 그 자리다. */
     var C = CAL.sleeveCap;
-    function onDiag(a, b, t, off) {                 // a→b 대각선의 t 지점에서 수직 off
+    function onDiag(a, b, t, off) {                 // a→b 대각선의 t 지점에서 수직 off (+ 가 바깥)
       var u = V.norm(V.sub(b, a)), n2 = [u[1], -u[0]];
       var p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       return [p[0] + n2[0] * off, p[1] + n2[1] * off];
     }
-    /* 뒤 — 겨드랑(capB) → 정점(apex) : 위쪽 볼록 · 아래쪽 살짝 오목 */
-    var pB1 = onDiag(capB, apex, C.tB1, -C.oB1);
-    var pB2 = onDiag(capB, apex, C.tB2, -C.oB2);
-    /* 앞 — 정점(apex) → 겨드랑(capF) : 위쪽 볼록 · 아래쪽 오목 */
-    var pF1 = onDiag(apex, capF, C.tF1,  C.oF1);
-    var pF2 = onDiag(apex, capF, C.tF2,  C.oF2);
+    /* 자리는 도면이 준 그대로 잡는다 — 눈대중 분수(0.30/0.72…)를 쓰지 않는다.
+     *   위쪽 : 정점에서 **대각선을 따라 AH/8**(도면 `5.7`) 간 자리 → 바깥으로 볼록
+     *   아래쪽: 소매폭점에서 **소매폭선을 따라** 뒤 AH/12+0.6(도면 `4.5`) · 앞 AH/8(도면 `5.7`)
+     *          간 자리 → 안쪽으로 오목
+     * ⚠ 예전에는 뒤쪽만 오프셋 부호를 뒤집어(-C.oB1/-C.oB2) 위가 오목·아래가 볼록이 됐다.
+     *   그래서 정점에서 5.7 간 자리가 도면보다 7.4 cm 나 내려앉아 소매산이 뾰족했다. */
+    var tB2 = 1 - (AH / 8) / AHb, tB1 = (AH / 12 + 0.6) / dB;
+    var tF1 = (AH / 8) / AHf,     tF2 = 1 - (AH / 8) / dF;
+    var pB1 = onDiag(capB, apex, tB1, C.oB1);
+    var pB2 = onDiag(capB, apex, tB2, C.oB2);
+    var pF1 = onDiag(apex, capF, tF1, C.oF1);
+    var pF2 = onDiag(apex, capF, tF2, C.oF2);
     var capBack  = splineSegs([capB, pB1, pB2, apex], endTan([0, -1], C.k0), endTan([1, 0], C.k1));
     var capFront = splineSegs([apex, pF1, pF2, capF], endTan([1, 0], C.k1), endTan([0, 1], C.k0));
 
@@ -629,11 +637,21 @@
     var elbowY = sleeveLen / 2 + K.elbowAdd;
     var hemB = [-cuffW / 2, sleeveLen + K.cuffBackDrop];
     var hemF = [ cuffW / 2, sleeveLen];
-    /* 팔꿈치 다트 — 뒤 밑선에서 다트분만큼, 끝은 중심선에서 elbowTipGap 떨어진다 */
-    var eb = lineAt(capB, hemB, elbowY);
-    var dartA = [eb[0], eb[1] - num(opt.elbowDart, K.elbowDart) / 2];
-    var dartB = [eb[0], eb[1] + num(opt.elbowDart, K.elbowDart) / 2];
-    var dartTip = [-K.elbowTipGap, elbowY];
+    /* 팔꿈치 다트 — 도면대로 **소맷부리에 입이 나고 위(팔꿈치)로 뾰족하다**.
+     *  중심 : 팔꿈치선에서 **뒤 밑선과 소매 중심선의 중점** (도면의 `중심` + 등분 표시)
+     *  끝   : 팔꿈치선에서 아래로 3.8~5 (도면 `↓3.8~5`)
+     *  입   : 소맷부리선에서 다트분 4.5, 두 다리를 각각 0.3 내림 (도면 `0.3↓` 두 개)
+     *  ⚠ 예전에는 뒤 밑선에 입이 나고 끝이 가로로 뻗어 있었다 — 방향이 90° 달랐다. */
+    var eb = lineAt(capB, hemB, elbowY);              // 뒤 밑선 위의 팔꿈치점
+    var dartCx = eb[0] / 2;                           // 소매 중심선은 x = 0
+    var dartTip = [dartCx, elbowY + num(opt.elbowTipDrop, K.elbowTipDrop)];
+    function onHem(x) {                               // 소맷부리선 위의 x 자리
+      var t = (hemF[0] - hemB[0]) ? (x - hemB[0]) / (hemF[0] - hemB[0]) : 0;
+      return [x, hemB[1] + (hemF[1] - hemB[1]) * t];
+    }
+    var dHalf = num(opt.elbowDart, K.elbowDart) / 2;
+    var dartB = onHem(dartCx - dHalf); dartB[1] += K.cuffDartDrop;   // 뒤쪽 다리
+    var dartA = onHem(dartCx + dHalf); dartA[1] += K.cuffDartDrop;   // 앞쪽 다리
 
     return {
       AH: AH, AHb: AHb, AHf: AHf, capH: capH, apex: apex, capB: capB, capF: capF,
