@@ -270,7 +270,15 @@
     vDepthAdd    : 7.0,        // V 깊이 = 앞목깊이 + 7.0 (상단 기준선에서 아래) — 66호 14.6
     wrapUp       : 9.3,        // 자락 끝(반대 옆선) = 허리선에서 위로 9.3 — 66호 상단에서 28.2
     dartAmount   : 1.5,        // 가슴다트 분량 (도면 `1.5(⅝) 다트`)
-    dartRiseDiv  : 8,          // 다트 아래 다리 = 허리선에서 위로 B/8 — 66호 10.95
+    /* 다트 아래 다리 = 허리선에서 위로 **옆선 길이 × dartRiseRatio**.
+     *  66호에서는 B/8 (10.95) 과 같은 값이고, 다른 호수만 달라진다.
+     *    ratio = (87.6/8) / (37.5 − (87.6/4 − 3)) = 10.95 / 18.6
+     *  왜 B/8 을 그대로 안 쓰나 — 이 원형은 겨드랑이 B/4 를 따라 호수당 1.5 내려가는데
+     *  등길이는 0.5 밖에 안 늘어 **옆선이 호수당 1.0 짧아진다**(44호 20.6 → 88호 16.6).
+     *  거기에 B/8 은 호수당 0.75 올라가서 둘이 1.75 씩 가까워지고, 88호에서는
+     *  겨드랑~다트가 2.65 까지 붙어 암홀 안단(4)도 못 들어간다.
+     *  옆선에 대한 비율로 잡으면 어느 호수에서나 같은 자리에 온다. */
+    dartRiseRatio: 10.95 / 18.6,
     dartTipBack  : 0,          // 다트 끝을 BP 앞에서 멈춤 (교재 권장 1.3~1.9 · 기본 0 = BP)
     dartTipMin   : 1.3,
     dartTipMax   : 1.9,
@@ -318,7 +326,7 @@
     var facing   = num(opt.facing,       K.facing);
     var armRise  = num(opt.armRise,      K.armRise);
     var dartAmt  = num(opt.dartAmount,   K.dartAmount);
-    var dartRise = num(opt.dartRise,     B / K.dartRiseDiv);
+    var dartRise = num(opt.dartRise, (WL - (B / 4 - armRise)) * K.dartRiseRatio);
     var vDepth   = num(opt.vDepth,       nw + K.frontNeckDeep + K.vDepthAdd);
     var wrapUp   = num(opt.wrapUp,       K.wrapUp);
     var dartTipBack = num(opt.dartTipBack, K.dartTipBack);

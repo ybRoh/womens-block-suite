@@ -36,7 +36,8 @@
     { k: 'vDepth',     label: 'V 깊이',    min: 8,  max: 30, step: 0.5, hint: '앞중심 · 기본 = 앞목깊이 + 7.0' },
     { k: 'wrapUp',     label: '자락 끝',    min: 2,  max: 20, step: 0.5, hint: '허리선에서 위로 · 기본 9.3' },
     { k: 'dartAmount', label: '다트분',     min: 0,  max: 4,  step: 0.1, hint: '가슴다트 · 기본 1.5' },
-    { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1, hint: '허리선에서 위로 · 기본 B/8' }
+    { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1,
+      hint: '허리선에서 위로 · 기본 = 옆선 × 0.589 (66호에서 B/8 과 같은 값)' }
   ];
   function styleDefaults() {
     var E = ENG(), K = (E && E.K) || {}, m = state.m || {};
@@ -47,7 +48,10 @@
       vDepth:     (m.B ? m.B / 12 + (K.frontNeckDeep || 0.3) + (K.vDepthAdd || 7.0) : 14.6),
       wrapUp:     (K.wrapUp     === undefined) ? 9.3  : K.wrapUp,
       dartAmount: (K.dartAmount === undefined) ? 1.5  : K.dartAmount,
-      dartRise:   (m.B ? m.B / (K.dartRiseDiv || 8) : 10.95)
+      dartRise:   (m.B && m.backLen
+                    ? (m.backLen - (m.B / 4 - ((state.style && state.style.armRise) || K.armRise || 3)))
+                      * (K.dartRiseRatio || 10.95 / 18.6)
+                    : 10.95)
     };
   }
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
@@ -348,6 +352,11 @@
         v = Math.min(def.max, Math.max(def.min, v));
         inp.value = Math.round(v * 100) / 100;
         state.style[k] = v;
+        if (k === 'armRise' && !state.styleTouched_dartRise) {
+          state.style.dartRise = styleDefaults().dartRise;   // 옆선이 바뀌면 따라간다
+          buildStyleFields();
+        }
+        if (k === 'dartRise') state.styleTouched_dartRise = true;
         recompute(false);
       });
     });
@@ -1352,6 +1361,7 @@
       recompute(false);
     });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
+      state.styleTouched_dartRise = false;
       state.style = styleDefaults();
       buildStyleFields();
       recompute(true);

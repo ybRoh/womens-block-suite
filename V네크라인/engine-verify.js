@@ -158,6 +158,9 @@ E.SIZES.forEach(function (sz) {
   else            chk(sideCut  <= 0.10, '옆선(재단) ' + sideCut.toFixed(3));
   chk(gg.armY > 0 && gg.armY < gg.WL, '겨드랑 위치');
   chk(M.vDepth < gg.WL, 'V 깊이');
+  /* 다트가 겨드랑에 붙으면 암홀 안단이 못 들어가고 봉제도 나쁘다 —
+     옆선 비율로 잡았으므로 전 호수에서 안단너비 이상이어야 한다 */
+  chk(gg.sideUpper >= M.facing, '겨드랑~다트 ' + gg.sideUpper.toFixed(2) + ' < 안단 ' + M.facing);
   /* 안단 길이 = 대응 몸판 변 길이 (안단은 겉과 같은 변에 붙는다) */
   var nf = d.pieces.filter(function (p) { return p.id === 'frontNeckFacing'; })[0];
   chk(!!nf, '앞 목둘레 안단 없음');
@@ -165,7 +168,8 @@ E.SIZES.forEach(function (sz) {
     '어깨 뒤 ' + f(M.shoulderBackSeam, 6) + ' 앞 ' + f(M.shoulderFrontSeam, 6) + ' (차 ' + f(shDiff, 5) + ')' +
     ' · 옆선 뒤 ' + f(M.sideBack, 6, 2) + ' 앞 재단 ' + f(M.sideFront, 6, 2) +
     ' 앞 봉제 ' + f(M.sideFrontSewn, 6, 2) + ' (밑단 내림 ' + f(M.hemDrop, 5, 2) + ')' +
-    ' · 암홀 ' + f(M.armholeTotal, 6, 2) + ' · 목둘레 ' + f(M.neckTotal, 6, 2));
+    ' · 암홀 ' + f(M.armholeTotal, 6, 2) + ' · 목둘레 ' + f(M.neckTotal, 6, 2) +
+    ' · 겨드랑~다트 ' + f(gg.sideUpper, 5, 2));
   if (line.length) console.log('      → ' + line.join(' · '));
 });
 
