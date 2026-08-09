@@ -295,10 +295,39 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.1.0';
+  var APP_VERSION = '1.2.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
+  }
+
+  /* ══ 브라우저 저장 (SPEC §17-3) ══════════════════════════════════════
+     ⚠ 키를 반드시 모듈별로 가른다. 포터블은 앱 5개가 iframe srcdoc 이라
+       부모 file:// origin 과 localStorage 를 **공유**한다. 게다가 기본원형과
+       언더암다트는 DOM id 접두사(nd)까지 같아서 공용 키를 쓰면 서로 덮어쓴다.
+     ND_APP 은 build.py 가 폴더명으로 심는다. 없으면 저장하지 않는다(오염 방지).
+     file:// 이나 시크릿 창에서 localStorage 가 막히면 조용히 넘어간다 — 저장은
+     편의 기능이라 여기서 앱이 멈추면 안 된다. */
+  function storeKey(name) {
+    var app = (typeof window !== 'undefined' && window.ND_APP) ? String(window.ND_APP) : '';
+    return app ? ('여성복원형Suite:' + app + ':' + name) : '';
+  }
+  function storeGet(name) {
+    var k = storeKey(name);
+    if (!k) return null;
+    try {
+      var raw = window.localStorage.getItem(k);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function storeSet(name, val) {
+    var k = storeKey(name);
+    if (!k) return false;
+    try {
+      if (val === null || val === undefined) window.localStorage.removeItem(k);
+      else window.localStorage.setItem(k, JSON.stringify(val));
+      return true;
+    } catch (e) { return false; }   // 용량 초과·차단 — 저장만 못 할 뿐 앱은 그대로 돈다
   }
 
   var state = {
@@ -1223,6 +1252,25 @@
     return out;
   }
 
+  /** 뺀 조각 목록을 브라우저에 저장 — 다음에 열어도 그대로입니다 (SPEC §17-3) */
+  function savePick() {
+    var ex = [], k;
+    for (k in state.printExclude) if (state.printExclude[k]) ex.push(k);
+    storeSet('printExclude', ex);
+    if (els && els.pickSaved) {
+      els.pickSaved.textContent = ex.length ? '이 브라우저에 저장됨' : '';
+    }
+  }
+
+  /** 저장해 둔 선택 복원. 지금 없는 조각 id 가 섞여 있어도 그냥 둔다 —
+      소매 종류를 다시 바꾸면 그 선택이 되살아나는 편이 자연스럽다. */
+  function loadPick() {
+    var ex = storeGet('printExclude');
+    if (!ex || typeof ex.length !== 'number') return;
+    state.printExclude = {};
+    for (var i = 0; i < ex.length; i++) state.printExclude[String(ex[i])] = true;
+  }
+
   /** 조각 목록 다시 그리기 — 체크 상태는 DOM 이 아니라 state 에 있습니다. */
   function renderPickList(d) {
     if (!els || !els.pickList) return;
@@ -1521,15 +1569,17 @@
       if (!el || !el.getAttribute || !el.getAttribute('data-piece')) return;
       var k = el.getAttribute('data-piece');
       if (el.checked) delete state.printExclude[k]; else state.printExclude[k] = true;
+      savePick();
       renderPickList(state.draft);
     });
     if (els.pickAll) els.pickAll.addEventListener('click', function () {
-      state.printExclude = {}; renderPickList(state.draft);
+      state.printExclude = {}; savePick(); renderPickList(state.draft);
     });
     if (els.pickNone) els.pickNone.addEventListener('click', function () {
       var src = (state.draft && state.draft.pieces) || [], i;
       state.printExclude = {};
       for (i = 0; i < src.length; i++) state.printExclude[pieceKey(src[i], i)] = true;
+      savePick();
       renderPickList(state.draft);
       toast('조각을 전부 뺐습니다 — 인쇄하려면 최소 1개는 체크하세요.');
     });
@@ -1658,12 +1708,17 @@
       easeWarn: $('ndEaseWarn'), easeWarnText: $('ndEaseWarnText'),
       footSize: $('ndFootSize'), footMeas: $('ndFootMeas'), footSeam: $('ndFootSeam'), footBox: $('ndFootBox'),
       pickBox: $('ndPickBox'), pickList: $('ndPickList'), pickCount: $('ndPickCount'),
-      pickAll: $('ndPickAll'), pickNone: $('ndPickNone'), verBadge: $('ndVerBadge'),
+      pickAll: $('ndPickAll'), pickNone: $('ndPickNone'), pickSaved: $('ndPickSaved'),
+      verBadge: $('ndVerBadge'),
       printArea: $('ndp-print-area'), toast: $('ndToast')
     };
 
     /* 버전·빌드시각 배지 (SPEC §17-2) — 재빌드 후 새로고침이 먹혔는지 눈으로 확인 */
     if (els.verBadge) els.verBadge.textContent = buildStamp();
+
+    /* 저장해 둔 조각 선택 복원 (SPEC §17-3) — 첫 renderPickList 보다 먼저 */
+    loadPick();
+    savePick();
 
     /* 인쇄 컨테이너가 body 직속인지 확인 — print.css 규약 (SPEC §8.1) */
     if (els.printArea && els.printArea.parentNode !== document.body) {

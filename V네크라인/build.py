@@ -40,7 +40,7 @@ html = f'''<!DOCTYPE html>
 </head>
 <body>
 {ui_html}
-<script>window.ND_BUILD = '{stamp}';</script>
+<script>window.ND_BUILD = '{stamp}'; window.ND_APP = 'V네크라인';</script>
 <script>
 /* ══ engine.js ══ */
 {engine_js}

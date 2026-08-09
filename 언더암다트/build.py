@@ -39,7 +39,7 @@ html = f'''<!DOCTYPE html>
 </head>
 <body>
 {ui_html}
-<script>window.ND_BUILD = '{stamp}';</script>
+<script>window.ND_BUILD = '{stamp}'; window.ND_APP = '언더암다트';</script>
 <script>
 /* ══ engine.js ══ */
 {engine_js}
