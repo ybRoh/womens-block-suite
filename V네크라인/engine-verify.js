@@ -204,7 +204,7 @@ E.SIZES.forEach(function (sz) {
     if (bad) { fails++; console.log('  ✗ %s %s  최대 점간격 %.3f · 시접선 %d점', sz, p.name, mx, p.seamline ? p.seamline.length : 0); }
   });
 });
-console.log('  ✓ 전 호수 8조각 점간격 ≤ 0.06 cm · 시접선 생성 확인');
+console.log('  ✓ 전 호수 7조각 점간격 ≤ 0.06 cm · 시접선 생성 확인');
 
 console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 5-1. 안단 너치 — 붙을 몸판에 같은 자리 너치가 있어야 한다');
@@ -213,8 +213,7 @@ var PAIR = {
   backNeckFacing:      ['back'],
   backArmFacing:       ['back'],
   frontArmFacing:      ['front', 'frontPlain'],
-  frontNeckFacing:     ['front'],
-  frontPlainNeckFacing:['frontPlain']
+  frontNeckFacing:     ['front']
 };
 E.SIZES.forEach(function (sz) {
   var d = E.draftVNeck(E.measuresForSize(sz), { seam: 0 });
@@ -248,8 +247,7 @@ var WANT = {
   backNeckFacing:      { 가장자리: 'neck',    뒤중심: 'fold',  어깨선: 'shoulder' },
   backArmFacing:       { 가장자리: 'armhole', 옆선: 'side',    어깨선: 'shoulder' },
   frontArmFacing:      { 가장자리: 'armhole', 옆선: 'side',    어깨선: 'shoulder' },
-  frontNeckFacing:     { 가장자리: 'neck',    '자락 끝': 'side', 어깨선: 'shoulder' },
-  frontPlainNeckFacing:{ 가장자리: 'neck',    앞중심: 'fold',  어깨선: 'shoulder' }
+  frontNeckFacing:     { 가장자리: 'neck',    '자락 끝': 'side', 어깨선: 'shoulder' }
 };
 (function () {
   var SD = E.SEAM_DEFAULT, d = E.draftVNeck(m66, { seam: SD }), bad = [];

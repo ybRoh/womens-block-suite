@@ -532,10 +532,17 @@
     var i0 = edge.length, i1 = i0 + capB.length, i2 = i1 + rev.length;
     /* 변마다 **붙을 몸판 변과 같은 role** 을 준다. 하드코딩하면 표준 시접에서
        안단 끝이 몸판보다 0.5 좁아지거나, 골선(시접 0)에 시접이 붙어 중심을 넘어간다. */
+    /* ⚠ 변 구간은 **끝점이 곧 모서리**다 (buildSeamline 은 구간의 마지막 점을 모서리로 본다).
+     *  fill() 은 양 끝점을 뺀 사이만 채우므로 끝 B 의 진짜 모서리는 rev[0] = i1 이다.
+     *  예전처럼 i1−1 에서 끊으면 그 자리의 앞뒤 두 세그먼트가 **같은 직선 위**라(0.04 짜리
+     *  토막) 두 오프셋선이 평행해져 마이터가 안 잡히고 bevel 로 떨어지고, 진짜 90° 꺾임은
+     *  한 점 뒤에서 안단 안쪽(1.0)만으로 처리된다. 결과가 자락 끝 아래 0.5×1.2 짜리
+     *  네모 돌기다 (시접 자락끝 1.5 ↔ 안단 안쪽 1.0 처럼 폭이 다를 때만 눈에 띈다).
+     *  capB 가 비어도(끝이 아주 짧을 때) start ≤ end 가 유지된다 — 예전엔 뒤집힌 구간이었다. */
     var ranges = [
       { name: '가장자리', role: edgeRole || 'neck',    start: 0,  end: i0 - 1 },
-      { name: endB.name || '끝 B', role: endB.role || 'shoulder', start: i0, end: i1 - 1 },
-      { name: '안단 안쪽', role: 'facing',             start: i1, end: i2 - 1 },
+      { name: endB.name || '끝 B', role: endB.role || 'shoulder', start: i0, end: i1 },
+      { name: '안단 안쪽', role: 'facing',             start: i1 + 1, end: i2 - 1 },
       { name: endA.name || '끝 A', role: endA.role || 'shoulder', start: i2, end: loopPts.length - 1 }
     ];
     var loop = { pts: loopPts, ranges: ranges };
@@ -681,6 +688,10 @@
         also: [{ p: g.wrapWaist, d: [1, 0], q: [0, WL], role: 'hem', name: '밑단' }] }, seam, 2,
       [nVcf].concat(nVUp, nVLow), 'neck');
     var cf = { p: [0, 0], d: [0, 1], q: [0, WL], role: 'fold', name: '앞중심' };    // 골선 — 시접 0
+    /* 자락 없는 앞판의 목둘레 안단 — **조각으로는 내지 않는다**(2026-08-09, 사용자 결정).
+     *  자락 앞판의 목둘레 안단이 같은 목선(앞중심~목옆점)을 이미 덮으므로 거기서 잘라 쓰거나
+     *  바이어스로 마무리한다. 여기서 계속 만드는 이유는 **몸판에 안단선을 파선으로 긋기 위해서**다
+     *  (아래 frontInternal 의 'facingNeck'). 조각 배열에는 넣지 않는다. */
     var plainNeckFacing = facingPiece('frontPlainNeckFacing', '앞면(자락없음) 목둘레 안단',
       g.vNeckUp, [g.fSideX * 0.5, g.BL], fac, shF, cf, seam, 1, nVUp, 'neck');
 
@@ -733,8 +744,9 @@
       L('facingArm',  'dashed', facingLineOf(frontArmFacing),  '암홀 안단선')
     ]);
 
+    /* 7조각 — 몸판 3 + 안단 4. 자락 없는 앞판의 목둘레 안단은 조각으로 내지 않는다(위 주석). */
     var pieces = [frontPiece, frontPlain, backPiece,
-                  frontNeckFacing, plainNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
+                  frontNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
 
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.vNeck);
@@ -1017,6 +1029,28 @@
         for (var z = 0; z < seamPts.length; z++) {
           var dv = (seamPts[z][0] - a2[0]) * nf[0] + (seamPts[z][1] - a2[1]) * nf[1];
           if (dv > 1e-9) seamPts[z] = [seamPts[z][0] - nf[0] * dv, seamPts[z][1] - nf[1] * dv];
+        }
+      });
+    }
+
+    /* ④-1 골선 위 외톨이 가시 제거 — 클램프로 골선에 얹힌 점들 중,
+       **앞뒤 이웃이 둘 다 못 미치는 한 점**만 지운다. V 꼭짓점처럼 목선이 골선과 예각으로
+       만나면 모서리 교점이 이웃 시접점보다 0.8 cm 더 뻗어 나가 되짚는 가시가 된다.
+       ⚠ 골선 위에 있는 점만 본다 — 골선을 안 넘은 조각·골선 없는 조각은 완전한 no-op.
+       ⚠ 한 점짜리만 지운다. 여러 점을 지우면 목선 시접이 통째로 날아간다. */
+    if (foldR.length) {
+      foldR.forEach(function (r) {
+        var a3 = pts[r.start], b3 = pts[r.end];
+        if (V.dist(a3, b3) < 1e-6) return;
+        var t3 = V.norm(V.sub(b3, a3)), n3 = [t3[1], -t3[0]];
+        var on = function (p) { return Math.abs((p[0] - a3[0]) * n3[0] + (p[1] - a3[1]) * n3[1]) < 1e-7; };
+        var proj = function (p) { return (p[0] - a3[0]) * t3[0] + (p[1] - a3[1]) * t3[1]; };
+        for (var z = 1; z < seamPts.length - 1; z++) {
+          if (!on(seamPts[z - 1]) || !on(seamPts[z]) || !on(seamPts[z + 1])) continue;
+          var u0 = proj(seamPts[z - 1]), u1 = proj(seamPts[z]), u2 = proj(seamPts[z + 1]);
+          if ((u1 > u0 && u1 > u2) || (u1 < u0 && u1 < u2)) {
+            seamPts.splice(z, 1); owner.splice(z, 1); z--;
+          }
         }
       });
     }
