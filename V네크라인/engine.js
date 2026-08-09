@@ -278,6 +278,13 @@
     vDepthAdd    : 7.0,        // V 깊이 = 앞목깊이 + 7.0 (상단 기준선에서 아래) — 66호 14.6
     wrapUp       : 9.3,        // 자락 끝(반대 옆선) = 허리선에서 위로 9.3 — 66호 상단에서 28.2
     dartAmount   : 1.5,        // 가슴다트 분량 (도면 `1.5(⅝) 다트`)
+    /* 앞목둘레 다트 (도면 `0.6(¼)` 옆의 `0.3 MP` 두 곳) — 깊은 V 목선이 벌어지는 것을 잡는다.
+     *  자리: **앞목둘레선(목옆점 SNP ~ 앞중심)을 3등분**한 두 지점.
+     *  분량: 한 개당 0.3. 다트 끝은 BP 를 향한다 (가슴다트와 같은 방향).
+     *  0 으로 두면 안 그린다. */
+    neckDartAmount: 0.3,
+    neckDartCount : 2,         // 3등분 → 두 자리. 4등분(3개)으로 바꾸려면 3
+    neckDartTipBack: 0,        // 다트 끝을 BP 앞에서 멈추는 양 (0 = BP 까지)
     /* 다트 아래 다리 = 허리선에서 위로 **옆선 길이 × dartRiseRatio**.
      *  진동올림 3.0(도면값) 일 때 66호에서 B/8 (10.95) 과 같은 값이 되고, 다른 호수만 달라진다.
      *    ratio = (87.6/8) / (37.5 − (87.6/4 − 3)) = 10.95 / 18.6
@@ -411,7 +418,9 @@
 
     return {
       m: m, opt: { shEase: shEase, facing: facing, armRise: armRise, dartAmount: dartAmt,
-                   dartRise: dartRise, vDepth: vDepth, wrapUp: wrapUp, dartTipBack: dartTipBack },
+                   dartRise: dartRise, vDepth: vDepth, wrapUp: wrapUp, dartTipBack: dartTipBack,
+                   neckDartAmount: num(opt.neckDartAmount, K.neckDartAmount),
+                   neckDartCount: Math.max(0, Math.round(num(opt.neckDartCount, K.neckDartCount))) },
       nw: nw, WL: WL, BL: BL, armY: armY, shEase: shEase, facing: facing,
       bSideX: bSideX, bPitchX: bPitchX, bSpX: bSpX, bShDir: bShDir, bNeckCorner: bNeckCorner,
       BNP: BNP, SNPb: SNPb, SPb: SPb, Ub: Ub, bWaist: bWaist,
@@ -425,8 +434,35 @@
       frontHem: frontHem,
       vMark: vMark, Vcf: Vcf, Vend: Vend, wrapWaist: wrapWaist,
       backNeck: backNeck, backArm: backArm, frontArm: frontArm,
-      vNeck: vNeck, vNeckUp: vc.up, vNeckLow: vc.low   // 위 = 앞중심까지 (자락 없는 앞판이 쓴다)
+      vNeck: vNeck, vNeckUp: vc.up, vNeckLow: vc.low,  // 위 = 앞중심까지 (자락 없는 앞판이 쓴다)
+      neckDarts: neckDarts(vc.up, BP, num(opt.neckDartAmount, K.neckDartAmount),
+                           Math.max(0, Math.round(num(opt.neckDartCount, K.neckDartCount))),
+                           num(opt.neckDartTipBack, K.neckDartTipBack))
     };
+  }
+
+  /** 앞목둘레 다트 (도면 `0.3 MP`) — 앞목둘레선을 (cnt+1)등분한 자리마다 분량 amt 짜리 다트.
+   *  다트 중심을 등분점에 두고 곡선을 따라 좌우로 amt/2 씩 벌린다. 끝은 BP 방향.
+   *  @param up   앞목둘레선 (목옆점 SNP → 앞중심)
+   *  @param bp   유두점 — 다트 끝이 향하는 곳
+   *  @param back 다트 끝을 BP 앞에서 멈추는 양 */
+  function neckDarts(up, bp, amt, cnt, back) {
+    if (!(amt > 0) || !(cnt > 0)) return [];
+    var L = sLen(up), out = [], i;
+    for (i = 1; i <= cnt; i++) {
+      var t = L * i / (cnt + 1);
+      if (t - amt / 2 < 0 || t + amt / 2 > L) continue;      // 목선 밖으로 나가면 건너뛴다
+      var mid = _ptAtLen(up, t, false).p;
+      var a = _ptAtLen(up, t - amt / 2, false).p;
+      var b = _ptAtLen(up, t + amt / 2, false).p;
+      var tip = cp(bp);
+      if (back > 0) {
+        var dv = V.sub(bp, mid), dl = Math.hypot(dv[0], dv[1]);
+        if (dl > back) tip = [bp[0] - dv[0] / dl * back, bp[1] - dv[1] / dl * back];
+      }
+      out.push({ i: i, at: t, mid: cp(mid), a: cp(a), b: cp(b), tip: tip, amount: amt });
+    }
+    return out;
   }
 
   /* ── 안단(안감) 조각 ────────────────────────────────────────────────
@@ -744,9 +780,14 @@
       L('facingArm',  'dashed', facingLineOf(frontArmFacing),  '암홀 안단선')
     ]);
 
-    /* 7조각 — 몸판 3 + 안단 4. 자락 없는 앞판의 목둘레 안단은 조각으로 내지 않는다(위 주석). */
-    var pieces = [frontPiece, frontPlain, backPiece,
+    /* 6조각 — 교재 도면과 같은 구성이다 (앞면 · 뒷면 · 안단 4).
+     *  **자락 없는 앞판은 조각으로 내지 않는다** (2026-08-09 사용자 결정) — 자락 앞판을
+     *  좌우 대칭으로 2장 재단해 겹쳐 쓴다. frontPlain 은 계속 계산하되 배열에 넣지 않는다
+     *  (검증기 §6 이 자락 앞판과 같은 변을 쓰는지 대조하는 데 쓴다). */
+    var pieces = [frontPiece, backPiece,
                   frontNeckFacing, frontArmFacing, backNeckFacing, backArmFacing];
+    /* 조각으로는 안 내지만 계산은 남긴 것 — 검증기와 도면 참고용 */
+    var extras = { frontPlain: frontPlain, frontPlainNeckFacing: plainNeckFacing };
 
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.vNeck);
@@ -773,6 +814,7 @@
 
     return {
       pieces: pieces,
+      extras: extras,          // 조각으로는 안 내지만 계산은 남긴 것 (검증기·참고용)
       warnings: warnings, notes: notes,
       measures: {
         shoulderBack: r4(g.shLenBack), shoulderFront: r4(g.shLenFront), shoulderEase: r4(g.shEase),
@@ -1221,7 +1263,20 @@
       L('SP',       'point',  [g.SPf], 'SP'),
       L('SNP',      'point',  [g.SNPf], 'SNP'),
       L('FNP',      'point',  [g.FNP], 'FNP (기본 원형)')
-    ];
+    ].concat(neckDartLines(g));
+  }
+
+  /** 앞목둘레 다트(MP) 표시 — 두 다리는 실선, 접는 중심선은 파선.
+   *  가슴다트처럼 조각 외곽을 파고들지는 않는다. 목선을 그대로 두고 **자리만 표시**한다
+   *  (교재 도면도 목선을 자르지 않고 `0.3 MP` 로 표시만 해 두었다). */
+  function neckDartLines(g) {
+    var out = [];
+    (g.neckDarts || []).forEach(function (nd) {
+      out.push(L('neckDart' + nd.i + 'a', 'line',   [nd.a, nd.tip], '목다트 ' + f1(nd.amount)));
+      out.push(L('neckDart' + nd.i + 'b', 'line',   [nd.b, nd.tip], ''));
+      out.push(L('neckDart' + nd.i + 'm', 'dashed', [nd.mid, nd.tip], ''));
+    });
+    return out;
   }
 
   /** meta.formulaNotes — { id, label, formula, value, piece, anchor } */
@@ -1259,6 +1314,9 @@
       FN('bpSpan',   '유폭',       '유폭/2',                   g.BP[0],   'front', [g.BP[0] * 0.5, g.BP[1] - 1.2]),
       FN('hemDrop',  '옆선 늘림',  (g.sideTrue ? '다트를 접어도 뒤 옆선과 맞도록 밑단을 내림' : '트루잉 끔 — 교재 도면 그대로'),
                                                               g.hemDrop, 'front', [g.fSideX * 0.8, g.WL + g.hemDrop * 0.5]),
+      FN('neckDart', '목다트 (MP)', '앞목둘레선(목옆점~앞중심)을 3등분한 두 자리 · 한 개 ' + f1(g.opt.neckDartAmount),
+                                                              g.opt.neckDartAmount, 'front',
+                                                              (g.neckDarts[0] ? cp(g.neckDarts[0].mid) : [0, 0])),
       FN('dart',     '가슴다트',   '다트분 ' + f1(g.opt.dartAmount) + ' · 아래 다리 = 허리선 위 B/8 = ' + f1(g.opt.dartRise),
                                                               g.opt.dartAmount, 'front', [(g.BP[0] + g.fSideX) / 2, (g.dartHi[1] + g.dartLo[1]) / 2]),
       FN('shFront',  '앞 어깨선',  '뒤 어깨선 − 이세 ' + f1(g.shEase), g.shLenFront, 'front', [(g.SNPf[0] + g.SPf[0]) / 2, (g.SNPf[1] + g.SPf[1]) / 2]),

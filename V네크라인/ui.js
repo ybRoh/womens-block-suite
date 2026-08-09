@@ -39,7 +39,9 @@
     { k: 'wrapUp',     label: '자락 끝',    min: 2,  max: 20, step: 0.5, hint: '허리선에서 위로 · 기본 9.3' },
     { k: 'dartAmount', label: '다트분',     min: 0,  max: 4,  step: 0.1, hint: '가슴다트 · 기본 1.5' },
     { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1,
-      hint: '허리선에서 위로 · 기본 = 옆선 × 0.589 (66호에서 B/8 과 같은 값)' }
+      hint: '허리선에서 위로 · 기본 = 옆선 × 0.589 (66호에서 B/8 과 같은 값)' },
+    { k: 'neckDartAmount', label: '목다트(MP)', min: 0, max: 1, step: 0.1,
+      hint: '앞목둘레 다트 한 개의 분량 — 도면 0.3(MP). 자리는 앞목둘레선(목옆점~앞중심)을 3등분한 두 곳. 0 이면 안 그림' }
   ];
   /** 진동 올림의 빠른 선택 버튼 — 숫자는 전부 엔진 K 에서 읽습니다.
       기본 0.5 는 겨드랑을 거의 안 올린 상태, 1.9~3.1 은 민소매로 단독 착용할 때입니다. */
@@ -73,6 +75,7 @@
       vDepth:     (m.B ? m.B / 12 + (K.frontNeckDeep || 0.3) + (K.vDepthAdd || 7.0) : 14.6),
       wrapUp:     (K.wrapUp     === undefined) ? 9.3  : K.wrapUp,
       dartAmount: (K.dartAmount === undefined) ? 1.5  : K.dartAmount,
+      neckDartAmount: (K.neckDartAmount === undefined) ? 0.3 : K.neckDartAmount,
       dartRise:   (m.B && m.backLen
                     ? (m.backLen - (m.B / 4 - ar)) * (K.dartRiseRatio || 10.95 / 18.6)
                     : 10.95)
@@ -417,7 +420,7 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.4.0';
+  var APP_VERSION = '1.5.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');

@@ -212,7 +212,7 @@ console.log('══════════════════════�
 var PAIR = {
   backNeckFacing:      ['back'],
   backArmFacing:       ['back'],
-  frontArmFacing:      ['front', 'frontPlain'],
+  frontArmFacing:      ['front'],
   frontNeckFacing:     ['front']
 };
 E.SIZES.forEach(function (sz) {
@@ -378,11 +378,13 @@ console.log('══════════════════════�
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 6. 자락 없는 앞면 — 자락 앞면과 같은 변을 써야 한다');
+console.log(' 6. 자락 없는 앞면(참고 계산) — 자락 앞면과 같은 변을 써야 한다');
 console.log('════════════════════════════════════════════════════════════');
 E.SIZES.forEach(function (sz) {
   var mm = E.measuresForSize(sz), gg = E.geom(mm), dd = E.draftVNeck(mm, { seam: 0 });
-  var pl = dd.pieces.filter(function (p) { return p.id === 'frontPlain'; })[0];
+  /* 자락 없는 앞판은 조각으로 내지 않는다(자락 앞판 2장으로 쓴다) — 계산만 남아 있어
+     draft.extras 로 꺼낸다. 자락 앞판과 같은 변을 쓰는지는 계속 검사한다. */
+  var pl = (dd.extras || {}).frontPlain;
   var wr = dd.pieces.filter(function (p) { return p.id === 'front'; })[0];
   var line = [];
   function chk(c, m) { if (!c) { line.push(m); fails++; } }
