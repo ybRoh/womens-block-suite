@@ -471,6 +471,20 @@ function wantPiece(want, p) {
   return false;
 }
 
+/** 조각에 딸린 계산식 주석 (draft.meta.formulaNotes) — cm → world mm */
+function dimsOf(draft, pieceId) {
+  var src = (draft && draft.meta && draft.meta.formulaNotes) || [], out = [];
+  for (var i = 0; i < src.length; i++) {
+    var n = src[i];
+    if (!n || !n.anchor) continue;
+    if (n.piece && n.piece !== 'both' && n.piece !== pieceId) continue;
+    if (n.piece === 'both') continue;          // 조각 공통값은 하단 정보띠에 이미 나간다
+    out.push({ id: n.id, label: n.label, formula: n.formula, value: n.value,
+               at: [n.anchor[0] * 10, n.anchor[1] * 10] });
+  }
+  return out;
+}
+
 function normalizePieces(draft, o, warn) {
   var SEAM = o._seam;                    // normalizeSeamOpt 결과
   var pieces = [], i;
@@ -840,6 +854,10 @@ function normalizePieces(draft, o, warn) {
       foldMask: foldMask, foldRanges: foldRanges, foldSeamGapMm: foldSeamGapOut,
       centroid: centroid,
       internal: internal, notches: notches, grainline: grain,
+      /* 계산식 주석 — 이 Suite 의 존재 이유가 1:1 종이인데 계산식이 종이에 한 개도
+         안 찍히고 있었다 (5개 모듈 공통). draft.meta.formulaNotes 에서 이 조각 것만
+         골라 world mm 로 옮겨 싣는다. SPEC §8.1 의 piece/anchor 규약을 그대로 쓴다. */
+      dims: dimsOf(draft, p.id || ('piece' + i)),
       bbox: bb,                 // 배치용(라벨/시접 포함) world mm
       outlineBbox: bbOutline,   // 검산용 world mm
       declaredBbox: declared, bboxDelta: delta
@@ -1035,6 +1053,16 @@ function renderPiece(pc, o, sizeLabel) {
         ' text-anchor="middle" transform="rotate(' + n(dg, 2) + ' ' + n(lx2) + ' ' + n(ly2) + ')">' +
         esc(ROLE_KO[sed.role] || sed.role) + ' ' + n(w, 2) + '</text>');
     }
+  }
+
+  /* 계산식 주석 — 치수선 대신 앵커 자리에 `이름 식 = 값` 을 찍는다 (SPEC §8.1).
+     조각 안쪽 좌표라 A4 분할·네스팅에서 잘려 나가지 않는다. */
+  var dms = pc.dims || [];
+  for (i = 0; i < dms.length; i++) {
+    var dm = dms[i];
+    var dtxt = dm.label + '  ' + dm.formula + ' = ' + n(dm.value, 2);
+    g.push('<text x="' + n(dm.at[0]) + '" y="' + n(dm.at[1]) + '" font-size="2.6" ' +
+           'font-family="sans-serif" fill="#2b6cd4" text-anchor="middle">' + esc(dtxt) + '</text>');
   }
 
   /* 기초선 / 내부선 */

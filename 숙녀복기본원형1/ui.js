@@ -295,7 +295,7 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.2.0';
+  var APP_VERSION = '1.3.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -346,7 +346,7 @@
     rollMaxHmm: 841,       // 롤지 한 장 최대 길이 — 0 이면 제한 없음
     overlapMm: 10,
     calibMm: 50,
-    show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
+    show: { dim: true, formula: true, seam: true, notch: true, inner: true, grid: true },
     view: { s: 8, tx: 60, ty: 40 },
     autoFit: true,
     draft: null,

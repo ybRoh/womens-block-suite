@@ -6,7 +6,7 @@
 <title>V 네크라인 (민소매 · 자락 앞면) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-09 21:55 -->
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-09 22:22 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -831,7 +831,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-09 21:55'; window.ND_APP = 'V네크라인';</script>
+<script>window.ND_BUILD = '2026-08-09 22:22'; window.ND_APP = 'V네크라인';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1390,6 +1390,21 @@ td.n.n-fail{color:var(--red)}
     return r;
   }
   /** 안단 조각 하나 — edge(가장자리 곡선) + 양 끝 경계선 */
+  /** 안단 제도선 — 안단너비를 보여 주는 폭선 하나. 조각이 4 cm 띠라 선을 많이 넣으면
+   *  오히려 안 보인다. 계산식은 facingNotes 가 따로 낸다. */
+  function facingInternal(pts, ranges, fac, name) {
+    var out = ranges.filter(function (r) { return r.name === '가장자리'; })[0];
+    var inn = ranges.filter(function (r) { return r.role === 'facing'; })[0];
+    if (!out || !inn) return [];
+    var a = pts[Math.round((out.start + out.end) / 2)];
+    var best = null, bd = 1e9;
+    for (var i = inn.start; i <= inn.end; i++) {
+      var d = V.dist(a, pts[i]);
+      if (d < bd) { bd = d; best = pts[i]; }
+    }
+    return best ? [L('facingW', 'dashed', [a, best], '안단너비')] : [];
+  }
+
   function facingPiece(id, name, edgeSegs, inside, fac, endA, endB, seam, cut, notches, edgeRole) {
     var edge = sampleSegs(edgeSegs, FLATTEN);
     var inner = offsetOpen(edgeSegs, fac, inside);
@@ -1424,7 +1439,9 @@ td.n.n-fail{color:var(--red)}
       outline: loopPts, seamline: sm.seamline, foldEdges: sm.foldEdges,
       seamEdges: sm.seamEdges, seamFoldEdges: sm.seamFoldEdges, seamByRole: sm.seamByRole,
       edges: withSeam(ranges, sm.edgeSeam),
-      grainline: grainOf(loopPts), internal: [], notches: (notches || []).map(function (n) {
+      grainline: grainOf(loopPts), internal: facingInternal(loopPts, ranges, fac, name),
+      dims: null,
+      notches: (notches || []).map(function (n) {
         return { p: cp(n.p), angle: n.angle, label: n.label };
       }), bbox: bboxOf(loopPts)
     };
@@ -1670,7 +1687,7 @@ td.n.n-fail{color:var(--red)}
         title: 'V 네크라인 (민소매 · 자락 앞면)',
         source: '교재 p.103 「V 네크라인 6개 패턴」 · 몸판은 기본무다트원형 치수대로 / 뒷면 34P',
         sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: notes,
-        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam)
+        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam).concat(facingNotes(pieces, fac))
       }
     };
   }
@@ -2111,6 +2128,22 @@ td.n.n-fail{color:var(--red)}
       out.push(L('neckDart' + nd.i + 'a', 'line',   [nd.a, nd.tip], '목다트 ' + f1(nd.amount)));
       out.push(L('neckDart' + nd.i + 'b', 'line',   [nd.b, nd.tip], ''));
       out.push(L('neckDart' + nd.i + 'm', 'dashed', [nd.mid, nd.tip], ''));
+    });
+    return out;
+  }
+
+  /** 안단 조각의 계산식 주석 — 조각 id 를 그대로 piece 로 쓴다.
+   *  ⚠ piece 를 'facing' 같은 종류 이름으로 쓰면 UI 필터가 전부 버린다. */
+  function facingNotes(pieces, fac) {
+    var out = [];
+    pieces.forEach(function (p) {
+      if (p.kind !== 'facing') return;
+      var eo = (p.edges || []).filter(function (e) { return e.name === '가장자리'; })[0];
+      var ei = (p.edges || []).filter(function (e) { return e.role === 'facing'; })[0];
+      var bb = p.bbox, cx = bb.x + bb.w * 0.5, cy = bb.y + bb.h * 0.5;
+      out.push(FN('facingW', '안단너비', '목둘레·암홀 공통', fac, p.id, [cx, cy]));
+      if (eo) out.push(FN('facingOut', '가장자리', '몸판과 같은 변', polyLen(p.outline.slice(eo.start, eo.end + 1)), p.id, [cx, cy + 1.1]));
+      if (ei) out.push(FN('facingIn', '안단 안쪽', '가장자리를 안쪽으로 ' + f1(fac) + ' 평행이동', polyLen(p.outline.slice(ei.start, ei.end + 1)), p.id, [cx, cy + 2.2]));
     });
     return out;
   }
@@ -2658,6 +2691,20 @@ function wantPiece(want, p) {
   return false;
 }
 
+/** 조각에 딸린 계산식 주석 (draft.meta.formulaNotes) — cm → world mm */
+function dimsOf(draft, pieceId) {
+  var src = (draft && draft.meta && draft.meta.formulaNotes) || [], out = [];
+  for (var i = 0; i < src.length; i++) {
+    var n = src[i];
+    if (!n || !n.anchor) continue;
+    if (n.piece && n.piece !== 'both' && n.piece !== pieceId) continue;
+    if (n.piece === 'both') continue;          // 조각 공통값은 하단 정보띠에 이미 나간다
+    out.push({ id: n.id, label: n.label, formula: n.formula, value: n.value,
+               at: [n.anchor[0] * 10, n.anchor[1] * 10] });
+  }
+  return out;
+}
+
 function normalizePieces(draft, o, warn) {
   var SEAM = o._seam;                    // normalizeSeamOpt 결과
   var pieces = [], i;
@@ -3027,6 +3074,10 @@ function normalizePieces(draft, o, warn) {
       foldMask: foldMask, foldRanges: foldRanges, foldSeamGapMm: foldSeamGapOut,
       centroid: centroid,
       internal: internal, notches: notches, grainline: grain,
+      /* 계산식 주석 — 이 Suite 의 존재 이유가 1:1 종이인데 계산식이 종이에 한 개도
+         안 찍히고 있었다 (5개 모듈 공통). draft.meta.formulaNotes 에서 이 조각 것만
+         골라 world mm 로 옮겨 싣는다. SPEC §8.1 의 piece/anchor 규약을 그대로 쓴다. */
+      dims: dimsOf(draft, p.id || ('piece' + i)),
       bbox: bb,                 // 배치용(라벨/시접 포함) world mm
       outlineBbox: bbOutline,   // 검산용 world mm
       declaredBbox: declared, bboxDelta: delta
@@ -3222,6 +3273,16 @@ function renderPiece(pc, o, sizeLabel) {
         ' text-anchor="middle" transform="rotate(' + n(dg, 2) + ' ' + n(lx2) + ' ' + n(ly2) + ')">' +
         esc(ROLE_KO[sed.role] || sed.role) + ' ' + n(w, 2) + '</text>');
     }
+  }
+
+  /* 계산식 주석 — 치수선 대신 앵커 자리에 `이름 식 = 값` 을 찍는다 (SPEC §8.1).
+     조각 안쪽 좌표라 A4 분할·네스팅에서 잘려 나가지 않는다. */
+  var dms = pc.dims || [];
+  for (i = 0; i < dms.length; i++) {
+    var dm = dms[i];
+    var dtxt = dm.label + '  ' + dm.formula + ' = ' + n(dm.value, 2);
+    g.push('<text x="' + n(dm.at[0]) + '" y="' + n(dm.at[1]) + '" font-size="2.6" ' +
+           'font-family="sans-serif" fill="#2b6cd4" text-anchor="middle">' + esc(dtxt) + '</text>');
   }
 
   /* 기초선 / 내부선 */
@@ -5570,7 +5631,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.5.0';
+  var APP_VERSION = '1.6.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -5620,7 +5681,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     overlapMm: 10,
     gapMm: 6,              // 네스팅 조각 간격 — 크면 종이가 낭비된다
     calibMm: 50,
-    show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
+    show: { dim: true, formula: true, seam: true, notch: true, inner: true, grid: true },
     view: { s: 8, tx: 60, ty: 40 },
     autoFit: true,
     draft: null,

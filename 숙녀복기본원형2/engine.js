@@ -542,7 +542,7 @@
       meta: {
         title: '숙녀복 기본원형 II', source: '교재 「숙녀복 기본원형 II」 제도 1·2',
         sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: notes,
-        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam)
+        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam).concat(sv ? sleeveNotes(sv) : [])
       }
     };
   }
@@ -681,6 +681,11 @@
       width: width, sleeveLen: sleeveLen, cuffW: cuffW, elbowY: elbowY,
       hemB: hemB, hemF: hemF, elbowBack: eb, dartA: dartA, dartB: dartB, dartTip: dartTip,
       capBack: capBack, capFront: capFront,
+      /* 제도선·치수선용 — 도면의 마크·수선(⌐)·통과점을 그대로 낸다 (SPEC §8.1) */
+      markTopB: markTopB, markTopF: markTopF, markBotB: markBotB, markBotF: markBotF,
+      footTopB: fTB.foot, footBotB: fBB.foot, footTopF: fTF.foot, footBotF: fBF.foot,
+      pTB: pTB, pBB: pBB, pTF: pTF, pBF: pBF,
+      capLenBack: sLen(capBackA), capLenFront: sLen(capFrontA),
       capLen: sLen(capBack) + sLen(capFront)
     };
   }
@@ -706,16 +711,66 @@
     });
     return out;
   }
+  /** 소매 제도선 — 교재 도면에 그어져 있는 선을 그대로 낸다.
+   *  ⚠ 대각선은 **중심선 상단점(0,0) 기준**이고 정점만 앞으로 0.6 옮겨진다.
+   *    예전에는 정점에서 그어 도면과 달랐다. */
   function sleeveInternal(sv) {
+    var top = [0, 0];
     return [
+      L('topLine',  'dashed', [[sv.capB[0], 0], [sv.capF[0], 0]], '상단 기준선'),
       L('capLine',  'line',   [[sv.capB[0], sv.capH], [sv.capF[0], sv.capH]], '소매폭선'),
-      L('center',   'dashed', [[sv.apex[0], 0], [sv.apex[0], sv.sleeveLen]], '중심선'),
+      L('center',   'dashed', [[0, 0], [0, sv.sleeveLen]], '중심선'),
       L('elbow',    'dashed', [[sv.capB[0], sv.elbowY], [sv.capF[0], sv.elbowY]], '팔꿈치선'),
-      L('diagB',    'dashed', [sv.capB, sv.apex], '뒤 AH 대각선'),
-      L('diagF',    'dashed', [sv.apex, sv.capF], '앞 AH 대각선'),
-      L('dartLegA', 'line',   [sv.dartTip, sv.dartA], '팔꿈치 다트'),
-      L('dartLegB', 'line',   [sv.dartTip, sv.dartB], '팔꿈치 다트'),
+      L('diagB',    'dashed', [top, sv.capB], '뒤 AH 대각선'),
+      L('diagF',    'dashed', [top, sv.capF], '앞 AH 대각선'),
+      /* 마크 — 상단은 상단점에서 수평 AH/8, 하단은 소매폭 끝에서 안쪽으로 */
+      L('markTopB', 'point',  [sv.markTopB], '뒤 상단 마크'),
+      L('markTopF', 'point',  [sv.markTopF], '앞 상단 마크'),
+      L('markBotB', 'point',  [sv.markBotB], '뒤 하단 마크'),
+      L('markBotF', 'point',  [sv.markBotF], '앞 하단 마크'),
+      /* 수선 — 도면의 작은 ⌐ 직각 기호 */
+      L('perpTB',   'dashed', [sv.markTopB, sv.footTopB], '뒤 상단 수선'),
+      L('perpBB',   'dashed', [sv.markBotB, sv.footBotB], '뒤 하단 수선'),
+      L('perpTF',   'dashed', [sv.markTopF, sv.footTopF], '앞 상단 수선'),
+      L('perpBF',   'dashed', [sv.markBotF, sv.footBotF], '앞 하단 수선'),
+      /* 곡선 통과점 — 수선의 중점 */
+      L('pTB',      'point',  [sv.pTB], '뒤 볼록점'),
+      L('pBB',      'point',  [sv.pBB], '뒤 오목점'),
+      L('pTF',      'point',  [sv.pTF], '앞 볼록점'),
+      L('pBF',      'point',  [sv.pBF], '앞 오목점'),
+      /* 팔꿈치 다트 — 두 다리는 외곽선과 같은 굵기, 중심선은 파선 */
+      L('dartLegA', 'edge',   [sv.dartTip, sv.dartA], '팔꿈치 다트'),
+      L('dartLegB', 'edge',   [sv.dartTip, sv.dartB], ''),
+      L('dartMid',  'dashed', [sv.dartTip, [sv.dartTip[0], sv.hemB[1]]], '다트 중심'),
       L('apex',     'point',  [sv.apex], '정점')
+    ];
+  }
+
+  /** 소매 계산식 주석 — 도면의 치수 표기를 그대로 옮긴다.
+   *  ⚠ piece 는 조각 id 문자열과 정확히 같아야 한다 ('sleeve'). 다르면 하나도 안 붙는다. */
+  function sleeveNotes(sv) {
+    var AH = sv.AH, mid = (sv.capH + sv.elbowY) / 2;
+    return [
+      FN('capH',     '소매산 높이', 'AH/3',                         sv.capH,     'sleeve', [sv.apex[0], sv.capH * 0.5]),
+      FN('apex',     '정점 이동',   '앞으로 0.6',                    sv.apex[0],  'sleeve', [sv.apex[0], -1.2]),
+      FN('diagB',    '뒤 AH 대각선', '뒤 암홀 길이',                  sv.AHb,      'sleeve', [sv.capB[0] * 0.55, sv.capH * 0.55]),
+      FN('diagF',    '앞 AH 대각선', '앞 암홀 길이',                  sv.AHf,      'sleeve', [sv.capF[0] * 0.55, sv.capH * 0.55]),
+      FN('markTopB', '뒤 상단 마크', '상단점에서 수평 AH/8',            AH / 8,      'sleeve', [sv.markTopB[0], -2.6]),
+      FN('markTopF', '앞 상단 마크', '상단점에서 수평 AH/8',            AH / 8,      'sleeve', [sv.markTopF[0], -2.6]),
+      FN('markBotB', '뒤 하단 마크', '소매폭 끝에서 안쪽 AH/12 + 0.6',  AH / 12 + 0.6, 'sleeve', [sv.markBotB[0], sv.capH + 1.6]),
+      FN('markBotF', '앞 하단 마크', '소매폭 끝에서 안쪽 AH/8',         AH / 8,      'sleeve', [sv.markBotF[0], sv.capH + 1.6]),
+      FN('pTB',      '뒤 볼록점',   '수선의 ' + f1(K.capBulge * 100) + '% (발점↔마크)', V.dist(sv.footTopB, sv.pTB), 'sleeve', [sv.pTB[0] - 1.2, sv.pTB[1] + 1.4]),
+      FN('pBB',      '뒤 오목점',   '수선의 ' + f1(K.capBulge * 100) + '%',            V.dist(sv.footBotB, sv.pBB), 'sleeve', [sv.pBB[0] + 1.6, sv.pBB[1] - 1.0]),
+      FN('pTF',      '앞 볼록점',   '수선의 ' + f1(K.capBulge * 100) + '%',            V.dist(sv.footTopF, sv.pTF), 'sleeve', [sv.pTF[0] + 1.2, sv.pTF[1] + 1.4]),
+      FN('pBF',      '앞 오목점',   '수선의 ' + f1(K.capBulge * 100) + '%',            V.dist(sv.footBotF, sv.pBF), 'sleeve', [sv.pBF[0] - 1.6, sv.pBF[1] - 1.0]),
+      FN('capLine',  '소매폭',     '뒤 반 + 앞 반 = √(대각선² − 소매산²) 합', sv.width, 'sleeve', [sv.apex[0], sv.capH - 1.2]),
+      FN('capBack',  '뒤 소매산',   '곡선길이 (뒤 암홀 ' + f1(sv.AHb) + ')',  sv.capLenBack,  'sleeve', [sv.capB[0] * 0.42, sv.capH * 0.30]),
+      FN('capFront', '앞 소매산',   '곡선길이 (앞 암홀 ' + f1(sv.AHf) + ')',  sv.capLenFront, 'sleeve', [sv.capF[0] * 0.42, sv.capH * 0.30]),
+      FN('capEase',  '이세분',     '소매산 − AH',                   sv.capLen - AH, 'sleeve', [sv.apex[0], sv.capH * 0.72]),
+      FN('elbow',    '팔꿈치길이',  '소매길이/2 + ' + f1(K.elbowAdd), sv.elbowY,   'sleeve', [sv.apex[0] * 0.5, sv.elbowY - 1.2]),
+      FN('sleeveLen','소매길이',   '치수',                          sv.sleeveLen, 'sleeve', [sv.apex[0], mid]),
+      FN('dartLegA', '팔꿈치 다트', '다트분 · 끝은 팔꿈치선 아래 ' + f1(K.elbowTipDrop), V.dist(sv.dartA, sv.dartB), 'sleeve', [sv.dartTip[0], sv.dartTip[1] + 2.2]),
+      FN('capLine2', '소맷부리',   '치수 + 다트분(접으면 치수)',       sv.cuffW,    'sleeve', [sv.apex[0] * 0.4, sv.hemB[1] - 1.6])
     ];
   }
 

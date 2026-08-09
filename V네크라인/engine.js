@@ -554,6 +554,21 @@
     return r;
   }
   /** 안단 조각 하나 — edge(가장자리 곡선) + 양 끝 경계선 */
+  /** 안단 제도선 — 안단너비를 보여 주는 폭선 하나. 조각이 4 cm 띠라 선을 많이 넣으면
+   *  오히려 안 보인다. 계산식은 facingNotes 가 따로 낸다. */
+  function facingInternal(pts, ranges, fac, name) {
+    var out = ranges.filter(function (r) { return r.name === '가장자리'; })[0];
+    var inn = ranges.filter(function (r) { return r.role === 'facing'; })[0];
+    if (!out || !inn) return [];
+    var a = pts[Math.round((out.start + out.end) / 2)];
+    var best = null, bd = 1e9;
+    for (var i = inn.start; i <= inn.end; i++) {
+      var d = V.dist(a, pts[i]);
+      if (d < bd) { bd = d; best = pts[i]; }
+    }
+    return best ? [L('facingW', 'dashed', [a, best], '안단너비')] : [];
+  }
+
   function facingPiece(id, name, edgeSegs, inside, fac, endA, endB, seam, cut, notches, edgeRole) {
     var edge = sampleSegs(edgeSegs, FLATTEN);
     var inner = offsetOpen(edgeSegs, fac, inside);
@@ -588,7 +603,9 @@
       outline: loopPts, seamline: sm.seamline, foldEdges: sm.foldEdges,
       seamEdges: sm.seamEdges, seamFoldEdges: sm.seamFoldEdges, seamByRole: sm.seamByRole,
       edges: withSeam(ranges, sm.edgeSeam),
-      grainline: grainOf(loopPts), internal: [], notches: (notches || []).map(function (n) {
+      grainline: grainOf(loopPts), internal: facingInternal(loopPts, ranges, fac, name),
+      dims: null,
+      notches: (notches || []).map(function (n) {
         return { p: cp(n.p), angle: n.angle, label: n.label };
       }), bbox: bboxOf(loopPts)
     };
@@ -834,7 +851,7 @@
         title: 'V 네크라인 (민소매 · 자락 앞면)',
         source: '교재 p.103 「V 네크라인 6개 패턴」 · 몸판은 기본무다트원형 치수대로 / 뒷면 34P',
         sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: notes,
-        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam)
+        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam).concat(facingNotes(pieces, fac))
       }
     };
   }
@@ -1275,6 +1292,22 @@
       out.push(L('neckDart' + nd.i + 'a', 'line',   [nd.a, nd.tip], '목다트 ' + f1(nd.amount)));
       out.push(L('neckDart' + nd.i + 'b', 'line',   [nd.b, nd.tip], ''));
       out.push(L('neckDart' + nd.i + 'm', 'dashed', [nd.mid, nd.tip], ''));
+    });
+    return out;
+  }
+
+  /** 안단 조각의 계산식 주석 — 조각 id 를 그대로 piece 로 쓴다.
+   *  ⚠ piece 를 'facing' 같은 종류 이름으로 쓰면 UI 필터가 전부 버린다. */
+  function facingNotes(pieces, fac) {
+    var out = [];
+    pieces.forEach(function (p) {
+      if (p.kind !== 'facing') return;
+      var eo = (p.edges || []).filter(function (e) { return e.name === '가장자리'; })[0];
+      var ei = (p.edges || []).filter(function (e) { return e.role === 'facing'; })[0];
+      var bb = p.bbox, cx = bb.x + bb.w * 0.5, cy = bb.y + bb.h * 0.5;
+      out.push(FN('facingW', '안단너비', '목둘레·암홀 공통', fac, p.id, [cx, cy]));
+      if (eo) out.push(FN('facingOut', '가장자리', '몸판과 같은 변', polyLen(p.outline.slice(eo.start, eo.end + 1)), p.id, [cx, cy + 1.1]));
+      if (ei) out.push(FN('facingIn', '안단 안쪽', '가장자리를 안쪽으로 ' + f1(fac) + ' 평행이동', polyLen(p.outline.slice(ei.start, ei.end + 1)), p.id, [cx, cy + 2.2]));
     });
     return out;
   }
