@@ -200,6 +200,145 @@ E.SIZES.forEach(function (sz) {
 console.log('  ✓ 전 호수 8조각 점간격 ≤ 0.06 cm · 시접선 생성 확인');
 
 console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 5-1. 안단 너치 — 붙을 몸판에 같은 자리 너치가 있어야 한다');
+console.log('════════════════════════════════════════════════════════════');
+var PAIR = {
+  backNeckFacing:      ['back'],
+  backArmFacing:       ['back'],
+  frontArmFacing:      ['front', 'frontPlain'],
+  frontNeckFacing:     ['front'],
+  frontPlainNeckFacing:['frontPlain']
+};
+E.SIZES.forEach(function (sz) {
+  var d = E.draftVNeck(E.measuresForSize(sz), { seam: 0 });
+  var by = {};
+  d.pieces.forEach(function (p) { by[p.id] = p; });
+  var bad = [], n = 0;
+  Object.keys(PAIR).forEach(function (fid) {
+    var fp = by[fid];
+    if (!fp) { bad.push(fid + ' 없음'); return; }
+    if (!fp.notches.length) bad.push(fid + ' 너치 0개');
+    fp.notches.forEach(function (nt) {
+      n++;
+      var found = PAIR[fid].every(function (bid) {
+        var bp = by[bid];
+        return bp && bp.notches.some(function (m) {
+          return m.label === nt.label && V.dist(m.p, nt.p) <= 0.001;
+        });
+      });
+      if (!found) bad.push(fid + ':' + nt.label);
+    });
+  });
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+    '안단 너치 ' + n + '개 모두 몸판과 같은 좌표' + (bad.length ? ' — 어긋남: ' + bad.join(', ') : ''));
+});
+
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 5-2. 안단 변 시접 = 붙을 몸판 변 시접 · 골선은 0');
+console.log('════════════════════════════════════════════════════════════');
+var WANT = {
+  backNeckFacing:      { 가장자리: 'neck',    뒤중심: 'fold',  어깨선: 'shoulder' },
+  backArmFacing:       { 가장자리: 'armhole', 옆선: 'side',    어깨선: 'shoulder' },
+  frontArmFacing:      { 가장자리: 'armhole', 옆선: 'side',    어깨선: 'shoulder' },
+  frontNeckFacing:     { 가장자리: 'neck',    '자락 끝': 'side', 어깨선: 'shoulder' },
+  frontPlainNeckFacing:{ 가장자리: 'neck',    앞중심: 'fold',  어깨선: 'shoulder' }
+};
+(function () {
+  var SD = E.SEAM_DEFAULT, d = E.draftVNeck(m66, { seam: SD }), bad = [];
+  Object.keys(WANT).forEach(function (id) {
+    var p = d.pieces.filter(function (x) { return x.id === id; })[0];
+    if (!p) { bad.push(id + ' 없음'); return; }
+    Object.keys(WANT[id]).forEach(function (nm) {
+      var e = p.edges.filter(function (x) { return x.name === nm; })[0];
+      var want = WANT[id][nm];
+      if (!e) { bad.push(id + '/' + nm + ' 변 없음'); return; }
+      if (e.role !== want) bad.push(id + '/' + nm + ' role ' + e.role + ' ≠ ' + want);
+      if (Math.abs(e.seam - SD[want]) > 1e-9)
+        bad.push(id + '/' + nm + ' 시접 ' + e.seam + ' ≠ ' + SD[want]);
+    });
+  });
+  /* 골선이 있는 조각은 시접선이 골선을 넘어가면 안 된다 (SPEC §11-2) */
+  [0, 1.0, 3.0, SD].forEach(function (sm) {
+    E.SIZES.forEach(function (sz) {
+      E.draftVNeck(E.measuresForSize(sz), { seam: sm }).pieces.forEach(function (p) {
+        if (!(p.edges || []).some(function (e) { return e.role === 'fold'; })) return;
+        var mo = Math.min.apply(null, p.outline.map(function (q) { return q[0]; }));
+        var ms = Math.min.apply(null, p.seamline.map(function (q) { return q[0]; }));
+        if (ms < mo - 1e-6) bad.push(sz + '/' + p.name + ' 시접선이 골선 밖 ' + (mo - ms).toFixed(3));
+      });
+    });
+  });
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') +
+    '안단 5조각 변 role·시접 일치 · 골선 넘어가는 시접선 없음' +
+    (bad.length ? '\n      → ' + bad.slice(0, 6).join('\n      → ') : ''));
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 5-3. 극단 옵션 스윕 — 예외·NaN·자기교차·조각 폭주');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var OPT = {
+    facing:     [2, 4, 8],
+    armRise:    [0, 3, 6],
+    dartAmount: [0, 1.5, 4],
+    dartRise:   [4, 10.95, 20],
+    vDepth:     [8, 14.6, 30],
+    wrapUp:     [2, 9.3, 20],
+    sideTrue:   [true, false]
+  };
+  var keys = Object.keys(OPT), n = 0, bad = [];
+  function selfX(p) {
+    var c = 0;
+    for (var i = 0; i < p.length - 1; i++)
+      for (var j = i + 2; j < p.length - 1; j++) {
+        if (i === 0 && j === p.length - 2) continue;
+        if (segX(p[i], p[i + 1], p[j], p[j + 1])) c++;
+      }
+    return c;
+  }
+  function segX(p1, p2, p3, p4) {
+    var dd = (p2[0] - p1[0]) * (p4[1] - p3[1]) - (p2[1] - p1[1]) * (p4[0] - p3[0]);
+    if (Math.abs(dd) < 1e-12) return null;
+    var t = ((p3[0] - p1[0]) * (p4[1] - p3[1]) - (p3[1] - p1[1]) * (p4[0] - p3[0])) / dd;
+    var u = ((p3[0] - p1[0]) * (p2[1] - p1[1]) - (p3[1] - p1[1]) * (p2[0] - p1[0])) / dd;
+    return (t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9) ? 1 : null;
+  }
+  E.SIZES.forEach(function (sz) {
+    var mm = E.measuresForSize(sz);
+    keys.forEach(function (k) {
+      OPT[k].forEach(function (v) {
+        var o = { seam: E.SEAM_DEFAULT }; o[k] = v; n++;
+        var d;
+        try { d = E.draftVNeck(mm, o); }
+        catch (e) { bad.push(sz + ' ' + k + '=' + v + ' 예외 ' + e.message); return; }
+        /* 설정끼리 모순인 조합(안단이 들어갈 자리보다 넓음)은 엔진이 경고로 알린다 —
+           도형을 억지로 맞추지 않으므로 크기 검사에서 제외하고 경고 유무만 본다. */
+        if (d.warnings.length) {
+          if (!/안단/.test(d.warnings[0])) bad.push(sz + ' ' + k + '=' + v + ' 경고 문구 이상');
+          return;
+        }
+        var body = d.pieces.filter(function (p) { return p.id === 'front'; })[0];
+        d.pieces.forEach(function (p) {
+          var nan = p.outline.some(function (q) { return !isFinite(q[0]) || !isFinite(q[1]); });
+          if (nan) bad.push(sz + ' ' + k + '=' + v + ' ' + p.name + ' NaN');
+          if (p.kind === 'facing' && (p.bbox.w > body.bbox.w + 0.01 || p.bbox.h > body.bbox.h + 0.01))
+            bad.push(sz + ' ' + k + '=' + v + ' ' + p.name + ' 폭주 ' +
+                     p.bbox.w.toFixed(1) + '×' + p.bbox.h.toFixed(1));
+          var x = selfX(p.seamline);
+          if (x) bad.push(sz + ' ' + k + '=' + v + ' ' + p.name + ' 시접 자기교차 ' + x);
+        });
+      });
+    });
+  });
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + n + '개 조합 · 예외 0 · NaN 0 · 안단 폭주 0 · 시접 자기교차 0' +
+    (bad.length ? '\n      → ' + bad.slice(0, 8).join('\n      → ') +
+      (bad.length > 8 ? '\n      → 외 ' + (bad.length - 8) + '건' : '') : ''));
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 6. 자락 없는 앞면 — 자락 앞면과 같은 변을 써야 한다');
 console.log('════════════════════════════════════════════════════════════');
 E.SIZES.forEach(function (sz) {

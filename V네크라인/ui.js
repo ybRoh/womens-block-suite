@@ -376,6 +376,7 @@
     lastError: '',
     layout: null
   };
+  var engineWarn = '';
   var PX_PER_CM = 96 / 2.54;
   var els = {};
   var inited = false;
@@ -405,6 +406,8 @@
     try {
       var d = E.draftVNeck(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftVNeck 가 pieces 를 반환하지 않았습니다.');
+      /* 설정끼리 모순이면 엔진이 알려 준다 (안단이 들어갈 자리보다 넓은 경우 등) */
+      if (d.warnings && d.warnings.length) toast(d.warnings[0]);
       state.engineOk = true;
       state.draft = d;
       return d;

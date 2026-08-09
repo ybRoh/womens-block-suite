@@ -354,10 +354,11 @@
     var BP = [m.bpSpan / 2, SNPf[1] + m.bpLen];
 
     /* 가슴다트 — 아래 다리를 옆선에 두고 BP 를 중심으로 다트분만큼 돌려 위 다리를 만든다 */
+    var hasDart = dartAmt > 1e-6;
     var dartLo = [fSideX, WL - dartRise];
     var dartLeg = V.dist(BP, dartLo);
-    var dartAng = 2 * Math.asin(Math.min(0.999, dartAmt / 2 / dartLeg));
-    var dartHi = rotAbout(dartLo, BP, -dartAng);
+    var dartAng = hasDart ? 2 * Math.asin(Math.min(0.999, dartAmt / 2 / dartLeg)) : 0;
+    var dartHi = hasDart ? rotAbout(dartLo, BP, -dartAng) : cp(dartLo);
     var dartTip = (dartTipBack > 0)
       ? V.add(BP, V.mul(V.norm(V.sub(dartLo, BP)), dartTipBack)) : cp(BP);
 
@@ -370,7 +371,7 @@
     var sideBackLen = WL - armY;                       // 뒤 옆선 (겨드랑 → 허리)
     var sideUpper = V.dist(Uf, dartHi);                // 앞 옆선 위쪽 (겨드랑 → 다트 위 다리)
     var hemDrop = 0;
-    if (sideTrue && dartAmt > 0)
+    if (sideTrue && hasDart)
       hemDrop = Math.max(0, (dartLo[1] + (sideBackLen - sideUpper)) - WL);
     var fWaist = [fSideX, WL + hemDrop];
 
@@ -401,11 +402,12 @@
       fSideX: fSideX, fPitchX: fPitchX, fShDir: fShDir,
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
       dartLo: dartLo, dartHi: dartHi, dartTip: dartTip, dartLeg: dartLeg, dartAng: dartAng,
-      sideTrue: sideTrue, hemDrop: hemDrop, sideBackLen: sideBackLen, sideUpper: sideUpper,
+      sideTrue: sideTrue, hasDart: hasDart, hemDrop: hemDrop,
+      sideBackLen: sideBackLen, sideUpper: sideUpper,
       frontHem: frontHem,
       vMark: vMark, Vcf: Vcf, Vend: Vend, wrapWaist: wrapWaist,
       backNeck: backNeck, backArm: backArm, frontArm: frontArm,
-      vNeck: vNeck, vNeckUp: vc.up            // 앞중심까지만 (자락 없는 앞판이 쓴다)
+      vNeck: vNeck, vNeckUp: vc.up, vNeckLow: vc.low   // 위 = 앞중심까지 (자락 없는 앞판이 쓴다)
     };
   }
 
@@ -441,8 +443,8 @@
     return pts;
   }
   /** 열린 폴리라인의 끝을 직선(A,dir)에 맞춰 자르거나 늘린다. end: 0 = 시작, 1 = 끝 */
-  function trimEnd(pts, A, dir, end) {
-    var q = end ? pts.slice().reverse() : pts.slice(), i, hit = null;
+  function trimEnd(pts, A, dir, end, far) {
+    var q = end ? pts.slice().reverse() : pts.slice(), i, hit = null, acc = 0;
     for (i = 0; i < q.length - 1; i++) {
       var d = V.sub(q[i + 1], q[i]);
       var r = lineX(A, dir, q[i], d);
@@ -450,12 +452,24 @@
       var u = V.sub(r, q[i]);
       var t = (Math.abs(d[0]) > Math.abs(d[1])) ? u[0] / d[0] : u[1] / d[1];
       if (t >= -0.0001 && t <= 1.0001) { hit = { i: i, p: r }; break; }
-      if (i > 40) break;                              // 끝 근처에서만 찾는다
+      acc += V.dist(q[i], q[i + 1]);
+      /* 끝 근방에서만 찾는다 — 멀리까지 보면 무한 직선이 곡선을 다시 만나 엉뚱한 데서 잘린다 */
+      if (acc > 6) break;
     }
     if (hit) q = [hit.p].concat(q.slice(hit.i + 1));
     else {
+      /* 못 만나면 접선으로 늘려 만난다. 다만 기준선이 거의 나란하면 교점이 수십 cm
+         밖으로 날아가 조각이 폭주한다 — 안단 너비의 3배를 넘으면 늘리지 않는다. */
       var d0 = V.sub(q[1], q[0]), r2 = lineX(A, dir, q[0], d0);
-      if (r2) q = [r2].concat(q);
+      if (r2 && V.dist(r2, q[0]) <= 12) q = [r2].concat(q);
+    }
+    /* ★ 기준은 무한 직선이 아니라 **변**이다 — 변의 끝을 넘어가면 조각 밖으로 나간다.
+       (자락 끝이 짧을 때 안단이 밑단 아래로 삐져나오던 것) */
+    if (far) {
+      var u = V.norm(dir);
+      var tf = (far[0] - A[0]) * u[0] + (far[1] - A[1]) * u[1];
+      var th = (q[0][0] - A[0]) * u[0] + (q[0][1] - A[1]) * u[1];
+      if ((tf >= 0 && th > tf) || (tf < 0 && th < tf)) q[0] = cp(far);
     }
     return end ? q.reverse() : q;
   }
@@ -477,22 +491,34 @@
     for (i = 1; i < n; i++) out.push([a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
     return out;
   }
+  /** 끝을 경계 변들에 **차례로** 대고 자른다.
+   *  자락 끝이 짧으면 밑단이 먼저 막는 식으로 두 변이 연달아 막을 수 있다.
+   *  자르기는 짧아지는 방향으로만 작용하므로 순서대로 적용하면 둘 다 반영된다. */
+  function trimBest(pts, end, which) {
+    var cands = end.also ? [end].concat(end.also) : [end], r = pts;
+    for (var i = 0; i < cands.length; i++) r = trimEnd(r, cands[i].p, cands[i].d, which, cands[i].q);
+    return r;
+  }
   /** 안단 조각 하나 — edge(가장자리 곡선) + 양 끝 경계선 */
-  function facingPiece(id, name, edgeSegs, inside, fac, endA, endB, seam, cut) {
+  function facingPiece(id, name, edgeSegs, inside, fac, endA, endB, seam, cut, notches, edgeRole) {
     var edge = sampleSegs(edgeSegs, FLATTEN);
     var inner = offsetOpen(edgeSegs, fac, inside);
-    inner = trimEnd(inner, endA.p, endA.d, 0);
-    inner = densify(trimEnd(inner, endB.p, endB.d, 1));
+    /* 끝은 여러 변에 걸릴 수 있다 (자락 끝이 짧으면 밑단이 먼저 막는다).
+       후보마다 잘라 보고 **가장 짧게 잘리는** 것을 쓴다 = 조각 밖으로 안 나간다. */
+    inner = trimBest(inner, endA, 0);
+    inner = densify(trimBest(inner, endB, 1));
     var rev = inner.slice().reverse();
     var capB = fill(edge[edge.length - 1], rev[0]);         // 끝 B (edge 끝 → 안단 끝)
     var capA = fill(rev[rev.length - 1], edge[0]);          // 끝 A (안단 시작 → edge 시작)
     var loopPts = edge.concat(capB, rev, capA);
     var i0 = edge.length, i1 = i0 + capB.length, i2 = i1 + rev.length;
+    /* 변마다 **붙을 몸판 변과 같은 role** 을 준다. 하드코딩하면 표준 시접에서
+       안단 끝이 몸판보다 0.5 좁아지거나, 골선(시접 0)에 시접이 붙어 중심을 넘어간다. */
     var ranges = [
-      { name: '가장자리',   role: 'neck',     start: 0,  end: i0 - 1 },
-      { name: '끝 B',      role: 'shoulder', start: i0, end: i1 - 1 },
-      { name: '안단 안쪽',  role: 'facing',   start: i1, end: i2 - 1 },
-      { name: '끝 A',      role: 'shoulder', start: i2, end: loopPts.length - 1 }
+      { name: '가장자리', role: edgeRole || 'neck',    start: 0,  end: i0 - 1 },
+      { name: endB.name || '끝 B', role: endB.role || 'shoulder', start: i0, end: i1 - 1 },
+      { name: '안단 안쪽', role: 'facing',             start: i1, end: i2 - 1 },
+      { name: endA.name || '끝 A', role: endA.role || 'shoulder', start: i2, end: loopPts.length - 1 }
     ];
     var loop = { pts: loopPts, ranges: ranges };
     var sm = buildSeamline(loop, seam);
@@ -501,8 +527,20 @@
       outline: loopPts, seamline: sm.seamline, foldEdges: sm.foldEdges,
       seamEdges: sm.seamEdges, seamFoldEdges: sm.seamFoldEdges, seamByRole: sm.seamByRole,
       edges: withSeam(ranges, sm.edgeSeam),
-      grainline: grainOf(loopPts), internal: [], notches: [], bbox: bboxOf(loopPts)
+      grainline: grainOf(loopPts), internal: [], notches: (notches || []).map(function (n) {
+        return { p: cp(n.p), angle: n.angle, label: n.label };
+      }), bbox: bboxOf(loopPts)
     };
+  }
+  /** 곡선 위 비율 자리에 너치. 안단과 몸판이 **같은 로컬 좌표**를 쓰므로
+   *  한 번 계산해 양쪽 조각에 그대로 붙이면 재단 후 정확히 만난다. */
+  function curveNotches(segs, marks, inside, tag) {
+    var L = polyLen(sampleSegs(segs, 0.02)), out = [];
+    marks.forEach(function (mk) {
+      var h = _ptAtLen(segs, L * mk.t, false);
+      out.push({ p: cp(h.p), angle: _inward(h.tan, h.p, inside), label: tag + ' ' + mk.name });
+    });
+    return out;
   }
   /** 폴리라인을 n 점 정도로 솎는다 (기준선 표시용) */
   function thin(pts, n) {
@@ -516,11 +554,34 @@
     return [[x, b.y + b.h * 0.25], [x, b.y + b.h * 0.75]];
   }
 
+  /** 앞 옆선 변 — 다트분이 0 이면 다트 변을 만들지 않고 한 줄로 잇는다.
+   *  0 이면 dartHi = dartLo 라 폭 0 인 14 cm 슬릿이 생기고 시접선이 자기교차한다. */
+  function sideEdges(g) {
+    if (!g.hasDart) return [{ name: '옆선', role: 'side', segs: lineSegs(g.Uf, g.fWaist) }];
+    return [
+      { name: '옆선 위',   role: 'side', segs: lineSegs(g.Uf, g.dartHi) },
+      { name: '다트',      role: 'dart', segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
+      { name: '옆선 아래', role: 'side', segs: lineSegs(g.dartLo, g.fWaist) }
+    ];
+  }
+
   function draftVNeck(m, opt) {
     opt = opt || {};
     var seam = (opt.seam === undefined) ? 0 : opt.seam;
     var g = geom(m, opt);
     var WL = g.WL, fac = g.facing;
+
+    /* ───────── 안단과 몸판이 공유하는 너치 ─────────
+     *  같은 좌표를 양쪽 조각에 그대로 넣는다. 안단을 몸판에 얹어 꿰맬 때 이 자리를 맞춘다. */
+    var insideB = [g.bPitchX * 0.5, g.BL], insideF = [g.fPitchX * 0.5, g.BL];
+    var nBackNeck = curveNotches(g.backNeck, [{ t: 0.5, name: '1/2' }], insideB, '뒷목둘레');
+    var nBackArm  = armNotches(g.backArm,  g.Ub, [g.bPitchX / 2, g.armY], '뒤암홀');
+    var nFrontArm = armNotches(g.frontArm, g.Uf, [g.fPitchX / 2, g.armY], '앞암홀');
+    var nVUp  = curveNotches(g.vNeckUp, [{ t: 0.5, name: '1/2' }],
+                             [g.fSideX * 0.4, g.BL], 'V목둘레(위)');
+    var nVLow = curveNotches(g.vNeckLow, [{ t: 1 / 3, name: '1/3' }, { t: 2 / 3, name: '2/3' }],
+                             [g.fSideX * 0.2, g.WL - 4], 'V목둘레(아래)');
+    var nVcf = { p: cp(g.Vcf), angle: 0, label: '앞중심 V' };      // 자락 앞판·안단 공통 맞춤점
 
     /* ───────── 뒷판 ───────── */
     var backEdges = [
@@ -535,13 +596,11 @@
     var frontEdges = [
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.SPf) },
       { name: '앞암홀',   role: 'armhole',  segs: revSegs(g.frontArm) },
-      { name: '옆선 위',  role: 'side',     segs: lineSegs(g.Uf, g.dartHi) },
-      { name: '다트',     role: 'dart',     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
-      { name: '옆선 아래', role: 'side',    segs: lineSegs(g.dartLo, g.fWaist) },
+    ].concat(sideEdges(g), [
       { name: '밑단',     role: 'hem',      segs: g.frontHem.concat(lineSegs([0, WL], g.wrapWaist)) },
       { name: '자락 끝',  role: 'side',     segs: lineSegs(g.wrapWaist, g.Vend) },
       { name: 'V 네크라인', role: 'neck',   segs: revSegs(g.vNeck) }      // 자락 끝 → 목옆점
-    ];
+    ]);
 
     var backLoop = edgesToLoop(backEdges), frontLoop = edgesToLoop(frontEdges);
     var backSeam = buildSeamline(backLoop, seam), frontSeam = buildSeamline(frontLoop, seam);
@@ -556,7 +615,7 @@
         { p: cp(g.SPb),  angle: angDeg(perpToward(g.bShDir, g.SPb, g.Ub)),   label: '어깨점' },
         { p: cp(g.SNPb), angle: angDeg(perpToward(g.bShDir, g.SNPb, g.BNP)), label: '목옆점' },
         { p: cp(g.Ub),   angle: 180,                                          label: '겨드랑' }
-      ].concat(armNotches(g.backArm, g.Ub, [g.bPitchX / 2, g.armY], '뒤암홀')),
+      ].concat(nBackArm, nBackNeck),
       bbox: bboxOf(backLoop.pts)
     };
     var frontPiece = {
@@ -569,33 +628,43 @@
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: '목옆점' },
         { p: cp(g.Uf),   angle: 180,                                          label: '겨드랑' },
-        { p: cp(g.Vcf),  angle: 0,                                            label: '앞중심 V' },
+        nVcf,
         { p: [0, g.WL],  angle: -90,                                          label: '앞중심 CF' },
-        { p: cp(g.dartHi), angle: 180, label: '다트 위' },
-        { p: cp(g.dartLo), angle: 180, label: '다트 아래' }
-      ].concat(armNotches(g.frontArm, g.Uf, [g.fPitchX / 2, g.armY], '앞암홀')),
+      ].concat(g.hasDart ? [{ p: cp(g.dartHi), angle: 180, label: '다트 위' },
+                            { p: cp(g.dartLo), angle: 180, label: '다트 아래' }] : [],
+               nFrontArm, nVUp, nVLow),
       bbox: bboxOf(frontLoop.pts)
     };
 
     /* ───────── 안단 4조각 ───────── */
-    var shB = { p: g.SNPb, d: V.sub(g.SPb, g.SNPb) };          // 뒤 어깨선
-    var shF = { p: g.SNPf, d: V.sub(g.SPf, g.SNPf) };          // 앞 어깨선
-    var cb  = { p: [0, 0], d: [0, 1] };                        // 뒤중심
-    var sideB = { p: g.Ub, d: V.sub(g.bWaist, g.Ub) };         // 뒤 옆선
-    var sideF = { p: g.Uf, d: V.sub(g.dartHi, g.Uf) };         // 앞 옆선 (겨드랑~다트)
-    var wrapE = { p: g.Vend, d: V.sub(g.wrapWaist, g.Vend) };  // 자락 끝
+    var shB = { p: g.SNPb, d: V.sub(g.SPb, g.SNPb), q: cp(g.SPb), role: 'shoulder', name: '어깨선' };
+    var shF = { p: g.SNPf, d: V.sub(g.SPf, g.SNPf), q: cp(g.SPf), role: 'shoulder', name: '어깨선' };
+    var cb  = { p: [0, 0], d: [0, 1], q: [0, WL], role: 'fold', name: '뒤중심' };   // 골선 — 시접 0
+    /** 옆선 절단선 — 다트분이 크고 다트가 높으면 겨드랑↔다트 위 다리가 거의 수평이 되어
+     *  이 방향으로 자르면 안단이 수십 cm 로 폭주한다. 그럴 땐 수직 옆선으로 되돌린다. */
+    function sideCut(from, to, name) {
+      var d = V.sub(to, from);
+      if (V.dist(from, to) < 1e-6 || Math.abs(d[1]) < Math.abs(d[0])) d = [0, 1];
+      return { p: from, d: d, q: cp(to), role: 'side', name: name };
+    }
+    var sideB = sideCut(g.Ub, g.bWaist, '옆선');               // 뒤 옆선
+    var sideF = sideCut(g.Uf, g.dartHi, '옆선');               // 앞 옆선 (겨드랑~다트)
+    var wrapE = { p: g.Vend, d: V.sub(g.wrapWaist, g.Vend), q: cp(g.wrapWaist), role: 'side', name: '자락 끝' };
 
     var backNeckFacing = facingPiece('backNeckFacing', '뒷면 목둘레 안단',
-      g.backNeck, [g.bPitchX * 0.5, g.BL], fac, cb, shB, seam, 2);
+      g.backNeck, [g.bPitchX * 0.5, g.BL], fac, cb, shB, seam, 2, nBackNeck, 'neck');
     var backArmFacing = facingPiece('backArmFacing', '뒷면 암홀 안단',
-      g.backArm, [g.bPitchX * 0.4, g.BL], fac, sideB, shB, seam, 2);
+      g.backArm, [g.bPitchX * 0.4, g.BL], fac, sideB, shB, seam, 2, nBackArm, 'armhole');
     var frontArmFacing = facingPiece('frontArmFacing', '앞면 암홀 안단',
-      g.frontArm, [g.fPitchX * 0.4, g.BL], fac, sideF, shF, seam, 2);
+      g.frontArm, [g.fPitchX * 0.4, g.BL], fac, sideF, shF, seam, 2, nFrontArm, 'armhole');
     var frontNeckFacing = facingPiece('frontNeckFacing', '앞면 목둘레 안단',
-      g.vNeck, [g.fSideX * 0.6, WL - 3], fac, shF, wrapE, seam, 2);
-    var cf = { p: [0, 0], d: [0, 1] };                         // 앞중심
+      g.vNeck, [g.fSideX * 0.6, WL - 3], fac, shF,
+      { p: wrapE.p, d: wrapE.d, q: wrapE.q, role: wrapE.role, name: wrapE.name,
+        also: [{ p: g.wrapWaist, d: [1, 0], q: [0, WL], role: 'hem', name: '밑단' }] }, seam, 2,
+      [nVcf].concat(nVUp, nVLow), 'neck');
+    var cf = { p: [0, 0], d: [0, 1], q: [0, WL], role: 'fold', name: '앞중심' };    // 골선 — 시접 0
     var plainNeckFacing = facingPiece('frontPlainNeckFacing', '앞면(자락없음) 목둘레 안단',
-      g.vNeckUp, [g.fSideX * 0.5, g.BL], fac, shF, cf, seam, 1);
+      g.vNeckUp, [g.fSideX * 0.5, g.BL], fac, shF, cf, seam, 1, nVUp, 'neck');
 
     /* ── 자락 없는 앞면 ──────────────────────────────────────────────
      *  자락 앞판은 한쪽만 늘어나 있어 그것만으로는 좌우 대칭 앞판을 만들 수 없다.
@@ -604,13 +673,11 @@
     var plainEdges = [
       { name: '어깨선',    role: 'shoulder', segs: lineSegs(g.SNPf, g.SPf) },
       { name: '앞암홀',    role: 'armhole',  segs: revSegs(g.frontArm) },
-      { name: '옆선 위',   role: 'side',     segs: lineSegs(g.Uf, g.dartHi) },
-      { name: '다트',      role: 'dart',     segs: lineSegs(g.dartHi, g.dartTip, g.dartLo) },
-      { name: '옆선 아래', role: 'side',     segs: lineSegs(g.dartLo, g.fWaist) },
+    ].concat(sideEdges(g), [
       { name: '밑단',      role: 'hem',      segs: g.frontHem },
       { name: '앞중심',    role: 'fold',     segs: lineSegs([0, WL], g.Vcf) },   // 골선 (시접 0)
       { name: 'V 네크라인', role: 'neck',    segs: revSegs(g.vNeckUp) }          // 앞중심 → 목옆점
-    ];
+    ]);
     var plainLoop = edgesToLoop(plainEdges), plainSeam = buildSeamline(plainLoop, seam);
     var frontPlain = {
       id: 'frontPlain', name: '앞면 (자락 없음)', cutCount: 1, kind: 'body',
@@ -623,9 +690,9 @@
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: '목옆점' },
         { p: cp(g.Uf),   angle: 180,                                          label: '겨드랑' },
-        { p: cp(g.dartHi), angle: 180, label: '다트 위' },
-        { p: cp(g.dartLo), angle: 180, label: '다트 아래' }
-      ].concat(armNotches(g.frontArm, g.Uf, [g.fPitchX / 2, g.armY], '앞암홀')),
+      ].concat(g.hasDart ? [{ p: cp(g.dartHi), angle: 180, label: '다트 위' },
+                            { p: cp(g.dartLo), angle: 180, label: '다트 아래' }] : [],
+               nFrontArm, nVUp),
       bbox: bboxOf(plainLoop.pts)
     };
 
@@ -657,8 +724,26 @@
     var sideFrontCut = g.sideUpper + g.opt.dartAmount + V.dist(g.dartLo, g.fWaist);
     var sideFrontSewn = g.sideUpper + V.dist(g.dartLo, g.fWaist);
 
+    /* 설정끼리 모순이면 도형을 억지로 맞추지 말고 알린다 */
+    var warnings = [], notes = [];
+    if (g.opt.wrapUp < fac - 1e-9)
+      warnings.push('자락 끝 ' + r4(g.opt.wrapUp) + ' 이 안단너비 ' + r4(fac) +
+        ' 보다 짧습니다 — 앞 목둘레 안단이 밑단을 넘어갑니다. 자락 끝을 안단너비 이상으로 두세요.');
+    if (fac > g.sideUpper)
+      notes.push('겨드랑~다트 옆선이 ' + r4(g.sideUpper) + ' 로 안단너비 ' + r4(fac) +
+        ' 보다 짧습니다 — 앞 암홀 안단은 다트 자리에서 끝납니다 (조각은 정상).');
+    /* 안단이 붙을 몸판보다 커졌다면 그 자리에 들어갈 수 없는 너비다 */
+    pieces.forEach(function (p) {
+      if (p.kind !== 'facing') return;
+      var host = (p.id.indexOf('back') === 0 ? backPiece : frontPiece).bbox;
+      if (p.bbox.w > host.w + 0.01 || p.bbox.h > host.h + 0.01)
+        warnings.push(p.name + ' 이 몸판보다 커졌습니다 (' + r4(p.bbox.w) + '×' + r4(p.bbox.h) +
+          ' > ' + r4(host.w) + '×' + r4(host.h) + ') — 안단너비 ' + r4(fac) + ' 를 줄이세요.');
+    });
+
     return {
       pieces: pieces,
+      warnings: warnings, notes: notes,
       measures: {
         shoulderBack: r4(g.shLenBack), shoulderFront: r4(g.shLenFront), shoulderEase: r4(g.shEase),
         shoulderBackSeam: r4(g.shLenBackSeam), shoulderFrontSeam: r4(g.shLenFrontSeam),
@@ -676,7 +761,7 @@
       meta: {
         title: 'V 네크라인 (민소매 · 자락 앞면)',
         source: '교재 p.103 「V 네크라인 6개 패턴」 · 몸판은 기본무다트원형 치수대로 / 뒷면 34P',
-        sizeName: sizeNameOf(m), m: m, geom: g,
+        sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: notes,
         formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam)
       }
     };
@@ -864,22 +949,25 @@
       var cornOwner = (sA === 0) ? k : (sB === 0 ? kNext : k);
       var nPrev = segNrm[(cornerIdx - 1 + n) % n], nNext = segNrm[cornerIdx];
 
+      /* 양쪽 변의 오프셋 직선 — 조립 때 "모서리 뒤로 되돌아간 점" 을 걸러내는 데 쓴다 */
+      var LA = { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev };
+      var LB = { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext };
+      var CR = { p: cp(P), r: Math.max(sA, sB) * 2 + 0.2 };   // 되짚음 판정을 쓸 모서리 반경
       if (Math.abs(sA - sB) < 1e-12) {                    // ── 등폭 → 이등분선 마이터
-        if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner] }); continue; }
+        if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
         var mm = V.add(nPrev, nNext), ml = Math.hypot(mm[0], mm[1]);
-        if (ml < 1e-9) { corners.push({ pts: [[P[0] + nNext[0] * sA, P[1] + nNext[1] * sA]], own: [cornOwner] }); continue; }
+        if (ml < 1e-9) { corners.push({ pts: [[P[0] + nNext[0] * sA, P[1] + nNext[1] * sA]], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
         var mu = [mm[0] / ml, mm[1] / ml];
         var kk = sA / Math.max(mu[0] * nNext[0] + mu[1] * nNext[1], 1 / LIMIT);
-        corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner] });
+        corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner], la: LA, lb: LB, cr: CR });
         continue;
       }
       // ── 이폭 → 두 오프셋선의 교점
-      var A = [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA];
-      var Bp = [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB];
+      var A = LA.p, Bp = LB.p;
       var X = lineX(A, segDir[(cornerIdx - 1 + n) % n], Bp, segDir[cornerIdx]);
       var lim = Math.max(sA, sB) * LIMIT;
-      if (X && V.dist(X, P) <= lim) corners.push({ pts: [X], own: [cornOwner] });
-      else corners.push({ pts: [A, Bp], own: [k, cornOwner] });     // bevel
+      if (X && V.dist(X, P) <= lim) corners.push({ pts: [X], own: [cornOwner], la: LA, lb: LB, cr: CR });
+      else corners.push({ pts: [A, Bp], own: [k, cornOwner], la: LA, lb: LB, cr: CR });     // bevel
     }
     // 조립: outline 인덱스 0 이 변0 의 첫 모서리(= 마지막 변과의 접점)가 되도록
     var seamPts = [], owner = [];
@@ -887,7 +975,47 @@
       var cprev = corners[(k - 1 + E_) % E_];
       for (var c = 0; c < cprev.pts.length; c++) { seamPts.push(cprev.pts[c]); owner.push(cprev.own[c]); }
       var offK = offEdge[k];
-      for (var q = 1; q < offK.length - 1; q++) { seamPts.push(offK[q]); owner.push(k); }
+      /* ★ 모서리 교점 뒤로 되돌아가는 점은 버린다.
+         시접이 다른 두 변(특히 시접 0 인 골선 ↔ 시접 있는 목선)이 만나면 교점 X 가
+         이 변의 오프셋 점열보다 안쪽에 생긴다. 그대로 이으면 X 까지 갔다가 되짚어
+         골선 밖으로 튀어나오는데, 두 선이 거의 공선이라 removeSelfLoops 가 못 잡는다.
+         (SPEC §11-2 — 골선은 x 를 유지한 채 시접 폭만큼 연장돼야 한다) */
+      var q0 = 1, q1 = offK.length - 2;
+      if (offK.length > 3) {
+        var Xs = cprev.pts[cprev.pts.length - 1], Xe = corners[k].pts[0];
+        var d0 = V.sub(offK[1], offK[0]), d1 = V.sub(offK[offK.length - 1], offK[offK.length - 2]);
+        /* 이웃 변의 오프셋 직선 안쪽으로 넘어간 점 — **모서리 근방에서만** 본다.
+           멀리까지 적용하면 직각으로 꺾이는 변(옆선↔허리선)에서 변 전체가 지워진다. */
+        var La = cprev.la, Lb = corners[k].lb, Ca = cprev.cr, Cb = corners[k].cr;
+        var behind = function (pt, L, C) {
+          if (!L || !C || V.dist(pt, C.p) > C.r) return false;
+          return ((pt[0] - L.p[0]) * L.n[0] + (pt[1] - L.p[1]) * L.n[1]) < -1e-9;
+        };
+        while (q0 <= q1 && ((offK[q0][0] - Xs[0]) * d0[0] + (offK[q0][1] - Xs[1]) * d0[1] < 0
+                            || behind(offK[q0], La, Ca))) q0++;
+        while (q1 >= q0 && ((offK[q1][0] - Xe[0]) * d1[0] + (offK[q1][1] - Xe[1]) * d1[1] > 0
+                            || behind(offK[q1], Lb, Cb))) q1--;
+      }
+      for (var q = q0; q <= q1; q++) { seamPts.push(offK[q]); owner.push(k); }
+    }
+
+    /* ④-0 골선 클램프 — SPEC §11-2: 시접 0 인 골선은 **좌표를 유지한 채** 시접 폭만큼
+       연장돼야 한다. 이웃 변의 오프셋이 골선을 조금이라도 넘으면 재단 시 중심이 잘린다. */
+    var foldR = loop.ranges.filter(function (r) { return r.role === 'fold'; });
+    if (foldR.length) {
+      var cx = 0, cy = 0;
+      for (i = 0; i < pts.length; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+      cx /= pts.length; cy /= pts.length;
+      foldR.forEach(function (r) {
+        var a = pts[r.start], b = pts[r.end];
+        if (V.dist(a, b) < 1e-6) return;
+        var t = V.norm(V.sub(b, a)), nf = [t[1], -t[0]];
+        if (nf[0] * (cx - a[0]) + nf[1] * (cy - a[1]) > 0) nf = [-nf[0], -nf[1]];   // 조각 바깥
+        for (var z = 0; z < seamPts.length; z++) {
+          var dv = (seamPts[z][0] - a[0]) * nf[0] + (seamPts[z][1] - a[1]) * nf[1];
+          if (dv > 1e-9) seamPts[z] = [seamPts[z][0] - nf[0] * dv, seamPts[z][1] - nf[1] * dv];
+        }
+      });
     }
 
     // ④ 자기교차 루프 제거
