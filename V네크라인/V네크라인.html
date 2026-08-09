@@ -1721,8 +1721,12 @@ td.n.n-fail{color:var(--red)}
       return list;
     });
 
-    // ② 변별 오프셋 (변 내부는 시접이 같으므로 이등분선 마이터)
-    var LIMIT = 3;
+    /* ② 변별 오프셋 (변 내부는 시접이 같으므로 이등분선 마이터)
+     *  LIMIT = 마이터 한계(시접의 몇 배까지 뾰족하게 둘 것인가).
+     *  ⚠ 3 으로 두었더니 **절개 시작점처럼 진짜 뾰족한 모서리(내각 34.7°, 이론 마이터 3.36)가
+     *    잘려 나갔다.** 패턴에서 저런 꼭짓점은 접어서 맞추는 자리라 온전해야 한다.
+     *  8 이면 내각 14° 까지 온전히 살고, 그보다 더 붙은 각(사실상 첨점)만 bevel 로 잘린다. */
+    var LIMIT = 8;
     var offEdge = idxOf.map(function (list, k) {
       var s = edgeSeam[k], out = [];
       for (var q = 0; q < list.length; q++) {
@@ -1734,19 +1738,6 @@ td.n.n-fail{color:var(--red)}
         if (ml < 1e-9) { out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]); continue; }
         var mu = [mm[0] / ml, mm[1] / ml];
         var cosHalf = mu[0] * nNext[0] + mu[1] * nNext[1];
-        /* ★ 변 안쪽의 급격한 **볼록** 꺾임(턴 > ~91°)은 곡선 샘플링에서 안 나온다 —
-           조립 잔재(예: 골선 캡 끝의 0.04 세그먼트)다. 마이터를 뻗치면 시접의
-           최대 3배 가시가 생기므로 bevel 두 점으로 자른다.
-           오목(다트 꼭짓점 등)은 기존대로 마이터+자기교차 제거에 맡긴다. */
-        if (cosHalf < 0.7) {
-          var dp_ = segDir[(gi - 1 + n) % n], dn_ = segDir[gi];
-          var cr_ = dp_[0] * dn_[1] - dp_[1] * dn_[0];
-          if (ccw ? cr_ > 0 : cr_ < 0) {
-            out.push([P[0] + nPrev[0] * s, P[1] + nPrev[1] * s]);
-            out.push([P[0] + nNext[0] * s, P[1] + nNext[1] * s]);
-            continue;
-          }
-        }
         var kk = s / Math.max(cosHalf, 1 / LIMIT);
         out.push([P[0] + mu[0] * kk, P[1] + mu[1] * kk]);
       }
@@ -1762,35 +1753,29 @@ td.n.n-fail{color:var(--red)}
       var sA = edgeSeam[k], sB = edgeSeam[kNext];
       var cornerIdx = list[list.length - 1];              // 다음 변과 공유하는 outline 인덱스
       var P = pts[cornerIdx];
-      /* ★ 모서리 소유 변: 골선(시접 0) 연장 캡은 **시접 있는 이웃 변** 소유 —
-         골선 변의 시접선은 "골선에서 거리 0" 이어야 하고(SPEC §11-2),
-         캡 점은 이웃 변 시접의 끝이지 골선의 이탈이 아니다. 그 외엔 끝나는 변. */
-      var cornOwner = (sA === 0) ? kNext : k;
+      // 모서리 소유 변: 한쪽이 골선이면 골선 쪽(골선 위 x=0 연장점이므로), 아니면 끝나는 변
+      var cornOwner = (sA === 0) ? k : (sB === 0 ? kNext : k);
       var nPrev = segNrm[(cornerIdx - 1 + n) % n], nNext = segNrm[cornerIdx];
 
-      /* 양쪽 변의 오프셋 직선 — 조립 때 "모서리 뒤로 되돌아간 점" 을 걸러내는 데 쓴다.
-         ★ 시접 0(골선) 변의 "오프셋선"은 골선 자신이라 이웃 변 오프셋 점 전부가
-         안쪽으로 찍혀 behind 컷이 모서리 근방 2cm 를 후벼 판다 — 골선 쪽은 null 로
-         꺼서 되짚음 제거는 ①번 내적 조건 + ④-0 골선 클램프에 맡긴다. */
-      var LA = sA > 0 ? { p: [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA], n: nPrev } : null;
-      var LB = sB > 0 ? { p: [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB], n: nNext } : null;
-      var CR = { p: cp(P), r: Math.max(sA, sB) * 2 + 0.2 };   // 되짚음 판정을 쓸 모서리 반경
       if (Math.abs(sA - sB) < 1e-12) {                    // ── 등폭 → 이등분선 마이터
-        if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
+        if (sA === 0) { corners.push({ pts: [cp(P)], own: [cornOwner] }); continue; }
         var mm = V.add(nPrev, nNext), ml = Math.hypot(mm[0], mm[1]);
-        if (ml < 1e-9) { corners.push({ pts: [[P[0] + nNext[0] * sA, P[1] + nNext[1] * sA]], own: [cornOwner], la: LA, lb: LB, cr: CR }); continue; }
+        if (ml < 1e-9) { corners.push({ pts: [[P[0] + nNext[0] * sA, P[1] + nNext[1] * sA]], own: [cornOwner] }); continue; }
         var mu = [mm[0] / ml, mm[1] / ml];
         var kk = sA / Math.max(mu[0] * nNext[0] + mu[1] * nNext[1], 1 / LIMIT);
-        corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner], la: LA, lb: LB, cr: CR });
+        corners.push({ pts: [[P[0] + mu[0] * kk, P[1] + mu[1] * kk]], own: [cornOwner] });
         continue;
       }
-      // ── 이폭 → 두 오프셋선의 교점 (시접 0 쪽 오프셋선은 그 변 자신 = P 통과)
-      var A = LA ? LA.p : [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA];
-      var Bp = LB ? LB.p : [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB];
+      // ── 이폭 → 두 오프셋선의 교점
+      var A = [P[0] + nPrev[0] * sA, P[1] + nPrev[1] * sA];
+      var Bp = [P[0] + nNext[0] * sB, P[1] + nNext[1] * sB];
       var X = lineX(A, segDir[(cornerIdx - 1 + n) % n], Bp, segDir[cornerIdx]);
-      var lim = Math.max(sA, sB) * LIMIT;
-      if (X && V.dist(X, P) <= lim) corners.push({ pts: [X], own: [cornOwner], la: LA, lb: LB, cr: CR });
-      else corners.push({ pts: [A, Bp], own: [k, cornOwner], la: LA, lb: LB, cr: CR });     // bevel
+      /* 이폭 모서리는 한계를 3배로 죈다 — 소매산처럼 끝 접선이 밑선과 거의 나란한
+       *  이폭 모서리(1.0↔1.5)는 교점이 시접의 8배 아래까지 내려가 얇은 가시가 된다
+       *  (숙녀복기본원형2 소매 실측 2.6cm). 등폭 모서리의 첨점 보존(LIMIT 8)은 그대로 둔다. */
+      var lim = Math.max(sA, sB) * 3;
+      if (X && V.dist(X, P) <= lim) corners.push({ pts: [X], own: [cornOwner] });
+      else corners.push({ pts: [A, Bp], own: [k, cornOwner] });     // bevel
     }
     // 조립: outline 인덱스 0 이 변0 의 첫 모서리(= 마지막 변과의 접점)가 되도록
     var seamPts = [], owner = [];
@@ -1798,50 +1783,25 @@ td.n.n-fail{color:var(--red)}
       var cprev = corners[(k - 1 + E_) % E_];
       for (var c = 0; c < cprev.pts.length; c++) { seamPts.push(cprev.pts[c]); owner.push(cprev.own[c]); }
       var offK = offEdge[k];
-      /* ★ 모서리 교점 뒤로 되돌아가는 점은 버린다.
-         시접이 다른 두 변(특히 시접 0 인 골선 ↔ 시접 있는 목선)이 만나면 교점 X 가
-         이 변의 오프셋 점열보다 안쪽에 생긴다. 그대로 이으면 X 까지 갔다가 되짚어
-         골선 밖으로 튀어나오는데, 두 선이 거의 공선이라 removeSelfLoops 가 못 잡는다.
-         (SPEC §11-2 — 골선은 x 를 유지한 채 시접 폭만큼 연장돼야 한다) */
-      var q0 = 1, q1 = offK.length - 2;
-      /* 짧은 변은 양쪽 모서리 정리로 통째로 사라질 수 있다 — 각 끝에서 최대 40% 만 자른다.
-         (안단 캡처럼 4cm 짜리 변이 점 1개로 줄면 시접선이 그 자리를 건너뛰어
-          모서리끼리 직선으로 이어져 '시접 간격이 들쭉날쭉'해 보인다) */
-      var lim = Math.max(0, Math.floor((offK.length - 2) * 0.4));
-      if (offK.length > 3) {
-        var Xs = cprev.pts[cprev.pts.length - 1], Xe = corners[k].pts[0];
-        var d0 = V.sub(offK[1], offK[0]), d1 = V.sub(offK[offK.length - 1], offK[offK.length - 2]);
-        /* 이웃 변의 오프셋 직선 안쪽으로 넘어간 점 — **모서리 근방에서만** 본다.
-           멀리까지 적용하면 직각으로 꺾이는 변(옆선↔허리선)에서 변 전체가 지워진다. */
-        var La = cprev.la, Lb = corners[k].lb, Ca = cprev.cr, Cb = corners[k].cr;
-        var behind = function (pt, L, C) {
-          if (!L || !C || V.dist(pt, C.p) > C.r) return false;
-          return ((pt[0] - L.p[0]) * L.n[0] + (pt[1] - L.p[1]) * L.n[1]) < -1e-9;
-        };
-        while (q0 <= 1 + lim && q0 <= q1
-               && ((offK[q0][0] - Xs[0]) * d0[0] + (offK[q0][1] - Xs[1]) * d0[1] < 0
-                   || behind(offK[q0], La, Ca))) q0++;
-        while (q1 >= offK.length - 2 - lim && q1 >= q0
-               && ((offK[q1][0] - Xe[0]) * d1[0] + (offK[q1][1] - Xe[1]) * d1[1] > 0
-                   || behind(offK[q1], Lb, Cb))) q1--;
-      }
-      for (var q = q0; q <= q1; q++) { seamPts.push(offK[q]); owner.push(k); }
+      for (var q = 1; q < offK.length - 1; q++) { seamPts.push(offK[q]); owner.push(k); }
     }
 
     /* ④-0 골선 클램프 — SPEC §11-2: 시접 0 인 골선은 **좌표를 유지한 채** 시접 폭만큼
-       연장돼야 한다. 이웃 변의 오프셋이 골선을 조금이라도 넘으면 재단 시 중심이 잘린다. */
+       연장돼야 한다. V 네크라인처럼 목선이 골선과 예각으로 만나면 목선 오프셋이
+       골선을 최대 시접 폭만큼 넘어간다 — 넘은 점을 골선 위로 되투영한다.
+       골선이 없거나 넘은 점이 없으면 완전한 no-op (기존 조각 결과 불변). */
     var foldR = loop.ranges.filter(function (r) { return r.role === 'fold'; });
     if (foldR.length) {
       var cx = 0, cy = 0;
       for (i = 0; i < pts.length; i++) { cx += pts[i][0]; cy += pts[i][1]; }
       cx /= pts.length; cy /= pts.length;
       foldR.forEach(function (r) {
-        var a = pts[r.start], b = pts[r.end];
-        if (V.dist(a, b) < 1e-6) return;
-        var t = V.norm(V.sub(b, a)), nf = [t[1], -t[0]];
-        if (nf[0] * (cx - a[0]) + nf[1] * (cy - a[1]) > 0) nf = [-nf[0], -nf[1]];   // 조각 바깥
+        var a2 = pts[r.start], b2 = pts[r.end];
+        if (V.dist(a2, b2) < 1e-6) return;
+        var t2 = V.norm(V.sub(b2, a2)), nf = [t2[1], -t2[0]];
+        if (nf[0] * (cx - a2[0]) + nf[1] * (cy - a2[1]) > 0) nf = [-nf[0], -nf[1]];
         for (var z = 0; z < seamPts.length; z++) {
-          var dv = (seamPts[z][0] - a[0]) * nf[0] + (seamPts[z][1] - a[1]) * nf[1];
+          var dv = (seamPts[z][0] - a2[0]) * nf[0] + (seamPts[z][1] - a2[1]) * nf[1];
           if (dv > 1e-9) seamPts[z] = [seamPts[z][0] - nf[0] * dv, seamPts[z][1] - nf[1] * dv];
         }
       });
