@@ -375,11 +375,14 @@ function build(draft, opt) {
         if (!itm || !itm.pts || !itm.pts.length) continue;
         var ip = itm.pts.filter(isPt);
         if (!ip.length) continue;
+        /* 'edge' 는 다트 다리처럼 **접어 꿰매는 선**이라 완성선 레이어로 뺀다 —
+           기초선(BL·품선)과 섞이면 CAD 에서 레이어를 꺼 버릴 때 같이 사라진다. */
+        var lay = (itm.type === 'edge') ? '완성선' : '기준선';
         if (itm.type === 'point') { point(ip[0], '기준선', off); pstat.internal++; }
         else if (ip.length >= 2) {
           var si = simplifyOpen(ip, o.simplifyTolCm);
-          if (si.pts.length === 2) line(si.pts[0], si.pts[1], '기준선', off);
-          else lwpoly(si.pts, '기준선', false, off);
+          if (si.pts.length === 2) line(si.pts[0], si.pts[1], lay, off);
+          else lwpoly(si.pts, lay, false, off);
           pstat.internal++;
         }
       }

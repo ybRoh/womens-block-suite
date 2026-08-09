@@ -353,7 +353,7 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.2.0';
+  var APP_VERSION = '1.3.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -760,7 +760,9 @@
           s += '<circle class="pt" cx="' + pts[0][0].toFixed(3) + '" cy="' + pts[0][1].toFixed(3) + '" r="0.16"/>';
           if (it.label) pushLabel(labels, off, innerLabelRec(it.label, [pts[0][0] + 0.35, pts[0][1] - 0.3], pieceIdx));
         } else {
-          s += '<path class="' + (it.type === 'dashed' ? 'inner-d' : 'inner') + '" d="' + pathOf(pts, false) + '"/>';
+          /* 'edge' = 외곽선과 같은 굵기 — 다트 다리처럼 실제로 접어 꿰매는 선 */
+          s += '<path class="' + (it.type === 'dashed' ? 'inner-d' : it.type === 'edge' ? 'fin' : 'inner') +
+               '" d="' + pathOf(pts, false) + '"/>';
           if (it.label && state.show.dim) {
             var e = labelAnchor(pts);
             pushLabel(labels, off, innerLabelRec(it.label, [e[0] + 0.3, e[1] - 0.28], pieceIdx));

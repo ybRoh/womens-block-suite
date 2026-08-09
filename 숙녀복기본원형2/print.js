@@ -1047,8 +1047,10 @@ function renderPiece(pc, o, sizeLabel) {
         '" font-size="3.2" font-family="sans-serif" fill="' + BLUE + '">' + esc(it.label) + '</text>');
     } else {
       var dash = (it.type === 'dashed') ? ' stroke-dasharray="3 2"' : '';
-      g.push('<path d="' + pathFrom(it.pts, false) + '" fill="none" stroke="' + GUIDE +
-             '" stroke-width="0.28"' + dash + '/>');
+      /* 'edge' = 외곽선과 같은 색·굵기 (다트 다리처럼 접어 꿰매는 선) */
+      var isEdge = (it.type === 'edge');
+      g.push('<path d="' + pathFrom(it.pts, false) + '" fill="none" stroke="' + (isEdge ? INK : GUIDE) +
+             '" stroke-width="' + (isEdge ? '0.55' : '0.28') + '"' + dash + '/>');
       if (it.label) {
         var a = it.pts[0], b = it.pts[it.pts.length - 1];
         g.push('<text x="' + n((a[0] + b[0]) / 2) + '" y="' + n((a[1] + b[1]) / 2 - 1.4) +
