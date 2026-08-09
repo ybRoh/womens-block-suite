@@ -1075,12 +1075,10 @@ td.n.n-fail{color:var(--red)}
   /* 곡선 캘리브레이션 — 원본 DXF 에 맞춰 적합. 무차원 비율/접선크기라 호수를 따라 스케일된다.
      재적합: node calibrate.js */
   var CAL = {
-    backNeck : { mx: 0.7700, my: 0.6435, k0: 0.5159, k1: 0.2000 },              // 편차 0.160
-    frontNeck: { out: 0.3990, k0: 0.6245, k1: 0.2000 },                         // 편차 0.104
-    backArm  : { d1: 0.1445, d2: 0.1100, hx: 0.8000, hy: 0.3760,
-                 k0: 0.5087, k1: 1.2520 },                                      // 편차 0.128
-    frontArm : { d1: -0.0200, d2: 0.2433, hx: 0.8000, hy: 0.3355,
-                 k0: 1.2919, k1: 0.5965 }                                       // 편차 0.161
+    backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
+    frontNeck: { along: 0.3009, a1: -20.40, k0: 1.3493, k1: 0.8123 },                      // 편차 0.007
+    backArm  : { d1: 0.2275, a0: 2.9376, k0: 0.7656, kA: 0.7750, kB: 0.6902, k1: 1.4753 }, // 편차 0.043
+    frontArm : { d1: 0.1848, d2: 0.0737, a0: -2.28, k0: 1.1811, k1: 1.1691 }               // 편차 0.048
   };
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1148,10 +1146,10 @@ td.n.n-fail{color:var(--red)}
     var dartT   = V.add(BP, V.mul(V.norm(V.sub(mid, BP)), dartLeg + K.dartTrueOut));
 
     /* ───────── 곡선 ───────── */
-    var backNeck  = curveBackNeck(BNP, SNPb);
-    var backArm   = curveBackArm(SPb, [bPitchX, 0], Ub, BL);
-    var frontNeck = curveFrontNeck(FNP, SNPf, nw);
-    var frontArm  = curveFrontArm(SPf, [fPitchX, 0], Uf, BL);
+    var backNeck  = curveBackNeck(BNP, SNPb, SPb);
+    var backArm   = curveBackArm(SPb, SNPb, bPitchX, Ub, BL);
+    var frontNeck = curveFrontNeck(FNP, SNPf, nw, SPf);
+    var frontArm  = curveFrontArm(SPf, SNPf, fPitchX, Uf, BL);
 
     return {
       m: m, opt: { ease: ease, shEase: shEase, dartAmount: dartAmt, dartRise: dartRise },
@@ -1160,6 +1158,8 @@ td.n.n-fail{color:var(--red)}
       BNP: BNP, SNPb: SNPb, SPb: SPb, Ub: Ub, bWaist: bWaist, shLenBack: shLenBack,
       fSideX: fSideX, fPitchX: fPitchX, fShGuide: fShGuide, fShDir: fShDir, shLenFront: shLenFront,
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
+      bPitchTop: SNPb[1] + (bPitchX - SNPb[0]) * (SPb[1] - SNPb[1]) / (SPb[0] - SNPb[0]),
+      fPitchTop: SNPf[1] + (fPitchX - SNPf[0]) * (SPf[1] - SNPf[1]) / (SPf[0] - SNPf[0]),
       dartLo: dartLo, dartHi: dartHi, dartT: dartT, dartLeg: dartLeg, dartAng: dartAng,
       backNeck: backNeck, backArm: backArm, frontNeck: frontNeck, frontArm: frontArm
     };
@@ -1258,33 +1258,49 @@ td.n.n-fail{color:var(--red)}
   /* ══════════════════════════════════════════════════════════════════
    * 4. 곡선
    * ════════════════════════════════════════════════════════════════ */
-  /** 뒷목둘레 : 목옆점 → 뒤중심(수평 도착) */
-  function curveBackNeck(BNP, SNP) {
+  /** 뒷목둘레 : 목옆점(어깨선 수직을 a0° 회전해 출발) → 중간점 → 뒤중심(수평 도착) */
+  function curveBackNeck(BNP, SNP, SP) {
     var C = CAL.backNeck;
-    var Mp = [SNP[0] * C.mx, SNP[1] * (1 - C.my)];
-    return splineSegs([SNP, Mp, BNP], endTan(V.sub(BNP, SNP), C.k0), endTan([-1, 0], C.k1));
+    var Mp = [SNP[0] * C.mx, SNP[1] * C.my];
+    var sd = V.norm(V.sub(SP, SNP));
+    return splineSegs([SNP, Mp, BNP],
+      endTan(rotv([-sd[1], sd[0]], C.a0), C.k0), endTan([-1, 0], C.k1));
   }
-  /** 암홀 — 어깨점 → 품선 1/3 → 품선 2/3 → 오목점 → 겨드랑(수평 도착)
-   *  품선을 3등분해 그 자리를 지나는 교재 방식(도면 `3등분`). */
-  function curveArm(SP, pitchX, U, BL, topY, C) {
-    var y1 = topY + (BL - topY) / 3, y2 = topY + (BL - topY) * 2 / 3;
-    var P1 = [pitchX + C.d1, y1], P2 = [pitchX + C.d2, y2];
-    var H  = [U[0] - C.hx * (U[0] - pitchX), BL - C.hy * (BL - y2)];
-    return splineSegs([SP, P1, P2, H, U], endTan(V.sub(P1, SP), C.k0), endTan([1, 0], C.k1));
-  }
-  /** 앞목둘레 : 앞중심(수평 출발) → 목사각 대각선 2/3 점 + 0.3 → 목옆점 */
-  /** 앞목둘레 : 앞중심(수평 출발) → 목사각 대각선 2/3 점에서 0.3 더 나간 점 → 목옆점 */
-  function curveFrontNeck(FNP, SNP, nw) {
+  /** 앞목둘레 : 앞중심(수평 출발) → 목사각 대각선 2/3 점에서 `along` 더 나간 점 → 목옆점 */
+  function curveFrontNeck(FNP, SNP, nw, SP) {
     var C = CAL.frontNeck, dep = FNP[1];
-    var P0 = [nw * 2 / 3, dep * 2 / 3];
-    var Pm = V.add(P0, V.mul(V.norm([nw, dep]), C.out));
-    return splineSegs([FNP, Pm, SNP], endTan([1, 0], C.k0), endTan(V.sub(SNP, Pm), C.k1));
+    var Pm = V.add([nw * 2 / 3, dep * 2 / 3], V.mul(V.norm([nw, dep]), C.along));
+    var sd = V.norm(V.sub(SP, SNP));
+    return splineSegs([FNP, Pm, SNP],
+      endTan([1, 0], C.k0), endTan(rotv([sd[1], -sd[0]], C.a1), C.k1));
   }
-  function curveBackArm(SP, pitchTop, U, BL) {
-    return curveArm(SP, pitchTop[0], U, BL, 0.671, CAL.backArm);
+  /** 암홀 — 교재 작도 그대로
+   *  · 품선 위끝 = **어깨선 ∩ 품선** (도면 등품선 0.671 · 앞품선 3.906 이 정확히 그 자리)
+   *  · 그 아래 BL 까지를 **3등분**, 곡선은 1/3·2/3 자리를 지난다 (도면 `3등분`)
+   *  · 오목점 H = 품선×BL 모서리에서 [2/3점 → 겨드랑] 현에 내린 **수선의 중점**에서
+   *    뒤 0.3 · 앞 0.2 더 나간 점 (도면 `0.3↑` `0.2↑`)
+   *  · 뒤는 2/3 점에서 품선에 **접**하므로 거기서 수직 접선으로 끊어 두 조각으로 그린다 */
+  function curveArm(SP, SNP, pitchX, U, BL, mid, C) {
+    var topY = SNP[1] + (pitchX - SNP[0]) * (SP[1] - SNP[1]) / (SP[0] - SNP[0]);
+    var y1 = topY + (BL - topY) / 3, y2 = topY + (BL - topY) * 2 / 3;
+    var A = [pitchX, y2], d = V.norm(V.sub(U, A)), Cn = [pitchX, BL];
+    var F = V.add(A, V.mul(d, (Cn[0] - A[0]) * d[0] + (Cn[1] - A[1]) * d[1]));   // 수선의 발
+    var H = V.add(Cn, V.mul(V.norm(V.sub(F, Cn)), V.dist(Cn, F) / 2 + mid));
+    var sd = V.norm(V.sub(SP, SNP));
+    var t0 = endTan(rotv([-sd[1], sd[0]], C.a0), C.k0);
+    var P1 = [pitchX + C.d1, y1];
+    if (C.kA !== undefined) {
+      var P2 = [pitchX, y2];
+      return splineSegs([SP, P1, P2], t0, endTan([0, 1], C.kA))
+        .concat(splineSegs([P2, H, U], endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
+    }
+    return splineSegs([SP, P1, [pitchX + C.d2, y2], H, U], t0, endTan([1, 0], C.k1));
   }
-  function curveFrontArm(SP, pitchTop, U, BL) {
-    return curveArm(SP, pitchTop[0], U, BL, SP[1], CAL.frontArm);
+  function curveBackArm(SP, SNP, pitchX, U, BL) {
+    return curveArm(SP, SNP, pitchX, U, BL, K.backArmMid, CAL.backArm);
+  }
+  function curveFrontArm(SP, SNP, pitchX, U, BL) {
+    return curveArm(SP, SNP, pitchX, U, BL, K.frontArmDown, CAL.frontArm);
   }
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1611,11 +1627,11 @@ td.n.n-fail{color:var(--red)}
     return [
       L('topLine', 'line',   [[0, 0], [g.bSideX, 0]], '상단 기준선'),
       L('BL',      'line',   [[0, g.BL], [g.bSideX, g.BL]], 'BL (B/4)'),
-      L('backW',   'dashed', [[g.bPitchX, 0.671], [g.bPitchX, g.BL]], '등품선'),
-      L('div3',    'dashed', [[g.bPitchX - 1.6, 0.671 + (g.BL - 0.671) / 3],
-                              [g.bPitchX, 0.671 + (g.BL - 0.671) / 3]], '등품선 3등분'),
-      L('div3b',   'dashed', [[g.bPitchX - 3.5, 0.671 + (g.BL - 0.671) * 2 / 3],
-                              [g.bPitchX, 0.671 + (g.BL - 0.671) * 2 / 3]], '등품선 3등분'),
+      L('backW',   'dashed', [[g.bPitchX, g.bPitchTop], [g.bPitchX, g.BL]], '등품선 (위끝 = 어깨선 교점)'),
+      L('div3',    'dashed', [[g.bPitchX - 1.6, g.bPitchTop + (g.BL - g.bPitchTop) / 3],
+                              [g.bPitchX, g.bPitchTop + (g.BL - g.bPitchTop) / 3]], '등품선 3등분'),
+      L('div3b',   'dashed', [[g.bPitchX - 3.5, g.bPitchTop + (g.BL - g.bPitchTop) * 2 / 3],
+                              [g.bPitchX, g.bPitchTop + (g.BL - g.bPitchTop) * 2 / 3]], '등품선 3등분'),
       L('shGuide', 'dashed', [[g.bSpX, -1.2], [g.bSpX, g.SPb[1]]], '어깨 안내선 (어깨너비/2 + 이세분)'),
       L('neckW',   'dashed', [[g.bNeckW, 0], [g.bNeckW, -2.5]], '뒷목너비'),
       L('SP',      'point',  [g.SPb], 'SP'),
@@ -1627,7 +1643,7 @@ td.n.n-fail{color:var(--red)}
     return [
       L('topLine',  'line',   [[0, 0], [g.fSideX, 0]], '상단 기준선'),
       L('BL',       'line',   [[0, g.BL], [g.fSideX, g.BL]], 'BL (B/4)'),
-      L('frontW',   'dashed', [[g.fPitchX, g.SPf[1]], [g.fPitchX, g.BL]], '앞품선'),
+      L('frontW',   'dashed', [[g.fPitchX, g.fPitchTop], [g.fPitchX, g.BL]], '앞품선 (위끝 = 어깨선 교점)'),
       L('neckBox',  'dashed', [[0, dep], [nw, dep], [nw, 0]], '앞목 사각'),
       L('neckDiag', 'dashed', [[0, 0], [nw, dep]], '목 사각 대각선'),
       L('shGuide',  'dashed', [g.fShGuide, [g.fShGuide[0], 0]], '어깨 안내선 (4.5↓)'),
