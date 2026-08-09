@@ -6,7 +6,7 @@
 <title>숙녀복 기본원형 II · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-09 21:49 -->
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-09 21:55 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -815,7 +815,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-09 21:49'; window.ND_APP = '숙녀복기본원형2';</script>
+<script>window.ND_BUILD = '2026-08-09 21:55'; window.ND_APP = '숙녀복기본원형2';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1475,7 +1475,10 @@ td.n.n-fail{color:var(--red)}
 
     /* 소매길이 · 팔꿈치선 · 소매부리 */
     var elbowY = sleeveLen / 2 + K.elbowAdd;
-    var hemB = [-cuffW / 2, sleeveLen + K.cuffBackDrop];
+    /* 소맷부리 — **다트분만큼 뒤로 연장한다** (도면 `소맷부리` 치수선이 다트 바깥에서 시작한다).
+     *  연장하지 않으면 다트를 접었을 때 소맷부리가 다트분(4.5)만큼 모자란다.
+     *  재단 밑단 = 소맷부리 + 다트분 → 접으면 정확히 소맷부리가 된다. */
+    var hemB = [-(cuffW / 2 + num(opt.elbowDart, K.elbowDart)), sleeveLen + K.cuffBackDrop];
     var hemF = [ cuffW / 2, sleeveLen];
     /* 팔꿈치 다트 — 도면대로 **소맷부리에 입이 나고 위(팔꿈치)로 뾰족하다**.
      *  중심 : 팔꿈치선에서 **뒤 밑선과 소매 중심선의 중점** (도면의 `중심` + 등분 표시)
@@ -5266,7 +5269,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.5.0';
+  var APP_VERSION = '1.6.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');

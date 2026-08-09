@@ -655,7 +655,10 @@
 
     /* 소매길이 · 팔꿈치선 · 소매부리 */
     var elbowY = sleeveLen / 2 + K.elbowAdd;
-    var hemB = [-cuffW / 2, sleeveLen + K.cuffBackDrop];
+    /* 소맷부리 — **다트분만큼 뒤로 연장한다** (도면 `소맷부리` 치수선이 다트 바깥에서 시작한다).
+     *  연장하지 않으면 다트를 접었을 때 소맷부리가 다트분(4.5)만큼 모자란다.
+     *  재단 밑단 = 소맷부리 + 다트분 → 접으면 정확히 소맷부리가 된다. */
+    var hemB = [-(cuffW / 2 + num(opt.elbowDart, K.elbowDart)), sleeveLen + K.cuffBackDrop];
     var hemF = [ cuffW / 2, sleeveLen];
     /* 팔꿈치 다트 — 도면대로 **소맷부리에 입이 나고 위(팔꿈치)로 뾰족하다**.
      *  중심 : 팔꿈치선에서 **뒤 밑선과 소매 중심선의 중점** (도면의 `중심` + 등분 표시)
