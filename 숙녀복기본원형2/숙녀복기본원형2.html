@@ -6,7 +6,7 @@
 <title>숙녀복 기본원형 II · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-09 22:22 -->
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-10 06:40 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -590,6 +590,10 @@ td.n.n-fail{color:var(--red)}
 
       <section class="block">
         <h2>스타일 <span class="h2note">cm</span></h2>
+        <div class="field">
+          <label for="ndSleeveType">소매 종류</label>
+          <select id="ndSleeveType"><!-- ui.js 가 엔진 SLEEVE_TYPE 으로 채웁니다 --></select>
+        </div>
         <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
         <button type="button" class="btn btn-ghost btn-wide" id="ndStyleReset">기본값 복원</button>
         <p class="hint">원본 도면이 범위로 준 값(어깨 이세분 0.3~0.6)을 여기서 고릅니다.
@@ -815,7 +819,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-09 22:22'; window.ND_APP = '숙녀복기본원형2';</script>
+<script>window.ND_BUILD = '2026-08-10 06:40'; window.ND_APP = '숙녀복기본원형2';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1116,6 +1120,25 @@ td.n.n-fail{color:var(--red)}
      *  4.5 ≈ AH/12 + 0.6 (4.41). 소매산 높이만 이 원형이 **AH/3** 로 다르다
      *  (숙녀복기본원형1 타이트 긴소매는 AH/4 + 2). */
     capHeightDiv : 3,          // 소매산 높이 = AH/3 (도면 `AH/3`)
+    /* ── 2장소매 (교재 「2장소매」) ─────────────────────────────────────
+     *  절개 규칙은 숙녀복기본원형1 의 48P 검증본과 **같다** — 큰소매 앞쪽에서 3 을 떼어
+     *  작은소매 뒤쪽에 붙이므로 소매통 총폭은 그대로다 (사용자 확정 2026-08-10).
+     *  다른 것은 ① 소매산 높이 AH/3 (48P 는 AH/4+2) ② **패드분**이 올라간다는 점.
+     *  ⚠ CAL.two* 곡선 적합값은 48P 도면 것이라 이 도면 DXF 가 오면 재적합 대상이다. */
+    capPad         : 1.0,      // 패드분 — 소매산을 이만큼 더 올린다 (도면 `패드분 ↑1`)
+    capReduce      : 0,
+    armNotchDiv    : 3,
+    capEaseShare   : [0.0, 0.5, 0.5],
+    capEaseBack    : 0.6,
+    twoSideOff     : 3.0,      // 큰소매 앞 −3 · 작은소매 뒤 +3 (도면 `3` 두 개 · 총폭 불변)
+    twoHemDrop     : 1.3,
+    twoFrontHemIn  : 1.7,
+    twoFrontElbowIn: 0.30,
+    twoBackElbowOut: 0.55,
+    twoInsetY      : 23.0,     // 이세처리 구간 표시용 y (원형1 은 반소매 길이를 썼다)
+    ventW          : 2.2,
+    ventLen        : 9.0,
+    ventMitre      : 2.0,
     capApexShift : 0.6,        // 소매산 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
     capMarkTop   : 8,          // 상단 마크 = 중심에서 AH/8 (도면 `5.7`)
     capMarkBotB  : 0.6,        // 뒤 하단 마크 = 소매폭 끝에서 안쪽 AH/12 + 0.6 (도면 `4.5`)
@@ -1138,6 +1161,9 @@ td.n.n-fail{color:var(--red)}
     /* 소매산 — 대각선의 t 지점에서 수직으로 떨어진 양 (뒤 볼록 · 앞 아래 오목) */
     /* 소매산 곡선의 양 끝 접선 장력 — 숙녀복기본원형1(긴소매 DXF 검증)과 같은 값 */
     sleeveCap: { k0: 1.1487, k1: 1.8359 },
+    twoSeam  : { mr: 0.172537, my: -6.831831, k0: 0.847411, k1: 0.150000 },
+    twoFront : { k0: 1.00 },
+    twoCapOut: { slope: 0.6111, k0: 0.6078, k1: 0.2402 },
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
     frontNeck: { along: 0.3009, a1: -20.40, k0: 1.3493, k1: 0.8123 },                      // 편차 0.007
     backArm  : { d1: 0.2275, a0: 2.9376, k0: 0.7656, kA: 0.7750, kB: 0.6902, k1: 1.4753 }, // 편차 0.043
@@ -1291,8 +1317,11 @@ td.n.n-fail{color:var(--red)}
     };
 
     /* ───────── 소매 ───────── */
-    var sv = g.sleeve, sleevePiece = null;
-    if (sv) {
+    var sv = g.sleeve, sleevePiece = null, twoPieces = null;
+    /* 2장소매면 큰소매·작은소매 두 조각을 따로 만든다 (조각 id sleeveBig / sleeveUnder).
+       ⚠ 주석의 piece 도 그 id 를 써야 붙는다 — 'sleeve' 로 달면 하나도 안 붙는다. */
+    if (sv && sv.twoPiece) { twoPieces = twoSleevePieces(sv, seam); }
+    else if (sv) {
       var sleeveEdges = [
         { name: '소매산 뒤', role: 'armhole', segs: sv.capBack },              // 뒤 겨드랑 → 정점
         { name: '소매산 앞', role: 'armhole', segs: sv.capFront },             // 정점 → 앞 겨드랑
@@ -1340,6 +1369,7 @@ td.n.n-fail{color:var(--red)}
 
     var pieces = [frontPiece, backPiece];
     if (sleevePiece) pieces.push(sleevePiece);
+    if (twoPieces) pieces = pieces.concat(twoPieces);
 
     return {
       pieces: pieces, warnings: warnings, notes: notes,
@@ -1353,16 +1383,22 @@ td.n.n-fail{color:var(--red)}
         frontBackDiff: r4(g.diff), dartAmount: r4(g.opt.dartAmount),
         dartLeg: r4(g.dartLeg), dartAngleDeg: r4(g.dartAng * 180 / Math.PI),
         bust: r4(g.B), waistBack: r4(g.WLb), waistFront: r4(g.WLf),
-        capHeight: sv ? r4(sv.capH) : null, sleeveWidth: sv ? r4(sv.width) : null,
-        sleeveCapLen: sv ? r4(sv.capLen) : null,
-        sleeveCapEase: sv ? r4(sv.capLen - sv.AH) : null,
+        /* 2장소매는 필드 이름이 다르다 (capLenTotal / halfB+halfF) — 둘 다 받아 준다 */
+        capHeight: sv ? r4(sv.capH) : null,
+        sleeveWidth: sv ? r4(sv.width !== undefined ? sv.width : sv.halfB + sv.halfF) : null,
+        sleeveCapLen: sv ? r4(sv.capLen !== undefined ? sv.capLen : sv.capLenTotal) : null,
+        sleeveCapEase: sv ? r4((sv.capLen !== undefined ? sv.capLen : sv.capLenTotal) - sv.AH) : null,
         sleeveLen: sv ? r4(sv.sleeveLen) : null, cuffWidth: sv ? r4(sv.cuffW) : null,
-        elbowDart: sv ? r4(V.dist(sv.dartA, sv.dartB)) : null
+        elbowDart: (sv && sv.dartA && sv.dartB) ? r4(V.dist(sv.dartA, sv.dartB)) : null,
+        sleeveType: sv ? (sv.twoPiece ? 'two' : 'tight') : null,
+        sleeveTypeName: sv ? (sv.twoPiece ? SLEEVE_TYPE.two.name : SLEEVE_TYPE.tight.name) : null
       },
       meta: {
         title: '숙녀복 기본원형 II', source: '교재 「숙녀복 기본원형 II」 제도 1·2',
         sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: notes,
-        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam).concat(sv ? sleeveNotes(sv) : [])
+        /* 2장소매는 조각이 둘이라 주석도 따로 낸다 — piece 가 sleeveBig / sleeveUnder 여야 붙는다 */
+        formulaNotes: formulaNotes(m, g, AHb, AHf, NKb, NKf, seam)
+          .concat(!sv ? [] : (sv.twoPiece ? twoNotes(sv) : sleeveNotes(sv)))
       }
     };
   }
@@ -1415,6 +1451,13 @@ td.n.n-fail{color:var(--red)}
     return curveArm(SP, SNP, pitchX, U, BL, K.frontArmDown, CAL.frontArm);
   }
 
+  var SLEEVE_TYPE = {
+    tight: { name: '타이트 소매', len: 58.0, lenGrade: 1.0, cuff: 24.0, cuffGrade: 0.5 },
+    two:   { name: '2장소매',    len: 58.0, lenGrade: 1.0,
+             cuff: 26.765, cuffGrade: 0.65, twoPiece: true }
+  };
+  var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
+
   /* ══════════════════════════════════════════════════════════════════
    * 5. 타이트 소매 (교재 「타이트 소매」)
    * ════════════════════════════════════════════════════════════════ */
@@ -1423,7 +1466,420 @@ td.n.n-fail{color:var(--red)}
    *  · 정점을 앞으로 0.6 이동
    *  · 뒤/앞 소매폭점 = 정점에서 각각 뒤AH · 앞AH 길이의 대각선이 소매폭선과 만나는 자리
    *  · 소매산 곡선은 상단 마크(중심에서 AH/8)와 하단 마크를 지난다 */
+  function divPts(segs, nDiv, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();          // 겨드랑이 배열 앞으로 오게
+    var L = polyLen(p), out = [];
+    for (var q = 1; q < nDiv; q++) {
+      var want = L * q / nDiv, acc = 0, pt = p[p.length - 1], tan = [1, 0];
+      for (var i = 1; i < p.length; i++) {
+        var seg = V.dist(p[i - 1], p[i]);
+        if (acc + seg >= want) {
+          var t = seg > 1e-9 ? (want - acc) / seg : 0;
+          pt = _lerp(p[i - 1], p[i], t);
+          tan = V.norm(V.sub(p[i], p[i - 1]));
+          break;
+        }
+        acc += seg;
+      }
+      out.push({ p: pt, tan: tan, frac: q / nDiv });
+    }
+    return out;
+  }
+  function ptAtLenOn(segs, dist, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();
+    var acc = 0;
+    for (var i = 1; i < p.length; i++) {
+      var seg = V.dist(p[i - 1], p[i]);
+      if (acc + seg >= dist) {
+        var t = seg > 1e-9 ? (dist - acc) / seg : 0;
+        return { p: _lerp(p[i - 1], p[i], t), tan: V.norm(V.sub(p[i], p[i - 1])) };
+      }
+      acc += seg;
+    }
+    return { p: cp(p[p.length - 1]), tan: V.norm(V.sub(p[p.length - 1], p[p.length - 2])) };
+  }
+  function inwardAngle(tan, at, inside) {
+    var nr = [tan[1], -tan[0]];
+    if (nr[0] * (inside[0] - at[0]) + nr[1] * (inside[1] - at[1]) < 0) nr = [-nr[0], -nr[1]];
+    return angDeg(nr);
+  }
+  function capNotches(s) {
+    var mid = [s.apexShift, s.sleeveLen * 0.4], out = [];
+    /* 앞뒤 이세 재배분 — 전체 이세를 뒤 capEaseBack / 앞 나머지 로 나눈다 */
+    var capLB = polyLen(sampleSegs(s.capBack, 0.02)), capLF = polyLen(sampleSegs(s.capFront, 0.02));
+    var easeAll = Math.max(0, (capLB + capLF) - (s.AHb + s.AHf));
+    var easeB = easeAll * K.capEaseBack, easeF = easeAll - easeB;
+    /* 어깨 맞춤점 = 뒤 소매산에서 (뒤암홀 + 뒤이세) 만큼 간 자리. 정점에서 얼마나 밀렸는지도 낸다 */
+    var needB = s.AHb + easeB;
+    /* 뒤 소매산만으로 모자라면 **정점을 넘어 앞 소매산 쪽으로** 넘어간다 (66호 0.45) */
+    var fit = (needB <= capLB) ? ptAtLenOn(s.capBack, needB, true)
+                               : ptAtLenOn(s.capFront, needB - capLB, false);
+    out.push({ p: cp(fit.p), angle: inwardAngle(fit.tan, fit.p, mid), label: '어깨 맞춤' });
+    [[s.capBack, s.AHb, '뒤', easeB], [s.capFront, s.AHf, '앞', easeF]].forEach(function (w) {
+      var AH = w[1];
+      var ease = w[3], accE = 0;
+      for (var q = 1; q < K.armNotchDiv; q++) {
+        accE += ease * (K.capEaseShare[q - 1] || 0);
+        var hit = ptAtLenOn(w[0], AH * q / K.armNotchDiv + accE, true);
+        out.push({ p: cp(hit.p), angle: inwardAngle(hit.tan, hit.p, mid),
+                   label: w[2] + ' ' + q + '/' + K.armNotchDiv });
+      }
+    });
+    return out;
+  }
+  function ptOnSegsAtX(segs, targetX) {
+    var p = sampleSegs(segs, 0.01);
+    for (var i = 1; i < p.length; i++) {
+      var a = p[i - 1], b = p[i];
+      if ((a[0] - targetX) * (b[0] - targetX) <= 0 && Math.abs(b[0] - a[0]) > 1e-9) {
+        var t = (targetX - a[0]) / (b[0] - a[0]);
+        return [targetX, a[1] + (b[1] - a[1]) * t];
+      }
+    }
+    return cp(p[p.length - 1]);
+  }
+  function splitSegsAtX(segs, targetX) {
+    var p = sampleSegs(segs, 0.01), cut = -1;
+    for (var i = 1; i < p.length; i++) {
+      if ((p[i - 1][0] - targetX) * (p[i][0] - targetX) <= 0) { cut = i; break; }
+    }
+    if (cut < 1) cut = Math.max(1, Math.floor(p.length / 2));
+    return { head: p.slice(0, cut + 1).map(cp), tail: p.slice(cut - 1).map(cp) };
+  }
+  function revPts(a) { return a.slice().reverse(); }
+  function bezSplit(g, t) {
+    var a = _lerp(g.p0, g.c1, t), b = _lerp(g.c1, g.c2, t), c = _lerp(g.c2, g.p1, t);
+    var d = _lerp(a, b, t), e = _lerp(b, c, t), m = _lerp(d, e, t);
+    return [{ p0: g.p0, c1: a, c2: d, p1: m }, { p0: m, c1: e, c2: c, p1: g.p1 }];
+  }
+  function splitSegsAtLenFromEnd(segs, L) {
+    var target = sLen(segs) - L;
+    if (target <= 0) return { head: [], tail: segs.slice() };
+    var acc = 0;
+    for (var i = 0; i < segs.length; i++) {
+      var li = sLen([segs[i]]);
+      if (acc + li >= target) {
+        var lo = 0, hi = 1;
+        for (var it = 0; it < 32; it++) {
+          var mt = (lo + hi) / 2;
+          if (acc + sLen([bezSplit(segs[i], mt)[0]]) < target) lo = mt; else hi = mt;
+        }
+        var sp = bezSplit(segs[i], (lo + hi) / 2);
+        return { head: segs.slice(0, i).concat([sp[0]]), tail: [sp[1]].concat(segs.slice(i + 1)) };
+      }
+      acc += li;
+    }
+    return { head: segs.slice(), tail: [] };
+  }
+  function ventOf(seamSegs, insideRef) {
+    var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
+    var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
+    var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
+    var hem = seamSegs[seamSegs.length - 1].p1;
+    var ch = V.norm(V.sub(hem, top)), nr = [ch[1], -ch[0]];
+    if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) < 0) nr = [-nr[0], -nr[1]];
+    var vv = [nr[0] * K.ventW, nr[1] * K.ventW];
+    /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
+    var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
+    return {
+      seamHead: mp.head, fold: fold, top: top, hem: hem,
+      mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,
+      topOut: [top[0] + vv[0], top[1] + vv[1]],
+      hemOut: [hem[0] + vv[0], hem[1] + vv[1]],
+      vec: vv, len: polyLen(sampleSegs(fold, 0.02))
+    };
+  }
+  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn) {
+    var capH = (capHIn === undefined) ? AH / 4 + 2 : capHIn;   // ★ 이 모듈은 AH/3 + 패드분
+    var diagB = AHb - capReduce, diagF = AHf - capReduce;    // 대각선 = 각 암홀 길이
+    var halfB = Math.sqrt(Math.max(diagB * diagB - capH * capH, 0.01));
+    var halfF = Math.sqrt(Math.max(diagF * diagF - capH * capH, 0.01));
+    var apex = [apexShift, 0], bicepB = [-halfB, capH], bicepF = [halfF, capH];
+
+    // 마크 — 상단은 중심선 상단점에서 수평 AH/8, 하단은 소매폭 끝에서 안쪽으로
+    var markTopB = [-AH / 8, 0], markTopF = [AH / 8, 0];
+    var markBotB = [-halfB + (AH / 12 + 0.6), capH];
+    var markBotF = [halfF - AH / 8, capH];
+
+    // 각 마크에서 대각선에 수선 → 발점. 곡선은 발점↔마크 사이 capBulge 비율 지점을 지난다
+    var fTB = footOn(bicepB, markTopB), fBB = footOn(bicepB, markBotB);
+    var fTF = footOn(bicepF, markTopF), fBF = footOn(bicepF, markBotF);
+    var mixP = function (f, mk) { return _lerp(f.foot, mk, K.capBulge); };
+    var pTB = mixP(fTB, markTopB), pBB = mixP(fBB, markBotB);
+    var pTF = mixP(fTF, markTopF), pBF = mixP(fBF, markBotF);
+
+    // 소매산 곡선 — 정점에서 수평 출발, 상단 볼록점 → 하단 오목점 → 소매폭 끝
+    /* 양 끝 접선은 **둘 다 수평** — 정점에서 수평으로 출발해 소매통 끝에도 수평으로
+       닿는다 (긴소매 DXF 실측: 소매통 도착 접선 뒤 −1.55° / 앞 1.82°).
+       끝접선을 자유롭게 두면 소매통 근처에서 도면과 0.15 cm 어긋난다. */
+    /* 정점 → 상단 통과점 → 하단 통과점 → 소매통 끝을 **C2 스플라인**으로 잇는다.
+       양 끝 접선은 둘 다 수평 (DXF 실측 도착 접선 뒤 −1.55° / 앞 1.82°).
+       구간별 장력을 따로 적합하던 이전 방식은 통과점 사이가 직선처럼 펴져 보였다. */
+    /* 이 모듈은 뒤·앞 접선 장력을 CAL.sleeveCap 하나로 쓴다 (원형1 은 capBack/capFront 둘) */
+    var cb = CAL.capBack || CAL.sleeveCap, cf = CAL.capFront || CAL.sleeveCap;
+    /* 상단 통과점 ↔ 하단 통과점 사이는 S 자이고 도면에서 그 두 점을 잇는 **현의 중점**에서
+       방향이 바뀐다 (t=0.500 에서 오프셋 −0.0002). 그 교차점도 앵커로 넣는다.
+       C2 스플라인이라 앵커를 늘려도 곡률은 계속 이어진다. */
+    var midB = _lerp(pTB, pBB, 0.5), midF = _lerp(pTF, pBF, 0.5);
+    var capBack = splineSegs([apex, pTB, midB, pBB, bicepB],
+      endTan([-1, 0], cb.k0), endTan([-1, 0], cb.k1));
+    var capFront = splineSegs([apex, pTF, midF, pBF, bicepF],
+      endTan([1, 0], cf.k0), endTan([1, 0], cf.k1));
+    var capLenBack = sLen(capBack), capLenFront = sLen(capFront);
+    return {
+      capH: capH, diagB: diagB, diagF: diagF, halfB: halfB, halfF: halfF,
+      apexShift: apexShift, apex: apex, bicepB: bicepB, bicepF: bicepF,
+      markTopB: markTopB, markTopF: markTopF, markBotB: markBotB, markBotF: markBotF,
+      footTopB: fTB, footBotB: fBB, footTopF: fTF, footBotF: fBF,
+      pTB: pTB, pBB: pBB, pTF: pTF, pBF: pBF,
+      capBack: capBack, capFront: capFront,
+      capLenBack: capLenBack, capLenFront: capLenFront,
+      capLenTotal: capLenBack + capLenFront, capEase: capLenBack + capLenFront - AH
+    };
+  }
+  function twoSleeveGeom(m, opt, AHb, AHf) {
+    var AH = AHb + AHf;
+    var capReduce = (opt.capReduce === undefined) ? K.capReduce : +opt.capReduce;
+    capReduce = Math.max(0, Math.min(1, capReduce));
+    var ST = SLEEVE_TYPE.two;
+    var step = (m.B - BASE.B) / GRADE.B;
+    var sleeveLen = (opt.sleeveLen === undefined) ? ST.len + ST.lenGrade * step : +opt.sleeveLen;
+    var cuffW = (opt.cuffW === undefined) ? ST.cuff + ST.cuffGrade * step : +opt.cuffW;
+
+    /* ★ 소매산 높이를 넘긴다 — 원형1 은 AH/4+2, 이 모듈은 **AH/3 + 패드분** 이다.
+       capGeom 안에 하드코딩돼 있던 것을 파라미터로 뺐다. */
+    var capH2 = AH / K.capHeightDiv + num(opt.capPad, K.capPad);
+    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2);
+    var halfB = cg.halfB, halfF = cg.halfF;
+    var elbowY = sleeveLen / 2 + K.elbowAdd;
+    var insetY = K.twoInsetY;              // 이세처리 구간 표시용
+
+    var splitX = -AH / 4;                                   // 절개 시작 x
+    var splitP = ptOnSegsAtX(cg.capBack, splitX);
+    /* 소매산(정점 → 뒤 소매통)을 절개점에서 자른다.
+       head = 정점~절개점 → **큰소매** 몫, tail = 절개점~뒤 소매통 → **작은소매** 몫 */
+    var capSplit = splitSegsAtX(cg.capBack, splitX);
+
+    var backOutX = -(halfB + K.twoSideOff);
+    var frontInX = halfF - K.twoSideOff;
+    /* ★ 큰소매 앞 소매산은 **소매통 끝이 아니라 frontInX 에서 끝난다** (도면 capFront
+       (0.6,0)→(13.017,12.138), 호 18.163). 여기서 자르지 않고 소매통까지 그리면
+       앞 밑선 시작점과 3 cm 어긋나 외곽선에 계단이 생긴다. 앞에서 덜어낸 몫은
+       작은소매가 뒤쪽 undCapOut(3.07)으로 받는다. */
+    var capBigFront = splitSegsAtX(cg.capFront, frontInX).head;
+    var topY = capBigFront[capBigFront.length - 1][1];
+    var hemY = sleeveLen, hemLowY = sleeveLen + K.twoHemDrop;
+
+    var bigHemF = [halfF - K.twoFrontHemIn, hemY];
+    var undHemB = [backOutX - K.twoHemDrop, hemY];
+    /* ★ 작은소매 절개선은 큰소매 절개선을 **절개점 수직선에 대칭**시킨 것이다.
+       도면이 그렇다 — 큰 −5.586 / 작은 −15.836 은 절개점 −10.711 에 대해 정확히 대칭.
+       대칭이면 두 절개변 길이가 저절로 같아진다(도면 53.7565 = 53.7565).
+       그래서 **입력은 소맷부리 총둘레 하나뿐**이고, 큰/작은 몫은 대칭이 정한다.
+         총둘레 C = (앞 − 큰끝) + (2·절개x − 큰끝 − 작은바깥)
+         ⇒ 큰끝 = (앞 − 작은바깥 + 2·절개x − C) / 2
+       ⚠ 큰소매 몫만 따로 등급을 주면 대칭 때문에 작은소매 몫이 호수마다 널뛴다
+         (66호 6.9 → 88호 3.4 로 줄었다). 총둘레를 등급하고 몫은 계산해야 한다. */
+    var bigHemB = [(bigHemF[0] - undHemB[0] + 2 * splitX - cuffW) / 2, hemLowY];
+    var undHemF = [2 * splitX - bigHemB[0], hemLowY];
+    var cuffBig = bigHemF[0] - bigHemB[0], cuffUnder = undHemF[0] - undHemB[0];
+
+    /* 절개선 — 절개점 → 팔꿈치선 위의 중간 앵커 → 밑단.
+       앵커 위치(mr·my)와 양 끝 접선(k0·k1)은 도면 bigBack 41점에 적합했다. */
+    var mkSeam = function (endPt) {
+      var cs = CAL.twoSeam;
+      var mid = [splitX + (endPt[0] - splitX) * cs.mr, elbowY + cs.my];
+      return splineSegs([splitP, mid, endPt],
+        endTan(V.sub(mid, splitP), cs.k0), endTan(V.sub(endPt, mid), cs.k1));
+    };
+    var bigBack = mkSeam(bigHemB);
+    var undBack = mkSeam(undHemF);      // 대칭점이라 길이는 자동으로 같다
+    /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
+    var ventBig = ventOf(bigBack, [halfF, elbowY]);      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
+    var ventUnd = ventOf(undBack, [backOutX, elbowY]);   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
+
+    var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    var undOuter = splineSegs([[backOutX, topY], [backOutX - K.twoBackElbowOut, elbowY], undHemB],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    /* 소매통 연결 — 뒤로 3 cm 내민 지점에서 소매통 끝까지. 출발은 **아래로** 기울고
+       (도면 12.138 → 12.705 로 내려간다) 도착은 **수평** — 뒤 소매산이 소매통에
+       수평으로 닿으므로 여기서도 수평이라야 꺾이지 않는다. */
+    var co = CAL.twoCapOut;
+    var undCapOut = splineSegs([[backOutX, topY], cg.bicepB],
+      endTan([1, co.slope], co.k0), endTan([1, 0], co.k1));
+
+    var out = {
+      AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
+      sleeveType: 'two', typeName: ST.name, twoPiece: true,
+      cuffBig: cuffBig, cuffUnder: cuffUnder, cuffW: cuffBig + cuffUnder,
+      elbowY: elbowY, insetY: insetY, splitX: splitX, splitP: splitP,
+      backOutX: backOutX, frontInX: frontInX, topY: topY,
+      capBigFront: capBigFront,               // 정점 → 앞 절단점 (소매통까지 안 간다)
+      capBigBack: revPts(capSplit.head),      // 절개점 → 정점
+      capUnderBack: revPts(capSplit.tail),    // 뒤 소매통 → 절개점
+      bigHemF: bigHemF, bigHemB: bigHemB, undHemB: undHemB, undHemF: undHemF,
+      bigBack: bigBack, undBack: undBack, bigFront: bigFront,
+      ventBig: ventBig, ventUnd: ventUnd, ventW: K.ventW, ventLen: K.ventLen,
+      undOuter: undOuter, undCapOut: undCapOut,
+      seamLenBig: polyLen(sampleSegs(bigBack, 0.02)),
+      seamLenUnder: polyLen(sampleSegs(undBack, 0.02)),
+      underLenB: polyLen(sampleSegs(undOuter, 0.02)),
+      underLenF: polyLen(sampleSegs(bigFront, 0.02)),
+      hemEndB: bigHemB, hemEndF: bigHemF, hemMidB: bigHemB, hemMidF: bigHemF,
+      hemHalfB: cuffBig / 2, hemHalfF: cuffBig / 2, hemBack: null, hemFront: null
+    };
+    for (var k in cg) if (cg.hasOwnProperty(k)) out[k] = cg[k];
+    return out;
+  }
+  function onPts(q, pts) {
+    if (!pts || !pts.length) return false;
+    for (var i = 0; i < pts.length; i++) if (V.dist(q, pts[i]) < 0.06) return true;
+    return false;
+  }
+  function twoSleevePieces(s, seam) {
+    function mk(id, name, edges, grain, notches) {
+      var loop = edgesToLoop(edges), sm = buildSeamline(loop, seam);
+      return {
+        id: id, name: name, cutCount: 2, grainline: grain,
+        outline: loop.pts, seamline: sm.seamline,
+        foldEdges: [], seamEdges: sm.seamEdges, seamFoldEdges: [],
+        seamByRole: sm.seamByRole, edges: withSeam(loop.ranges, sm.edgeSeam),
+        internal: twoInternal(s, id), notches: notches || [], bbox: bboxOf(loop.pts)
+      };
+    }
+    var poly = function (pts) { return lineSegs.apply(null, pts); };
+    var vB = s.ventBig, vU = s.ventUnd;
+    var big = mk('sleeveBig', '큰소매', [
+      { name: '앞 소매산', role: 'armhole',   segs: poly(s.capBigFront) },
+      { name: '앞 밑선',   role: 'side',      segs: s.bigFront },
+      { name: '밑단',      role: 'sleeveHem', segs: lineSegs(s.bigHemF, s.bigHemB) },
+      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고, 위는 미터로 잘려 뾰족해진다 */
+      { name: '트임 밑단', role: 'sleeveHem', segs: lineSegs(s.bigHemB, vB.hemOut) },
+      { name: '트임',      role: 'side',      segs: lineSegs(vB.hemOut, vB.topOut) },
+      { name: '트임 미터', role: 'side',      segs: lineSegs(vB.topOut, vB.mitreOn) },
+      { name: '뒤 절개선', role: 'side',      segs: revSegs(vB.seamHead) },
+      { name: '뒤 소매산', role: 'armhole',   segs: poly(s.capBigBack) }
+    ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
+       [{ p: cp(s.splitP), angle: 0, label: '절개 시작' },
+        { p: cp(s.apex), angle: 90, label: '소매산 정점' },
+        /* 앞 합인 — 도면 마크 (11.6975, 11.4023) */
+        { p: cp(s.pBF), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBF))), label: '앞 합인' },
+        { p: cp(vB.top), angle: 0, label: '트임 끝 (9)' }]
+       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capBigFront) || onPts(nt.p, s.capBigBack); })));
+    var und = mk('sleeveUnder', '작은소매', [
+      { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
+      { name: '절개선',     role: 'side',      segs: vU.seamHead },
+      { name: '트임 미터',  role: 'side',      segs: lineSegs(vU.mitreOn, vU.topOut) },
+      { name: '트임',       role: 'side',      segs: lineSegs(vU.topOut, vU.hemOut) },
+      { name: '트임 밑단',  role: 'sleeveHem', segs: lineSegs(vU.hemOut, s.undHemF) },
+      { name: '밑단',       role: 'sleeveHem', segs: lineSegs(s.undHemF, s.undHemB) },
+      { name: '바깥 뒤선',  role: 'side',      segs: revSegs(s.undOuter) },
+      { name: '소매통 연결', role: 'armhole',  segs: s.undCapOut }
+    ], [[s.backOutX + 2, 15], [s.backOutX + 2, s.sleeveLen - 1.0]],
+       [{ p: cp(s.splitP), angle: 180, label: '절개 시작' },
+        /* 뒤 합인 — 도면 마크 (−14.9255, 11.7312). 절개점과 소매통 사이라 작은소매 몫 */
+        { p: cp(s.pBB), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBB))), label: '뒤 합인' },
+        { p: cp(vU.top), angle: 180, label: '트임 끝 (9)' }]
+       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capUnderBack); })));
+    return [big, und];
+  }
+  function twoInternal(s, id) {
+    var big = (id === 'sleeveBig'), v = big ? s.ventBig : s.ventUnd;
+    var x0 = big ? s.bigHemB[0] : s.undHemB[0], x1 = big ? s.bigHemF[0] : s.undHemF[0];
+    var common = [
+      L('elbow',     'dashed', [[Math.min(x0, x1) - 0.5, s.elbowY], [Math.max(x0, x1) + 0.5, s.elbowY]], '팔꿈치선'),
+      /* 접음선 둘 — 절개선 아래 9 와 트임 위 가로선 2.2. 미터 사선은 **재단선**이라
+         내부선이 아니다 (외곽선 '트임 미터' 변). */
+      L('ventFold',  'dashed', subsamp(v.fold), '트임 접음선 (9)'),
+      L('ventTop',   'dashed', [cp(v.top), cp(v.topOut)], '트임 위 접음선 (2.2)'),
+      L('splitPt',   'point',  [cp(s.splitP)], '절개 시작 −AH/4')
+    ];
+    return big ? common.concat([
+      L('bicep',    'line',   [cp(s.splitP), [s.frontInX, s.topY]], '절개점 ↔ 앞 경계'),
+      L('center',   'dashed', [[s.apexShift, 0], [s.apexShift, s.sleeveLen]], '정점 수직선'),
+      L('capH',     'dashed', [[s.apexShift, 0], [s.apexShift, s.capH]], '소매산 높이'),
+      L('apexPt',   'point',  [cp(s.apex)], '정점'),
+      L('frontIn',  'point',  [[s.frontInX, s.topY]], '앞 경계 (소매통 −3)')
+    ]) : common.concat([
+      L('bicep',    'line',   [[s.backOutX, s.topY], cp(s.bicepB)], '바깥 경계 ↔ 소매통'),
+      L('backOut',  'point',  [[s.backOutX, s.topY]], '뒤 경계 (소매통 +3)')
+    ]);
+  }
+  function twoNotes(s) {
+    var B = 'sleeveBig', U = 'sleeveUnder', mid = s.sleeveLen * 0.55;
+    var vB = s.ventBig, vU = s.ventUnd;
+    return [
+      /* ── 공통 골격 (큰소매에 표기) ── */
+      FN('capH',     '소매산 높이', 'AH/4 + 2',                         s.capH, B, [s.apexShift + 0.4, s.capH * 0.5]),
+      FN('apexPt',   '정점 이동',   '앞으로 ' + f1(K.capApexShift),    s.apexShift, B, [s.apexShift, -0.9]),
+      FN('center',   '소매길이',    '2장소매 — 66호 ' + f1(SLEEVE_TYPE.two.len) +
+                                    ' · 호수당 +' + f1(SLEEVE_TYPE.two.lenGrade), s.sleeveLen, B, [s.apexShift, mid]),
+      FN('elbow',    '팔꿈치선',    '소매길이/2 + ' + f1(K.elbowAdd), s.elbowY, B, [s.frontInX * 0.4, s.elbowY]),
+      FN('splitPt',  '절개 시작점', '뒤 소매산 위 x = −AH/4',            -s.AH / 4, B, cp(s.splitP)),
+      FN('frontIn',  '앞 경계',     '앞 소매통 − ' + f1(K.twoSideOff),   s.frontInX, B, [s.frontInX, s.topY - 0.8]),
+      FN('capBigFront', '큰소매 앞 소매산', '정점 → 앞 경계 (소매통까지 가지 않는다)',
+                     polyLen(s.capBigFront), B, [s.frontInX * 0.55, s.capH * 0.45]),
+      FN('capBigBack',  '큰소매 뒤 소매산', '정점 → 절개점',
+                     polyLen(s.capBigBack), B, [s.splitP[0] * 0.5, s.capH * 0.30]),
+      FN('bigBack',  '뒤 절개선',   '작은소매 절개선과 **길이가 같아야** 봉제된다',
+                     s.seamLenBig, B, [(s.splitP[0] + s.bigHemB[0]) / 2 - 1.2, s.elbowY + 6]),
+      FN('bigFront', '앞 밑선',     '앞 경계 → 밑단 (작은소매 바깥 뒤선 ' + f1(s.underLenB) + ' 와 맞물린다)',
+                     s.underLenF, B, [s.frontInX - 1.0, s.elbowY + 8]),
+      FN('bigHem',   '큰소매 밑단', '봉제 모서리까지 (트임 덧단 ' + f1(K.ventW) + ' 는 별도)',
+                     V.dist(s.bigHemF, s.bigHemB), B, [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 1.6]),
+      FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
+                     vB.len, B, [vB.topOut[0] - 0.6, (vB.topOut[1] + vB.hemOut[1]) / 2]),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre) +
+                                    ' (직각으로 두면 접을 때 부피가 겹친다)',
+                     V.dist(vB.topOut, vB.mitreOn), B, cp(vB.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vB.top, vB.topOut), B, cp(vB.top)),
+      FN('hemDrop',  '밑단 하강',   '소매길이보다 ' + f1(K.twoHemDrop) + ' 내려간다',
+                     K.twoHemDrop, B, [s.bigHemB[0] + 1.5, s.sleeveLen + 0.7]),
+
+      /* ── 작은소매 ── */
+      FN('backOut',  '뒤 경계',     '뒤 소매통 + ' + f1(K.twoSideOff),   s.backOutX, U, [s.backOutX, s.topY - 0.8]),
+      FN('bicep',    '소매통 연결', '뒤 경계 → 소매통 끝 (소매산에 수평으로 닿는다)',
+                     polyLen(sampleSegs(s.undCapOut, 0.02)), U, [(s.backOutX + s.bicepB[0]) / 2, s.topY - 0.6]),
+      FN('capUnderBack', '작은소매 소매산', '소매통 → 절개점',
+                     polyLen(s.capUnderBack), U, [(s.bicepB[0] + s.splitP[0]) / 2, s.capH * 0.55]),
+      FN('splitPt',  '절개 시작점', '뒤 소매산 위 x = −AH/4',            -s.AH / 4, U, cp(s.splitP)),
+      FN('elbow',    '팔꿈치선',    '소매길이/2 + ' + f1(K.elbowAdd), s.elbowY, U, [s.backOutX + 2.5, s.elbowY]),
+      FN('undBack',  '절개선',      '큰소매 뒤 절개선 ' + f1(s.seamLenBig) + ' 과 같은 길이',
+                     s.seamLenUnder, U, [(s.splitP[0] + s.undHemF[0]) / 2 + 1.2, s.elbowY + 6]),
+      FN('undOuter', '바깥 뒤선',   '뒤 경계 → 밑단 (큰소매 앞 밑선과 맞물린다)',
+                     s.underLenB, U, [s.backOutX - 1.0, s.elbowY + 8]),
+      FN('undHem',   '작은소매 밑단', '봉제 모서리까지 (트임 덧단 ' + f1(K.ventW) + ' 는 별도)',
+                     V.dist(s.undHemF, s.undHemB), U, [(s.undHemF[0] + s.undHemB[0]) / 2, s.sleeveLen + 1.6]),
+      FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
+                     vU.len, U, [vU.topOut[0] + 0.6, (vU.topOut[1] + vU.hemOut[1]) / 2]),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre),
+                     V.dist(vU.topOut, vU.mitreOn), U, cp(vU.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vU.top, vU.topOut), U, cp(vU.top)),
+
+      /* ── 소맷부리 합계 (큰소매에 한 번) ── */
+      FN('cuff',     '완성 소맷부리', '큰 ' + f1(V.dist(s.bigHemF, s.bigHemB)) +
+                     ' + 작은 ' + f1(V.dist(s.undHemF, s.undHemB)) + ' (트임 덧단은 서로 겹친다)',
+                     V.dist(s.bigHemF, s.bigHemB) + V.dist(s.undHemF, s.undHemB), B,
+                     [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 3.0]),
+      FN('capAll',   '소매산 총합',  '큰 + 작은 = 암홀 ' + f1(s.AH) + ' + 이세분',
+                     polyLen(s.capBigFront) + polyLen(s.capBigBack) + polyLen(s.capUnderBack) +
+                     polyLen(sampleSegs(s.undCapOut, 0.02)), B, [s.apexShift, 1.4])
+    ];
+  }
+
+  /** 소매 종류에 따라 갈라진다 — 'tight' 한 장 타이트 · 'two' 2장소매 */
   function sleeveGeom(m, opt, AHb, AHf) {
+    var stKey = SLEEVE_TYPE[opt && opt.sleeveType] ? opt.sleeveType : 'tight';
+    if (stKey === 'two') return twoSleeveGeom(m, opt, AHb, AHf);
+    return tightSleeveGeom(m, opt, AHb, AHf);
+  }
+
+  function tightSleeveGeom(m, opt, AHb, AHf) {
     var AH = AHb + AHf;
     var capH  = AH / K.capHeightDiv;
     var apex  = [num(opt.capApexShift, K.capApexShift), 0];
@@ -1988,7 +2444,7 @@ td.n.n-fail{color:var(--red)}
     draft: draftBodice2,
     geom: geom,
     MEAS_KEYS: MEAS_KEYS, MEAS_LABEL: MEAS_LABEL, SIZES: Object.keys(SIZE_STEP),
-    BASE: BASE, GRADE: GRADE, K: K, CAL: CAL, FLATTEN: FLATTEN,
+    SLEEVE_TYPE: SLEEVE_TYPE, SLEEVE_TYPES: SLEEVE_TYPES,    BASE: BASE, GRADE: GRADE, K: K, CAL: CAL, FLATTEN: FLATTEN,
     SEAM_DEFAULT: SEAM_DEFAULT, SEAM_ROLES: SEAM_ROLES,
     util: { V: V, bez: bez, bezLen: bezLen, sLen: sLen, through: through, splineSegs: splineSegs,
             endTan: endTan, sPath: sPath, LN: LN,
@@ -5047,6 +5503,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
   function styleOpt(opt) {
     opt = opt || {};
+    opt.sleeveType = state.sleeveType;      // 소매 종류는 스타일과 함께 넘긴다
+    return styleOpt_(opt);
+  }
+  function styleOpt_(opt) {
+    opt = opt || {};
     var st = state.style || {};
     for (var i = 0; i < STYLE_KEYS.length; i++) {
       var k = STYLE_KEYS[i].k;
@@ -5322,7 +5783,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /* ═══════════════════════════════════════════════════════════════════
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
+  /** 소매 종류 select 를 엔진 목록으로 채우고 현재 값을 반영합니다 */
+  function syncSleeveType() {
+    var E = ENG();
+    if (!els || !els.sleeveType || !E || !E.SLEEVE_TYPE) return;
+    var keys = sleeveTypeKeys();
+    if (keys.indexOf(state.sleeveType) < 0) state.sleeveType = keys[0];
+    if (els.sleeveType.options.length !== keys.length) {
+      els.sleeveType.innerHTML = keys.map(function (k) {
+        return '<option value="' + esc(k) + '">' + esc(E.SLEEVE_TYPE[k].name) + '</option>';
+      }).join('');
+    }
+    els.sleeveType.value = state.sleeveType;
+  }
+
   function buildStyleFields() {
+    syncSleeveType();
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
@@ -5352,7 +5828,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.7.0';
+  var APP_VERSION = '1.8.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -5387,6 +5863,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     } catch (e) { return false; }   // 용량 초과·차단 — 저장만 못 할 뿐 앱은 그대로 돈다
   }
 
+  /** 소매 종류 — 엔진 SLEEVE_TYPE 에서 읽습니다 ('tight' 한 장 · 'two' 2장소매) */
+  function sleeveTypeKeys() {
+    var E = ENG();
+    return (E && (E.SLEEVE_TYPES || (E.SLEEVE_TYPE && Object.keys(E.SLEEVE_TYPE)))) || ['tight'];
+  }
+
   var state = {
     size: '66호',
     custom: false,
@@ -5396,6 +5878,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
+    sleeveType: 'tight',   // 'tight' 한 장 타이트 · 'two' 2장소매
     printMode: 'a4',
     rollWidthMm: 594,
     rollMaxHmm: 0,         // 롤지 한 장 최대 길이 — 0 = 연속 롤(기본). 컷시트 플로터면 841/1189
@@ -6453,6 +6936,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
+    if (els.sleeveType) els.sleeveType.addEventListener('change', function () {
+      state.sleeveType = els.sleeveType.value;
+      /* 조각 구성이 통째로 바뀐다 (소매 1장 ↔ 큰소매+작은소매) — 다시 맞춘다 */
+      recompute(true);
+    });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
       state.styleTouched_dartRise = false;
       state.style = styleDefaults();
@@ -6642,7 +7130,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), sleeveType: $('ndSleeveType'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),

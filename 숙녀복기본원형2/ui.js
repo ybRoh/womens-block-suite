@@ -48,6 +48,11 @@
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
   function styleOpt(opt) {
     opt = opt || {};
+    opt.sleeveType = state.sleeveType;      // 소매 종류는 스타일과 함께 넘긴다
+    return styleOpt_(opt);
+  }
+  function styleOpt_(opt) {
+    opt = opt || {};
     var st = state.style || {};
     for (var i = 0; i < STYLE_KEYS.length; i++) {
       var k = STYLE_KEYS[i].k;
@@ -323,7 +328,22 @@
   /* ═══════════════════════════════════════════════════════════════════
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
+  /** 소매 종류 select 를 엔진 목록으로 채우고 현재 값을 반영합니다 */
+  function syncSleeveType() {
+    var E = ENG();
+    if (!els || !els.sleeveType || !E || !E.SLEEVE_TYPE) return;
+    var keys = sleeveTypeKeys();
+    if (keys.indexOf(state.sleeveType) < 0) state.sleeveType = keys[0];
+    if (els.sleeveType.options.length !== keys.length) {
+      els.sleeveType.innerHTML = keys.map(function (k) {
+        return '<option value="' + esc(k) + '">' + esc(E.SLEEVE_TYPE[k].name) + '</option>';
+      }).join('');
+    }
+    els.sleeveType.value = state.sleeveType;
+  }
+
   function buildStyleFields() {
+    syncSleeveType();
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
@@ -353,7 +373,7 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.7.0';
+  var APP_VERSION = '1.8.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -388,6 +408,12 @@
     } catch (e) { return false; }   // 용량 초과·차단 — 저장만 못 할 뿐 앱은 그대로 돈다
   }
 
+  /** 소매 종류 — 엔진 SLEEVE_TYPE 에서 읽습니다 ('tight' 한 장 · 'two' 2장소매) */
+  function sleeveTypeKeys() {
+    var E = ENG();
+    return (E && (E.SLEEVE_TYPES || (E.SLEEVE_TYPE && Object.keys(E.SLEEVE_TYPE)))) || ['tight'];
+  }
+
   var state = {
     size: '66호',
     custom: false,
@@ -397,6 +423,7 @@
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
+    sleeveType: 'tight',   // 'tight' 한 장 타이트 · 'two' 2장소매
     printMode: 'a4',
     rollWidthMm: 594,
     rollMaxHmm: 0,         // 롤지 한 장 최대 길이 — 0 = 연속 롤(기본). 컷시트 플로터면 841/1189
@@ -1454,6 +1481,11 @@
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
+    if (els.sleeveType) els.sleeveType.addEventListener('change', function () {
+      state.sleeveType = els.sleeveType.value;
+      /* 조각 구성이 통째로 바뀐다 (소매 1장 ↔ 큰소매+작은소매) — 다시 맞춘다 */
+      recompute(true);
+    });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
       state.styleTouched_dartRise = false;
       state.style = styleDefaults();
@@ -1643,7 +1675,7 @@
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), sleeveType: $('ndSleeveType'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
