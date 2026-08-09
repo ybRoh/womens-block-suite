@@ -281,12 +281,33 @@
     dartAmount   : 4.0,        // 가슴다트 분량 (도면 `4 다트분`)
     dartRise     : 9.9,        // 다트 아래 다리 = 허리선에서 위로 9.9
     sideAboveDart: 6.2,        // 겨드랑 → 다트 위 (세로 기준, 도면 `6.2`)
-    dartTrueOut  : 1.14        // 다트 중심선을 다리길이보다 이만큼 더 연장한 곳이 트루잉 점
+    dartTrueOut  : 1.14,       // 다트 중심선을 다리길이보다 이만큼 더 연장한 곳이 트루잉 점
+
+    /* ── 타이트 소매 (교재 「타이트 소매」 도면) ──
+     *  도면의 숫자는 66호 값이고 전부 AH 로 환산된다 — 5.7 = AH/8 (45.71/8 = 5.714) ·
+     *  4.5 ≈ AH/12 + 0.6 (4.41). 소매산 높이만 이 원형이 **AH/3** 로 다르다
+     *  (숙녀복기본원형1 타이트 긴소매는 AH/4 + 2). */
+    capHeightDiv : 3,          // 소매산 높이 = AH/3 (도면 `AH/3`)
+    capApexShift : 0.6,        // 소매산 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
+    capMarkTop   : 8,          // 상단 마크 = 중심에서 AH/8 (도면 `5.7`)
+    capMarkBotB  : 0.6,        // 뒤 하단 마크 = 소매폭 끝에서 안쪽 AH/12 + 0.6 (도면 `4.5`)
+    sleeveLen    : 58.0,       // 소매길이 (66호) — UI 에서 조절
+    sleeveLenGrade: 1.0,
+    cuffW        : 24.0,       // 소매부리 (66호) — UI 에서 조절
+    cuffWGrade   : 0.5,
+    elbowAdd     : 2.5,        // 팔꿈치선 = 소매길이/2 + 2.5
+    elbowDart    : 4.5,        // 팔꿈치 다트분 (도면 `다트분 4.5`)
+    elbowTipGap  : 4.4,        // 다트 끝을 중심선에서 이만큼 떼어 놓는다 (도면 `3.8~5`)
+    cuffBackDrop : 0.3         // 소맷부리 뒤쪽 끝 내림 (도면 `0.3↓`)
   };
 
   /* 곡선 캘리브레이션 — 원본 DXF 에 맞춰 적합. 무차원 비율/접선크기라 호수를 따라 스케일된다.
      재적합: node calibrate.js */
   var CAL = {
+    /* 소매산 — 마크를 대각선에 수직으로 미는 양 (뒤는 볼록 +, 앞 하단은 오목) */
+    /* 소매산 — 대각선의 t 지점에서 수직으로 떨어진 양 (뒤 볼록 · 앞 아래 오목) */
+    sleeveCap: { tB1: 0.30, oB1: -0.8, tB2: 0.72, oB2: 1.8,
+                 tF1: 0.28, oF1: 1.7,  tF2: 0.70, oF2: -1.2, k0: 1.0, k1: 1.0 },
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
     frontNeck: { along: 0.3009, a1: -20.40, k0: 1.3493, k1: 0.8123 },                      // 편차 0.007
     backArm  : { d1: 0.2275, a0: 2.9376, k0: 0.7656, kA: 0.7750, kB: 0.6902, k1: 1.4753 }, // 편차 0.043
@@ -363,8 +384,13 @@
     var frontNeck = curveFrontNeck(FNP, SNPf, nw, SPf);
     var frontArm  = curveFrontArm(SPf, SNPf, fPitchX, Uf, BL);
 
+    /* ───────── 타이트 소매 ───────── */
+    var sleeve = (opt.includeSleeve === false) ? null
+      : sleeveGeom(m, opt, sLen(backArm), sLen(frontArm));
+
     return {
       m: m, opt: { ease: ease, shEase: shEase, dartAmount: dartAmt, dartRise: dartRise },
+      sleeve: sleeve,
       nw: nw, B: B, BL: BL, halfW: halfW, WLb: WLb, WLf: WLf, diff: diff, shEase: shEase,
       bSideX: bSideX, bPitchX: bPitchX, bNeckW: bNeckW, bSpX: bSpX,
       BNP: BNP, SNPb: SNPb, SPb: SPb, Ub: Ub, bWaist: bWaist, shLenBack: shLenBack,
@@ -434,6 +460,37 @@
       bbox: bboxOf(frontLoop.pts)
     };
 
+    /* ───────── 소매 ───────── */
+    var sv = g.sleeve, sleevePiece = null;
+    if (sv) {
+      var sleeveEdges = [
+        { name: '소매산 뒤', role: 'armhole', segs: sv.capBack },              // 뒤 겨드랑 → 정점
+        { name: '소매산 앞', role: 'armhole', segs: sv.capFront },             // 정점 → 앞 겨드랑
+        { name: '앞 밑선',  role: 'side',    segs: lineSegs(sv.capF, sv.hemF) },
+        { name: '소맷부리', role: 'sleeveHem', segs: lineSegs(sv.hemF, sv.hemB) },
+        { name: '뒤 밑선(아래)', role: 'side', segs: lineSegs(sv.hemB, sv.dartB) },
+        { name: '팔꿈치 다트',  role: 'dart', segs: lineSegs(sv.dartB, sv.dartTip, sv.dartA) },
+        { name: '뒤 밑선(위)',  role: 'side', segs: lineSegs(sv.dartA, sv.capB) }
+      ];
+      var sLoop = edgesToLoop(sleeveEdges), sSeam = buildSeamline(sLoop, seam);
+      /* 소매산 너치 — 몸판 암홀 3등분과 대응시킨다.
+         겨드랑 구간에는 이세를 넣지 않고, 이세는 위쪽 두 구간에 나눠 준다. */
+      var nCap = capNotchesB2(sv);
+      sleevePiece = {
+        id: 'sleeve', name: '소매', cutCount: 2, kind: 'sleeve',
+        grainline: [[sv.apex[0], sv.capH + 2], [sv.apex[0], sv.sleeveLen - 2]],
+        outline: sLoop.pts, seamline: sSeam.seamline, foldEdges: sSeam.foldEdges,
+        seamEdges: sSeam.seamEdges, seamFoldEdges: sSeam.seamFoldEdges,
+        seamByRole: sSeam.seamByRole, edges: withSeam(sLoop.ranges, sSeam.edgeSeam),
+        internal: sleeveInternal(sv),
+        notches: [{ p: cp(sv.apex), angle: 90, label: '소매산 정점' },
+                  { p: cp(sv.capB), angle: 0,  label: '뒤 겨드랑' },
+                  { p: cp(sv.capF), angle: 180, label: '앞 겨드랑' },
+                  { p: cp(sv.elbowBack), angle: 0, label: '팔꿈치' }].concat(nCap),
+        bbox: bboxOf(sLoop.pts)
+      };
+    }
+
     var AHb = sLen(g.backArm), AHf = sLen(g.frontArm);
     var NKb = sLen(g.backNeck), NKf = sLen(g.frontNeck);
     /* 옆선 — 앞은 다트분만큼 길게 재단하고 접으면 뒤와 같아진다 */
@@ -442,12 +499,20 @@
     var sideFrontSewn = sideFrontCut - g.opt.dartAmount;
 
     var warnings = [], notes = [];
+    if (sv) {
+      var ease2 = sv.capLen - sv.AH;
+      if (ease2 < 1.5 || ease2 > 4.5)
+        warnings.push('소매산 이세분 ' + r4(ease2) + ' cm — 타이트 소매는 2~4 가 보통입니다.');
+    }
     if (Math.abs(sideBack - sideFrontSewn) > 0.05)
       warnings.push('다트를 접은 뒤 앞 옆선 ' + r4(sideFrontSewn) + ' 이 뒤 옆선 ' + r4(sideBack) +
         ' 과 ' + r4(Math.abs(sideBack - sideFrontSewn)) + ' 다릅니다.');
 
+    var pieces = [frontPiece, backPiece];
+    if (sleevePiece) pieces.push(sleevePiece);
+
     return {
-      pieces: [frontPiece, backPiece], warnings: warnings, notes: notes,
+      pieces: pieces, warnings: warnings, notes: notes,
       measures: {
         shoulderBack: r4(g.shLenBack), shoulderFront: r4(g.shLenFront), shoulderEase: r4(g.shEase),
         shoulderBackSeam: r4(g.shLenBack), shoulderFrontSeam: r4(g.shLenFront),
@@ -457,7 +522,12 @@
         halfWidth: r4(g.halfW), ease: r4(g.opt.ease), BL: r4(g.BL),
         frontBackDiff: r4(g.diff), dartAmount: r4(g.opt.dartAmount),
         dartLeg: r4(g.dartLeg), dartAngleDeg: r4(g.dartAng * 180 / Math.PI),
-        bust: r4(g.B), waistBack: r4(g.WLb), waistFront: r4(g.WLf)
+        bust: r4(g.B), waistBack: r4(g.WLb), waistFront: r4(g.WLf),
+        capHeight: sv ? r4(sv.capH) : null, sleeveWidth: sv ? r4(sv.width) : null,
+        sleeveCapLen: sv ? r4(sv.capLen) : null,
+        sleeveCapEase: sv ? r4(sv.capLen - sv.AH) : null,
+        sleeveLen: sv ? r4(sv.sleeveLen) : null, cuffWidth: sv ? r4(sv.cuffW) : null,
+        elbowDart: sv ? r4(V.dist(sv.dartA, sv.dartB)) : null
       },
       meta: {
         title: '숙녀복 기본원형 II', source: '교재 「숙녀복 기본원형 II」 제도 1·2',
@@ -513,6 +583,99 @@
   }
   function curveFrontArm(SP, SNP, pitchX, U, BL) {
     return curveArm(SP, SNP, pitchX, U, BL, K.frontArmDown, CAL.frontArm);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+   * 5. 타이트 소매 (교재 「타이트 소매」)
+   * ════════════════════════════════════════════════════════════════ */
+  /** 좌표: 중심선 상단(정점 높이) 원점 · x = 뒤(−) / 앞(+) · y 아래 +
+   *  · 소매산 높이 = AH/3
+   *  · 정점을 앞으로 0.6 이동
+   *  · 뒤/앞 소매폭점 = 정점에서 각각 뒤AH · 앞AH 길이의 대각선이 소매폭선과 만나는 자리
+   *  · 소매산 곡선은 상단 마크(중심에서 AH/8)와 하단 마크를 지난다 */
+  function sleeveGeom(m, opt, AHb, AHf) {
+    var AH = AHb + AHf;
+    var capH  = AH / K.capHeightDiv;
+    var apex  = [num(opt.capApexShift, K.capApexShift), 0];
+    var sleeveLen = num(opt.sleeveLen, K.sleeveLen + K.sleeveLenGrade * ((m.B - BASE.B) / GRADE.B));
+    var cuffW     = num(opt.cuffW,     K.cuffW     + K.cuffWGrade     * ((m.B - BASE.B) / GRADE.B));
+
+    var dB = Math.sqrt(Math.max(0.01, AHb * AHb - capH * capH));
+    var dF = Math.sqrt(Math.max(0.01, AHf * AHf - capH * capH));
+    var capB = [apex[0] - dB, capH];                 // 뒤 소매폭점
+    var capF = [apex[0] + dF, capH];                 // 앞 소매폭점
+    var width = dB + dF;
+
+    /* 소매산 곡선 — **대각선(앞AH·뒤AH)에서 수직으로 떨어진 양**으로 그린다.
+       대각선 자체가 암홀 길이이므로, 곡선이 대각선을 조금만 벗어나야
+       소매산 길이 ≈ AH + 이세분(2~4) 이 된다.
+       위쪽은 볼록(+), 아래쪽은 오목(−) — 도면의 ≠ 마크가 그 자리다. */
+    var C = CAL.sleeveCap;
+    function onDiag(a, b, t, off) {                 // a→b 대각선의 t 지점에서 수직 off
+      var u = V.norm(V.sub(b, a)), n2 = [u[1], -u[0]];
+      var p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      return [p[0] + n2[0] * off, p[1] + n2[1] * off];
+    }
+    /* 뒤 — 겨드랑(capB) → 정점(apex) : 위쪽 볼록 · 아래쪽 살짝 오목 */
+    var pB1 = onDiag(capB, apex, C.tB1, -C.oB1);
+    var pB2 = onDiag(capB, apex, C.tB2, -C.oB2);
+    /* 앞 — 정점(apex) → 겨드랑(capF) : 위쪽 볼록 · 아래쪽 오목 */
+    var pF1 = onDiag(apex, capF, C.tF1,  C.oF1);
+    var pF2 = onDiag(apex, capF, C.tF2,  C.oF2);
+    var capBack  = splineSegs([capB, pB1, pB2, apex], endTan([0, -1], C.k0), endTan([1, 0], C.k1));
+    var capFront = splineSegs([apex, pF1, pF2, capF], endTan([1, 0], C.k1), endTan([0, 1], C.k0));
+
+    /* 소매길이 · 팔꿈치선 · 소매부리 */
+    var elbowY = sleeveLen / 2 + K.elbowAdd;
+    var hemB = [-cuffW / 2, sleeveLen + K.cuffBackDrop];
+    var hemF = [ cuffW / 2, sleeveLen];
+    /* 팔꿈치 다트 — 뒤 밑선에서 다트분만큼, 끝은 중심선에서 elbowTipGap 떨어진다 */
+    var eb = lineAt(capB, hemB, elbowY);
+    var dartA = [eb[0], eb[1] - num(opt.elbowDart, K.elbowDart) / 2];
+    var dartB = [eb[0], eb[1] + num(opt.elbowDart, K.elbowDart) / 2];
+    var dartTip = [-K.elbowTipGap, elbowY];
+
+    return {
+      AH: AH, AHb: AHb, AHf: AHf, capH: capH, apex: apex, capB: capB, capF: capF,
+      width: width, sleeveLen: sleeveLen, cuffW: cuffW, elbowY: elbowY,
+      hemB: hemB, hemF: hemF, elbowBack: eb, dartA: dartA, dartB: dartB, dartTip: dartTip,
+      capBack: capBack, capFront: capFront,
+      capLen: sLen(capBack) + sLen(capFront)
+    };
+  }
+  /** 두 점을 잇는 직선 위에서 y 좌표가 주어진 자리 */
+  function lineAt(a, b, y) {
+    var t = (b[1] - a[1]) ? (y - a[1]) / (b[1] - a[1]) : 0;
+    return [a[0] + (b[0] - a[0]) * t, y];
+  }
+
+  /** 소매산 너치 — 몸판 암홀 3등분에 대응. 겨드랑 구간은 이세 0, 나머지에 이세를 나눈다 */
+  function capNotchesB2(sv) {
+    var out = [], mid = [sv.apex[0], sv.capH + sv.sleeveLen * 0.3];
+    var easeAll = Math.max(0, sv.capLen - sv.AH);
+    [[sv.capBack, sv.AHb, '뒤', easeAll * 0.6, true],
+     [sv.capFront, sv.AHf, '앞', easeAll * 0.4, false]].forEach(function (w) {
+      var segs = w[0], L = w[1], tag = w[2], ez = w[3], fromEnd = w[4];
+      var acc = 0;
+      for (var q = 1; q < 3; q++) {
+        acc += ez * (q === 1 ? 0 : 0.5);           // 겨드랑 구간(1/3)에는 이세를 안 넣는다
+        var h = _ptAtLen(segs, L * q / 3 + acc, fromEnd);
+        out.push({ p: cp(h.p), angle: _inward(h.tan, h.p, mid), label: '소매산 ' + tag + ' ' + q + '/3' });
+      }
+    });
+    return out;
+  }
+  function sleeveInternal(sv) {
+    return [
+      L('capLine',  'line',   [[sv.capB[0], sv.capH], [sv.capF[0], sv.capH]], '소매폭선'),
+      L('center',   'dashed', [[sv.apex[0], 0], [sv.apex[0], sv.sleeveLen]], '중심선'),
+      L('elbow',    'dashed', [[sv.capB[0], sv.elbowY], [sv.capF[0], sv.elbowY]], '팔꿈치선'),
+      L('diagB',    'dashed', [sv.capB, sv.apex], '뒤 AH 대각선'),
+      L('diagF',    'dashed', [sv.apex, sv.capF], '앞 AH 대각선'),
+      L('dartLegA', 'line',   [sv.dartTip, sv.dartA], '팔꿈치 다트'),
+      L('dartLegB', 'line',   [sv.dartTip, sv.dartB], '팔꿈치 다트'),
+      L('apex',     'point',  [sv.apex], '정점')
+    ];
   }
 
   /* ══════════════════════════════════════════════════════════════════
