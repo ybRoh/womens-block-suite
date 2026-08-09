@@ -31,7 +31,9 @@
   /* 스타일 값 — 교재가 범위로 준 것(진동 올림 1.9~3.1 등)은 사용자가 고를 수 있게 UI 로 뺐다.
      기본값은 원본 66호 DXF 와 같다. 엔진 K 와 이름이 1:1 대응된다. */
   var STYLE_KEYS = [
-    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, hint: '가슴선(B/4)에서 위로 · 원본 도면 1.9~3.1' },
+    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, seg: true,
+      hint: '겨드랑을 가슴선(B/4)에서 위로 올리는 양 — 클수록 암홀이 작고 높아집니다. ' +
+            '기본 0.5 는 받쳐 입거나 다른 옷의 바탕으로 쓸 때, 민소매 단독 착용은 1.9~3.1 (원본 도면 3.0)' },
     { k: 'facing',     label: '안단너비',   min: 2,  max: 8,  step: 0.5, hint: '목둘레·암홀 공통 · 기본 4' },
     { k: 'vDepth',     label: 'V 깊이',    min: 8,  max: 30, step: 0.5, hint: '앞중심 · 기본 = 앞목깊이 + 7.0' },
     { k: 'wrapUp',     label: '자락 끝',    min: 2,  max: 20, step: 0.5, hint: '허리선에서 위로 · 기본 9.3' },
@@ -39,18 +41,40 @@
     { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1,
       hint: '허리선에서 위로 · 기본 = 옆선 × 0.589 (66호에서 B/8 과 같은 값)' }
   ];
-  function styleDefaults() {
-    var E = ENG(), K = (E && E.K) || {}, m = state.m || {};
+  /** 진동 올림의 빠른 선택 버튼 — 숫자는 전부 엔진 K 에서 읽습니다.
+      기본 0.5 는 겨드랑을 거의 안 올린 상태, 1.9~3.1 은 민소매로 단독 착용할 때입니다. */
+  function armRisePresets() {
+    var K = (ENG() && ENG().K) || {};
+    var def = (K.armRise    === undefined) ? 0.5 : K.armRise;
+    var lo  = (K.armRiseMin === undefined) ? 1.9 : K.armRiseMin;
+    var hi  = (K.armRiseMax === undefined) ? 3.1 : K.armRiseMax;
+    var mid = Math.round((lo + hi) / 2 * 10) / 10;
+    return [
+      { v: def, label: f1(def) + ' 기본', hint: '겨드랑을 거의 안 올립니다 — 받쳐 입거나 다른 옷의 바탕으로 쓸 때' },
+      { v: lo,  label: f1(lo),  hint: '민소매 단독 착용 · 도면 범위 하한' },
+      { v: mid, label: f1(mid), hint: '민소매 단독 착용 · 도면 범위 중간' },
+      { v: hi,  label: f1(hi),  hint: '민소매 단독 착용 · 도면 범위 상한 (원본 도면은 3.0)' }
+    ];
+  }
+  /** @param over 다트 위치를 계산할 때 쓸 값을 덮어씁니다 — {armRise: n} 처럼.
+   *  생략하면 지금 선택된 진동 올림을 씁니다. 「기본값 복원」은 엔진 값을 넘겨야
+   *  다트 위치가 복원 전 진동 올림을 따라가지 않습니다. */
+  function styleDefaults(over) {
+    var E = ENG(), K = (E && E.K) || {}, m = state.m || {}, ov = over || {};
+    var kArm = (K.armRise === undefined) ? 0.5 : K.armRise;
+    /* ⚠ || 체인을 쓰면 안 됩니다 — 진동 올림 0 은 falsy 라 엔진값으로 잘못 튑니다. */
+    var ar = ov.armRise;
+    if (ar === undefined) ar = (state.style || {}).armRise;
+    if (ar === undefined) ar = kArm;
     return {
       sideTrue:   (K.sideTrue === undefined) ? true : !!K.sideTrue,
-      armRise:    (K.armRise    === undefined) ? 3.0  : K.armRise,
+      armRise:    kArm,
       facing:     (K.facing     === undefined) ? 4.0  : K.facing,
       vDepth:     (m.B ? m.B / 12 + (K.frontNeckDeep || 0.3) + (K.vDepthAdd || 7.0) : 14.6),
       wrapUp:     (K.wrapUp     === undefined) ? 9.3  : K.wrapUp,
       dartAmount: (K.dartAmount === undefined) ? 1.5  : K.dartAmount,
       dartRise:   (m.B && m.backLen
-                    ? (m.backLen - (m.B / 4 - ((state.style && state.style.armRise) || K.armRise || 3)))
-                      * (K.dartRiseRatio || 10.95 / 18.6)
+                    ? (m.backLen - (m.B / 4 - ar)) * (K.dartRiseRatio || 10.95 / 18.6)
                     : 10.95)
     };
   }
@@ -333,31 +357,55 @@
   /* ═══════════════════════════════════════════════════════════════════
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
+  /** 스타일 값 하나를 바꿉니다 — 숫자 입력과 빠른 선택 버튼이 같은 길을 씁니다.
+   *  @param inp 숫자 입력에서 온 경우 그 요소 (값을 정규화해 되돌려 씁니다) */
+  function setStyleValue(k, v, inp) {
+    var def = STYLE_KEYS.filter(function (f) { return f.k === k; })[0];
+    if (!def) return;
+    if (!isFinite(v)) v = styleDefaults()[k];
+    v = Math.min(def.max, Math.max(def.min, v));
+    state.style[k] = v;
+    if (k === 'dartRise') state.styleTouched_dartRise = true;
+    var rebuild = !!def.seg;                               // 빠른 선택 버튼의 켜짐 상태 갱신
+    if (k === 'armRise' && !state.styleTouched_dartRise) {
+      state.style.dartRise = styleDefaults().dartRise;      // 옆선이 바뀌면 다트도 따라갑니다
+      rebuild = true;
+    }
+    if (rebuild) buildStyleFields();
+    else if (inp) inp.value = Math.round(v * 100) / 100;
+    recompute(false);
+  }
+
   function buildStyleFields() {
     if (els.sideTrue) els.sideTrue.checked = state.style.sideTrue !== false;
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
-      return '<label class="field"><span class="field-l">' + esc(f.label) + '</span>' +
+      var row = '<label class="field"><span class="field-l">' + esc(f.label) + '</span>' +
         '<span class="numwrap"><input type="number" data-style="' + esc(f.k) + '"' +
         ' step="' + f.step + '" min="' + f.min + '" max="' + f.max + '"' +
         ' value="' + (v === undefined ? '' : (Math.round(v * 100) / 100)) + '"' +
         ' title="' + esc(f.hint) + '"><span class="unit">cm</span></span></label>';
+      /* 빠른 선택 버튼 — 어느 것과도 안 맞으면 전부 꺼둡니다(숫자를 직접 넣은 경우) */
+      if (f.seg && f.k === 'armRise') {
+        row += '<div class="seg seg-mini" data-style-seg="' + esc(f.k) + '" role="group" aria-label="' + esc(f.label) + ' 빠른 선택">' +
+          armRisePresets().map(function (p) {
+            return '<button type="button" class="seg-btn' + (Math.abs((v === undefined ? -99 : v) - p.v) < 1e-9 ? ' is-on' : '') +
+              '" data-v="' + p.v + '" title="' + esc(p.hint) + '">' + esc(p.label) + '</button>';
+          }).join('') + '</div>';
+      }
+      return row;
     }).join('');
+    Array.prototype.forEach.call(els.styleBox.querySelectorAll('[data-style-seg]'), function (seg) {
+      seg.addEventListener('click', function (e) {
+        var b = e.target.closest('.seg-btn');
+        if (!b) return;
+        setStyleValue(seg.getAttribute('data-style-seg'), parseFloat(b.dataset.v));
+      });
+    });
     Array.prototype.forEach.call(els.styleBox.querySelectorAll('input[data-style]'), function (inp) {
       inp.addEventListener('change', function () {
-        var k = inp.dataset.style, v = parseFloat(inp.value);
-        var def = STYLE_KEYS.filter(function (f) { return f.k === k; })[0];
-        if (!isFinite(v)) v = styleDefaults()[k];
-        v = Math.min(def.max, Math.max(def.min, v));
-        inp.value = Math.round(v * 100) / 100;
-        state.style[k] = v;
-        if (k === 'armRise' && !state.styleTouched_dartRise) {
-          state.style.dartRise = styleDefaults().dartRise;   // 옆선이 바뀌면 따라간다
-          buildStyleFields();
-        }
-        if (k === 'dartRise') state.styleTouched_dartRise = true;
-        recompute(false);
+        setStyleValue(inp.dataset.style, parseFloat(inp.value), inp);
       });
     });
   }
@@ -369,7 +417,7 @@
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.2.0';
+  var APP_VERSION = '1.3.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -1466,7 +1514,9 @@
     });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
       state.styleTouched_dartRise = false;
-      state.style = styleDefaults();
+      /* 다트 위치는 **엔진 기본 진동올림** 기준으로 다시 잡습니다 —
+         안 그러면 복원 직후 진동올림만 기본으로 돌아가고 다트는 복원 전 값을 따라갑니다. */
+      state.style = styleDefaults({ armRise: ((ENG() && ENG().K) || {}).armRise });
       buildStyleFields();
       recompute(true);
       toast('스타일을 기본값으로 되돌렸습니다.');

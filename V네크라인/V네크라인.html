@@ -6,7 +6,7 @@
 <title>V 네크라인 (민소매 · 자락 앞면) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-09 19:03 -->
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-09 19:26 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -415,6 +415,10 @@ td.n.n-fail{color:var(--red)}
 /* ══ 버전 배지 — 재빌드 후 새로고침 확인용 (SPEC §17-2) ══════════════ */
 .badge-ver{font-variant-numeric:tabular-nums;letter-spacing:0}
 
+/* ══ 스타일 값 빠른 선택 (진동 올림 등) — SPEC §V-9 ══════════════════ */
+.seg-mini{margin:-2px 0 6px;gap:3px}
+.seg-mini .seg-btn{padding:3px 0;font-size:11px;flex:1}
+
 /* ══ print.css ══ */
 /* ============================================================================
  * print.css — 기본 무다트 원형 1:1 출력용 규칙
@@ -593,8 +597,12 @@ td.n.n-fail{color:var(--red)}
         <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
         <label class="chip" style="margin:6px 0 2px"><input type="checkbox" id="ndSideTrue" checked><span>옆선 트루잉 — 다트분만큼 앞판 늘림</span></label>
         <button type="button" class="btn btn-ghost btn-wide" id="ndStyleReset">기본값 복원</button>
-        <p class="hint">원본 도면이 범위로 준 값(진동 올림 1.9~3.1)을 여기서 고릅니다.
-          <b>기본값은 66호 원본 도면과 같습니다.</b></p>
+        <p class="hint"><b>진동 올림</b>은 겨드랑을 가슴선(B/4)에서 위로 올리는 양입니다 —
+          <b>클수록 암홀이 작고 높아집니다.</b> 기본 <b>0.5</b>는 겨드랑을 거의 안 올린 상태로,
+          안에 받쳐 입거나 이 원형을 다른 옷의 바탕으로 쓸 때입니다.
+          <b>민소매로 단독 착용하면 1.9~3.1</b>을 고르세요 — 소매가 겨드랑을 가려주지 않으므로
+          높이 파야 옆가슴이 덜 보이고 암홀 아랫부분이 덜 벌어집니다 (원본 66호 도면은 3.0).
+          나머지 값의 기본은 66호 원본 도면과 같습니다.</p>
         <p class="hint"><b>앞면은 앞중심을 넘어 반대 옆선까지 가는 자락</b>입니다 — 좌우 대칭으로 2장 재단해 겹칩니다.
           자락은 한쪽만 늘어나 있어 그것만으로는 대칭 앞판을 못 만들므로
           <b>「앞면 (자락 없음)」</b> 조각을 함께 냅니다 — 앞중심을 <b>골선</b>으로 놓고 1장 재단하면
@@ -823,7 +831,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-09 19:03'; window.ND_APP = 'V네크라인';</script>
+<script>window.ND_BUILD = '2026-08-09 19:26'; window.ND_APP = 'V네크라인';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1075,8 +1083,16 @@ td.n.n-fail{color:var(--red)}
     /* ── 공통 ── */
     fixedX       : 23.5,       // 고정치수선 (전 호수 고정)
     facing       : 4.0,        // 안단너비 — 목둘레·암홀 공통 (도면 `4(1⅝)`)
-    armRise      : 3.0,        // 진동 올림 — 가슴선(B/4)에서 위로. 도면 `1.9~3.1`
-    armRiseMin   : 1.9,
+    /* 진동 올림 — 겨드랑을 가슴선(B/4)에서 **위로** 올리는 양. 클수록 암홀이 작고 높아진다.
+     *  기본 0.5 : 겨드랑을 거의 안 올린 상태. 안에 받쳐 입거나 이 원형을 다른 옷의
+     *             바탕으로 쓸 때. 66호 암홀 44.7.
+     *  1.9~3.1  : 도면이 준 범위 — 민소매로 **단독 착용**할 때. 소매가 겨드랑을 가려주지
+     *             않으므로 암홀을 높이 파야 옆가슴이 안 보이고 아랫부분이 덜 벌어진다.
+     *             66호 암홀 40.0(3.0 기준).
+     *  ⚠ 원본 66호 DXF 는 3.0 으로 그려졌다. 정답지 대조는 armRiseDxf 로 해야 한다. */
+    armRise      : 0.5,
+    armRiseDxf   : 3.0,        // 원본 도면 값 — engine-verify.js 의 DXF 대조 전용
+    armRiseMin   : 1.9,        // 민소매 단독 착용 권장 범위 (도면 `1.9~3.1`)
     armRiseMax   : 3.1,
 
     /* ── 뒤판 (기본무다트원형 34P 그대로) ── */
@@ -1099,8 +1115,10 @@ td.n.n-fail{color:var(--red)}
     wrapUp       : 9.3,        // 자락 끝(반대 옆선) = 허리선에서 위로 9.3 — 66호 상단에서 28.2
     dartAmount   : 1.5,        // 가슴다트 분량 (도면 `1.5(⅝) 다트`)
     /* 다트 아래 다리 = 허리선에서 위로 **옆선 길이 × dartRiseRatio**.
-     *  66호에서는 B/8 (10.95) 과 같은 값이고, 다른 호수만 달라진다.
+     *  진동올림 3.0(도면값) 일 때 66호에서 B/8 (10.95) 과 같은 값이 되고, 다른 호수만 달라진다.
      *    ratio = (87.6/8) / (37.5 − (87.6/4 − 3)) = 10.95 / 18.6
+     *  ⚠ 비율이라 진동올림을 낮추면 다트도 따라 내려간다 (기본 0.5 면 66호 9.48).
+     *    겨드랑과의 간격이 유지되는 것이 목적이므로 이게 맞는 동작이다.
      *  왜 B/8 을 그대로 안 쓰나 — 이 원형은 겨드랑이 B/4 를 따라 호수당 1.5 내려가는데
      *  등길이는 0.5 밖에 안 늘어 **옆선이 호수당 1.0 짧아진다**(44호 20.6 → 88호 16.6).
      *  거기에 B/8 은 호수당 0.75 올라가서 둘이 1.75 씩 가까워지고, 88호에서는
@@ -2017,7 +2035,9 @@ td.n.n-fail{color:var(--red)}
     return [
       /* ── 뒷면 ── */
       FN('BL',       'BL',        'B/4',                     g.BL,      'back',  [g.bSideX * 0.5, g.BL]),
-      FN('armLine',  '겨드랑선',   'B/4 − 진동올림 ' + f1(g.opt.armRise) + ' (1.9~3.1)', g.armY, 'back', [g.bSideX * 0.72, g.armY]),
+      FN('armLine',  '겨드랑선',   'B/4 − 진동올림 ' + f1(g.opt.armRise) +
+                                   ' (기본 ' + f1(K.armRise) + ' · 민소매 단독 ' + f1(K.armRiseMin) + '~' + f1(K.armRiseMax) + ')',
+                                                              g.armY,    'back',  [g.bSideX * 0.72, g.armY]),
       FN('WL',       '허리선',     '등길이',                   g.WL,      'back',  [g.bSideX * 0.5, g.WL]),
       FN('side',     '옆선',       'B/4 + 1.9',               g.bSideX,  'back',  [g.bSideX, (g.armY + g.WL) / 2]),
       FN('backW',    '등품선',     '등품/2',                   g.bPitchX, 'back',  [g.bPitchX, g.BL * 0.62]),
@@ -5069,7 +5089,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /* 스타일 값 — 교재가 범위로 준 것(진동 올림 1.9~3.1 등)은 사용자가 고를 수 있게 UI 로 뺐다.
      기본값은 원본 66호 DXF 와 같다. 엔진 K 와 이름이 1:1 대응된다. */
   var STYLE_KEYS = [
-    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, hint: '가슴선(B/4)에서 위로 · 원본 도면 1.9~3.1' },
+    { k: 'armRise',    label: '진동 올림',  min: 0,  max: 6,  step: 0.1, seg: true,
+      hint: '겨드랑을 가슴선(B/4)에서 위로 올리는 양 — 클수록 암홀이 작고 높아집니다. ' +
+            '기본 0.5 는 받쳐 입거나 다른 옷의 바탕으로 쓸 때, 민소매 단독 착용은 1.9~3.1 (원본 도면 3.0)' },
     { k: 'facing',     label: '안단너비',   min: 2,  max: 8,  step: 0.5, hint: '목둘레·암홀 공통 · 기본 4' },
     { k: 'vDepth',     label: 'V 깊이',    min: 8,  max: 30, step: 0.5, hint: '앞중심 · 기본 = 앞목깊이 + 7.0' },
     { k: 'wrapUp',     label: '자락 끝',    min: 2,  max: 20, step: 0.5, hint: '허리선에서 위로 · 기본 9.3' },
@@ -5077,18 +5099,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'dartRise',   label: '다트 위치',  min: 4,  max: 20, step: 0.1,
       hint: '허리선에서 위로 · 기본 = 옆선 × 0.589 (66호에서 B/8 과 같은 값)' }
   ];
-  function styleDefaults() {
-    var E = ENG(), K = (E && E.K) || {}, m = state.m || {};
+  /** 진동 올림의 빠른 선택 버튼 — 숫자는 전부 엔진 K 에서 읽습니다.
+      기본 0.5 는 겨드랑을 거의 안 올린 상태, 1.9~3.1 은 민소매로 단독 착용할 때입니다. */
+  function armRisePresets() {
+    var K = (ENG() && ENG().K) || {};
+    var def = (K.armRise    === undefined) ? 0.5 : K.armRise;
+    var lo  = (K.armRiseMin === undefined) ? 1.9 : K.armRiseMin;
+    var hi  = (K.armRiseMax === undefined) ? 3.1 : K.armRiseMax;
+    var mid = Math.round((lo + hi) / 2 * 10) / 10;
+    return [
+      { v: def, label: f1(def) + ' 기본', hint: '겨드랑을 거의 안 올립니다 — 받쳐 입거나 다른 옷의 바탕으로 쓸 때' },
+      { v: lo,  label: f1(lo),  hint: '민소매 단독 착용 · 도면 범위 하한' },
+      { v: mid, label: f1(mid), hint: '민소매 단독 착용 · 도면 범위 중간' },
+      { v: hi,  label: f1(hi),  hint: '민소매 단독 착용 · 도면 범위 상한 (원본 도면은 3.0)' }
+    ];
+  }
+  /** @param over 다트 위치를 계산할 때 쓸 값을 덮어씁니다 — {armRise: n} 처럼.
+   *  생략하면 지금 선택된 진동 올림을 씁니다. 「기본값 복원」은 엔진 값을 넘겨야
+   *  다트 위치가 복원 전 진동 올림을 따라가지 않습니다. */
+  function styleDefaults(over) {
+    var E = ENG(), K = (E && E.K) || {}, m = state.m || {}, ov = over || {};
+    var kArm = (K.armRise === undefined) ? 0.5 : K.armRise;
+    /* ⚠ || 체인을 쓰면 안 됩니다 — 진동 올림 0 은 falsy 라 엔진값으로 잘못 튑니다. */
+    var ar = ov.armRise;
+    if (ar === undefined) ar = (state.style || {}).armRise;
+    if (ar === undefined) ar = kArm;
     return {
       sideTrue:   (K.sideTrue === undefined) ? true : !!K.sideTrue,
-      armRise:    (K.armRise    === undefined) ? 3.0  : K.armRise,
+      armRise:    kArm,
       facing:     (K.facing     === undefined) ? 4.0  : K.facing,
       vDepth:     (m.B ? m.B / 12 + (K.frontNeckDeep || 0.3) + (K.vDepthAdd || 7.0) : 14.6),
       wrapUp:     (K.wrapUp     === undefined) ? 9.3  : K.wrapUp,
       dartAmount: (K.dartAmount === undefined) ? 1.5  : K.dartAmount,
       dartRise:   (m.B && m.backLen
-                    ? (m.backLen - (m.B / 4 - ((state.style && state.style.armRise) || K.armRise || 3)))
-                      * (K.dartRiseRatio || 10.95 / 18.6)
+                    ? (m.backLen - (m.B / 4 - ar)) * (K.dartRiseRatio || 10.95 / 18.6)
                     : 10.95)
     };
   }
@@ -5371,31 +5415,55 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /* ═══════════════════════════════════════════════════════════════════
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
+  /** 스타일 값 하나를 바꿉니다 — 숫자 입력과 빠른 선택 버튼이 같은 길을 씁니다.
+   *  @param inp 숫자 입력에서 온 경우 그 요소 (값을 정규화해 되돌려 씁니다) */
+  function setStyleValue(k, v, inp) {
+    var def = STYLE_KEYS.filter(function (f) { return f.k === k; })[0];
+    if (!def) return;
+    if (!isFinite(v)) v = styleDefaults()[k];
+    v = Math.min(def.max, Math.max(def.min, v));
+    state.style[k] = v;
+    if (k === 'dartRise') state.styleTouched_dartRise = true;
+    var rebuild = !!def.seg;                               // 빠른 선택 버튼의 켜짐 상태 갱신
+    if (k === 'armRise' && !state.styleTouched_dartRise) {
+      state.style.dartRise = styleDefaults().dartRise;      // 옆선이 바뀌면 다트도 따라갑니다
+      rebuild = true;
+    }
+    if (rebuild) buildStyleFields();
+    else if (inp) inp.value = Math.round(v * 100) / 100;
+    recompute(false);
+  }
+
   function buildStyleFields() {
     if (els.sideTrue) els.sideTrue.checked = state.style.sideTrue !== false;
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
-      return '<label class="field"><span class="field-l">' + esc(f.label) + '</span>' +
+      var row = '<label class="field"><span class="field-l">' + esc(f.label) + '</span>' +
         '<span class="numwrap"><input type="number" data-style="' + esc(f.k) + '"' +
         ' step="' + f.step + '" min="' + f.min + '" max="' + f.max + '"' +
         ' value="' + (v === undefined ? '' : (Math.round(v * 100) / 100)) + '"' +
         ' title="' + esc(f.hint) + '"><span class="unit">cm</span></span></label>';
+      /* 빠른 선택 버튼 — 어느 것과도 안 맞으면 전부 꺼둡니다(숫자를 직접 넣은 경우) */
+      if (f.seg && f.k === 'armRise') {
+        row += '<div class="seg seg-mini" data-style-seg="' + esc(f.k) + '" role="group" aria-label="' + esc(f.label) + ' 빠른 선택">' +
+          armRisePresets().map(function (p) {
+            return '<button type="button" class="seg-btn' + (Math.abs((v === undefined ? -99 : v) - p.v) < 1e-9 ? ' is-on' : '') +
+              '" data-v="' + p.v + '" title="' + esc(p.hint) + '">' + esc(p.label) + '</button>';
+          }).join('') + '</div>';
+      }
+      return row;
     }).join('');
+    Array.prototype.forEach.call(els.styleBox.querySelectorAll('[data-style-seg]'), function (seg) {
+      seg.addEventListener('click', function (e) {
+        var b = e.target.closest('.seg-btn');
+        if (!b) return;
+        setStyleValue(seg.getAttribute('data-style-seg'), parseFloat(b.dataset.v));
+      });
+    });
     Array.prototype.forEach.call(els.styleBox.querySelectorAll('input[data-style]'), function (inp) {
       inp.addEventListener('change', function () {
-        var k = inp.dataset.style, v = parseFloat(inp.value);
-        var def = STYLE_KEYS.filter(function (f) { return f.k === k; })[0];
-        if (!isFinite(v)) v = styleDefaults()[k];
-        v = Math.min(def.max, Math.max(def.min, v));
-        inp.value = Math.round(v * 100) / 100;
-        state.style[k] = v;
-        if (k === 'armRise' && !state.styleTouched_dartRise) {
-          state.style.dartRise = styleDefaults().dartRise;   // 옆선이 바뀌면 따라간다
-          buildStyleFields();
-        }
-        if (k === 'dartRise') state.styleTouched_dartRise = true;
-        recompute(false);
+        setStyleValue(inp.dataset.style, parseFloat(inp.value), inp);
       });
     });
   }
@@ -5407,7 +5475,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
      ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
      화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
      print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
-  var APP_VERSION = '1.2.0';
+  var APP_VERSION = '1.3.0';
   function buildStamp() {
     var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
     return 'v' + APP_VERSION + ' · ' + (b || '개발판');
@@ -6504,7 +6572,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
       state.styleTouched_dartRise = false;
-      state.style = styleDefaults();
+      /* 다트 위치는 **엔진 기본 진동올림** 기준으로 다시 잡습니다 —
+         안 그러면 복원 직후 진동올림만 기본으로 돌아가고 다트는 복원 전 값을 따라갑니다. */
+      state.style = styleDefaults({ armRise: ((ENG() && ENG().K) || {}).armRise });
       buildStyleFields();
       recompute(true);
       toast('스타일을 기본값으로 되돌렸습니다.');

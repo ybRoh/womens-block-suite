@@ -67,7 +67,10 @@ console.log('══════════════════════�
 console.log(' 1. 66호 제도점 — 원본 DXF 대조   (허용 ' + TOL_PT.toFixed(2) + ' cm)');
 console.log('════════════════════════════════════════════════════════════');
 var m66 = E.measuresForSize('66호');
-var g = E.geom(m66);
+/* ⚠ 원본 66호 DXF 는 진동올림 3.0 으로 그려졌다. 앱 기본값은 0.5 라 정답지 대조에서는
+   반드시 도면값을 명시한다 — 안 그러면 겨드랑·다트·암홀이 2.5 씩 어긋난다. */
+var DXF_ARM = (E.K && E.K.armRiseDxf !== undefined) ? E.K.armRiseDxf : 3.0;
+var g = E.geom(m66, { armRise: DXF_ARM });
 
 console.log(' [뒷면]');
 okPt('BNP',            g.BNP,          [0, -0.3]);
@@ -108,7 +111,7 @@ okCurve('V 네크라인',  g.vNeck,    'V 네크라인');
 console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 3. 안단선 (조각 안쪽 4.0 평행선) — 원본 DXF 대조');
 console.log('════════════════════════════════════════════════════════════');
-var d66 = E.draftVNeck(m66, { seam: 0 });
+var d66 = E.draftVNeck(m66, { seam: 0, armRise: DXF_ARM });   // 정답지 대조 — 위 DXF_ARM 주석 참고
 function facingInner(pieceId) {
   var p = d66.pieces.filter(function (x) { return x.id === pieceId; })[0];
   var e = p.edges.filter(function (x) { return x.role === 'facing'; })[0];

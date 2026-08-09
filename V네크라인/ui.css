@@ -403,3 +403,7 @@ td.n.n-fail{color:var(--red)}
 
 /* ══ 버전 배지 — 재빌드 후 새로고침 확인용 (SPEC §17-2) ══════════════ */
 .badge-ver{font-variant-numeric:tabular-nums;letter-spacing:0}
+
+/* ══ 스타일 값 빠른 선택 (진동 올림 등) — SPEC §V-9 ══════════════════ */
+.seg-mini{margin:-2px 0 6px;gap:3px}
+.seg-mini .seg-btn{padding:3px 0;font-size:11px;flex:1}
