@@ -53,13 +53,13 @@ var DEFAULTS = {
 /* ── 부위별 시접 (SPEC §11-1) ─────────────────────────────────────────── */
 var SEAM_DEFAULTS = {
   neck: 1.0, shoulder: 1.0, armhole: 1.0,
-  side: 1.5, hem: 3.0, dart: 1.5, facing: 1.0, fold: 0
+  side: 1.5, hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0
 };
 var ROLE_KO = {
   neck: '목', shoulder: '어깨', armhole: '진동',
-  side: '옆선', hem: '밑단', dart: '다트', facing: '안단 안쪽', fold: '골선'
+  side: '옆선', hem: '밑단', sleeveHem: '소맷부리', dart: '다트', fold: '골선'
 };
-var ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'dart', 'facing', 'fold'];
+var ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem', 'dart', 'fold'];
 var MITER_LIMIT = 3.0;      // 볼록 모서리 교점이 이보다 멀면 bevel
 
 /* ── 색/선 규약 (스킬 색 약속: 검정=패턴, 파랑=치수/보조정보, 회색=인쇄보조) ── */

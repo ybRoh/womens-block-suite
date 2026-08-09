@@ -713,7 +713,8 @@
   }
 
   /* ── 위치별 시접 (SPEC §11-1) ─────────────────────────────────────── */
-  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, dart: 1.5, facing: 1.0, fold: 0 };
+  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0,
+                       sleeveHem: 2.5, dart: 1.5, fold: 0 };
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);
 
   /** opt.seam 정규화 — 숫자면 전 부위 균일, 객체면 role 별. fold 는 항상 0 강제. */
@@ -837,6 +838,10 @@
          골선 밖으로 튀어나오는데, 두 선이 거의 공선이라 removeSelfLoops 가 못 잡는다.
          (SPEC §11-2 — 골선은 x 를 유지한 채 시접 폭만큼 연장돼야 한다) */
       var q0 = 1, q1 = offK.length - 2;
+      /* 짧은 변은 양쪽 모서리 정리로 통째로 사라질 수 있다 — 각 끝에서 최대 40% 만 자른다.
+         (안단 캡처럼 4cm 짜리 변이 점 1개로 줄면 시접선이 그 자리를 건너뛰어
+          모서리끼리 직선으로 이어져 '시접 간격이 들쭉날쭉'해 보인다) */
+      var lim = Math.max(0, Math.floor((offK.length - 2) * 0.4));
       if (offK.length > 3) {
         var Xs = cprev.pts[cprev.pts.length - 1], Xe = corners[k].pts[0];
         var d0 = V.sub(offK[1], offK[0]), d1 = V.sub(offK[offK.length - 1], offK[offK.length - 2]);
@@ -847,10 +852,12 @@
           if (!L || !C || V.dist(pt, C.p) > C.r) return false;
           return ((pt[0] - L.p[0]) * L.n[0] + (pt[1] - L.p[1]) * L.n[1]) < -1e-9;
         };
-        while (q0 <= q1 && ((offK[q0][0] - Xs[0]) * d0[0] + (offK[q0][1] - Xs[1]) * d0[1] < 0
-                            || behind(offK[q0], La, Ca))) q0++;
-        while (q1 >= q0 && ((offK[q1][0] - Xe[0]) * d1[0] + (offK[q1][1] - Xe[1]) * d1[1] > 0
-                            || behind(offK[q1], Lb, Cb))) q1--;
+        while (q0 <= 1 + lim && q0 <= q1
+               && ((offK[q0][0] - Xs[0]) * d0[0] + (offK[q0][1] - Xs[1]) * d0[1] < 0
+                   || behind(offK[q0], La, Ca))) q0++;
+        while (q1 >= offK.length - 2 - lim && q1 >= q0
+               && ((offK[q1][0] - Xe[0]) * d1[0] + (offK[q1][1] - Xe[1]) * d1[1] > 0
+                   || behind(offK[q1], Lb, Cb))) q1--;
       }
       for (var q = q0; q <= q1; q++) { seamPts.push(offK[q]); owner.push(k); }
     }

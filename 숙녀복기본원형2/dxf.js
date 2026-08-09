@@ -51,9 +51,9 @@ var DEFAULTS = {
 
 var ROLE_KO = {
   neck: '목', shoulder: '어깨', armhole: '진동',
-  side: '옆선', hem: '밑단', dart: '다트', facing: '안단 안쪽', fold: '골선'
+  side: '옆선', hem: '밑단', sleeveHem: '소맷부리', dart: '다트', fold: '골선'
 };
-var ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'dart', 'facing', 'fold'];
+var ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem', 'dart', 'fold'];
 
 /* =========================================================================
  * 0. 유틸
