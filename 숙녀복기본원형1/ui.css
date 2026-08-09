@@ -386,3 +386,18 @@ td.n.n-fail{color:var(--red)}
 #ndDxfResult .applied-body { font-variant-numeric: tabular-nums; line-height: 1.7; }
 #ndDxfResult .dxf-ok { color: #1d7a4c; font-weight: 600; }
 #ndDxfResult .dxf-warn { color: #b4530a; }
+
+/* ══ 인쇄할 조각 고르기 (출력 패널) — SPEC §17-1 ══════════════════════ */
+.pickbox{margin:10px 0 4px}
+.pickhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.picklab{font-size:12.5px;color:var(--ink-2)}
+.picknum{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.picknum.is-part{color:#b06000;font-weight:600}
+.pickbtns{display:flex;gap:4px;flex-shrink:0}
+.pickbox .chips{max-height:158px;overflow:auto}
+.pickbox .chip{max-width:100%}
+.pickbox .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pickbox .chip:not(:has(input:checked)){opacity:.5}
+
+/* ══ 버전 배지 — 재빌드 후 새로고침 확인용 (SPEC §17-2) ══════════════ */
+.badge-ver{font-variant-numeric:tabular-nums;letter-spacing:0}

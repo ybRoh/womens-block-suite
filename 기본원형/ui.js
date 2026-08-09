@@ -296,10 +296,22 @@
   /* ═══════════════════════════════════════════════════════════════════
      상태
      ═══════════════════════════════════════════════════════════════════ */
+  /* ══ 앱 버전 · 빌드 시각 (SPEC §17-2) ═══════════════════════════════
+     ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
+     화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
+     print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
+  var APP_VERSION = '1.1.0';
+  function buildStamp() {
+    var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
+    return 'v' + APP_VERSION + ' · ' + (b || '개발판');
+  }
+
   var state = {
     size: '66호',
     custom: false,
     m: null,
+    printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄
+
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     capReduce: 0,          // 소매 제외로 미사용. 엔진 복원 시 UI 도 함께 복원
@@ -1019,6 +1031,8 @@
       return '<li class="ck ' + (c.k === 'ok' ? 'ck-ok' : 'ck-bad') + '">' + esc(c.t) + '</li>';
     }).join('');
 
+    renderPickList(d);          // 인쇄할 조각 체크박스 (SPEC §17-1)
+
     els.pieces.innerHTML = ((d && d.pieces) || []).map(function (p) {
       var bb = p.bbox || { w: 0, h: 0 };
       var fold = Array.isArray(p.foldEdges) ? (p.foldEdges.length ? '골선 ' + p.foldEdges.length : '골선 없음') : '골선 정보 없음';
@@ -1083,6 +1097,37 @@
        applyPageCss 를 빼먹으면 롤지(594×가변)가 @page 210×297 로 잘립니다.
      ═══════════════════════════════════════════════════════════════════ */
   /** 인쇄·PDF 가 공유하는 레이아웃 생성. 실패하면 null 을 돌려주고 toast 로 알립니다. */
+  /* ══ 조각별 인쇄 선택 (SPEC §17-1) ═════════════════════════════════
+     담아 두는 것은 **뺀 조각**입니다. 넣은 조각을 담으면, 소매 종류를 바꾸는 식으로
+     조각 id 가 통째로 갈리는 순간 새 조각이 조용히 인쇄에서 빠집니다. */
+  function pieceKey(p, i) { return String((p && (p.id || p.name)) || ('조각' + (i + 1))); }
+
+  /** 인쇄할 조각 id 배열. 전부 뺐으면 빈 배열 → makeLayout 이 막습니다. */
+  function pickedIds(d) {
+    var src = (d && d.pieces) || [], out = [], i;
+    for (i = 0; i < src.length; i++) {
+      var k = pieceKey(src[i], i);
+      if (!state.printExclude[k]) out.push(k);
+    }
+    return out;
+  }
+
+  /** 조각 목록 다시 그리기 — 체크 상태는 DOM 이 아니라 state 에 있습니다. */
+  function renderPickList(d) {
+    if (!els || !els.pickList) return;
+    var src = (d && d.pieces) || [];
+    els.pickList.innerHTML = src.map(function (p, i) {
+      var k = pieceKey(p, i);
+      return '<label class="chip"><input type="checkbox" data-piece="' + esc(k) + '"' +
+        (state.printExclude[k] ? '' : ' checked') + '><span>' + esc(p.name || k) + '</span></label>';
+    }).join('') || '<span class="hint">조각 없음</span>';
+    var on = pickedIds(d).length;
+    if (els.pickCount) {
+      els.pickCount.textContent = src.length ? (on + ' / ' + src.length) : '—';
+      els.pickCount.className = 'picknum' + (src.length && on !== src.length ? ' is-part' : '');
+    }
+  }
+
   function makeLayout(what) {
     var P = PRN();
     if (!P || typeof P.buildPrintLayout !== 'function') {
@@ -1090,6 +1135,13 @@
       return null;
     }
     if (!state.draft) { toast('제도 결과가 없어 ' + what + '할 수 없습니다.'); return null; }
+
+    /* 조각별 인쇄 선택 — 전부 빼면 print.js 가 '유효한 조각이 없습니다' 로 던지므로 여기서 막습니다 */
+    var want = pickedIds(state.draft);
+    if (!want.length) {
+      toast('인쇄할 조각이 하나도 없습니다. 「인쇄할 조각」에서 최소 1개를 체크하세요.');
+      return null;
+    }
 
     var opt = {
       mode: state.printMode,
@@ -1101,6 +1153,8 @@
       seam: (P.normalizeSeamOpt || P.SEAM_DEFAULTS) ? copyObj(state.seam) : maxSeam(state.seam),
       seamByRole: copyObj(state.seam),
       calibMm: state.calibMm,
+      pieces: want,             // 조각별 인쇄 선택 (SPEC §17-1)
+      stamp: buildStamp(),      // 종이에 앱 버전·빌드시각을 남깁니다 (SPEC §17-2)
       title: state.size + (state.custom ? ' (사용자 지정)' : '') +
         ' · B ' + f1(state.m.B) + ' · 등길이 ' + f1(state.m.backLen) +
         ' · 시접 ' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset)
@@ -1334,6 +1388,25 @@
       state.calibMm = (isFinite(v) && v >= 30 && v <= 70) ? v : 50;
       els.calib.value = state.calibMm;
     });
+    /* ── 조각별 인쇄 선택 (SPEC §17-1) ── */
+    if (els.pickList) els.pickList.addEventListener('change', function (e) {
+      var el = e.target;
+      if (!el || !el.getAttribute || !el.getAttribute('data-piece')) return;
+      var k = el.getAttribute('data-piece');
+      if (el.checked) delete state.printExclude[k]; else state.printExclude[k] = true;
+      renderPickList(state.draft);
+    });
+    if (els.pickAll) els.pickAll.addEventListener('click', function () {
+      state.printExclude = {}; renderPickList(state.draft);
+    });
+    if (els.pickNone) els.pickNone.addEventListener('click', function () {
+      var src = (state.draft && state.draft.pieces) || [], i;
+      state.printExclude = {};
+      for (i = 0; i < src.length; i++) state.printExclude[pieceKey(src[i], i)] = true;
+      renderPickList(state.draft);
+      toast('조각을 전부 뺐습니다 — 인쇄하려면 최소 1개는 체크하세요.');
+    });
+
     els.printBtn.addEventListener('click', function () { doPrint(); });
     if (els.pdfBtn) els.pdfBtn.addEventListener('click', function () { doSavePdf(); });
 
@@ -1453,8 +1526,13 @@
       checks: $('ndChecks'), pieces: $('ndPieces'), notes: $('ndNotes'), notesBlock: $('ndNotesBlock'),
       sideWarn: $('ndSideWarn'), sideWarnDetail: $('ndSideWarnDetail'),
       footSize: $('ndFootSize'), footMeas: $('ndFootMeas'), footSeam: $('ndFootSeam'), footBox: $('ndFootBox'),
+      pickBox: $('ndPickBox'), pickList: $('ndPickList'), pickCount: $('ndPickCount'),
+      pickAll: $('ndPickAll'), pickNone: $('ndPickNone'), verBadge: $('ndVerBadge'),
       printArea: $('ndp-print-area'), toast: $('ndToast')
     };
+
+    /* 버전·빌드시각 배지 (SPEC §17-2) — 재빌드 후 새로고침이 먹혔는지 눈으로 확인 */
+    if (els.verBadge) els.verBadge.textContent = buildStamp();
 
     /* 인쇄 컨테이너가 body 직속인지 확인 — print.css 규약 (SPEC §8.1) */
     if (els.printArea && els.printArea.parentNode !== document.body) {
@@ -1552,6 +1630,8 @@
         seam: copyObj(state.seam || {}), seamPreset: state.seamPreset, capReduce: state.capReduce,
         printMode: state.printMode, rollWidthMm: state.rollWidthMm, overlapMm: state.overlapMm,
         calibMm: state.calibMm, engineOk: state.engineOk, lastError: state.lastError,
+        appVersion: APP_VERSION, build: (typeof window !== 'undefined' && window.ND_BUILD) || '',
+        printExclude: copyObj(state.printExclude || {}),
         zoom: state.view.s / PX_PER_CM
       };
     },

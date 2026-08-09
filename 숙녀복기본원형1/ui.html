@@ -23,6 +23,7 @@
 
     <div class="topmeta">
       <span class="badge" id="ndStateBadge" data-state="std">표준 치수</span>
+      <span class="badge badge-quiet badge-ver" id="ndVerBadge" title="앱 버전 · 빌드 시각 — 소스를 고쳐 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">v—</span>
       <span class="badge badge-quiet" id="ndEngineBadge" title="제도 엔진 연결 상태">엔진 확인 중</span>
     </div>
   </header>
@@ -117,6 +118,18 @@
         <div class="field">
           <label for="ndCalib">인쇄 보정 <span class="sublab">직전 인쇄물의 5cm 눈금 실측</span></label>
           <span class="numwrap"><input type="number" id="ndCalib" value="50" min="30" max="70" step="0.5"><span class="unit">mm</span></span>
+        </div>
+
+        <div class="pickbox" id="ndPickBox">
+          <div class="pickhead">
+            <span class="picklab">인쇄할 조각 <span class="picknum" id="ndPickCount">—</span></span>
+            <span class="pickbtns">
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickAll">전체</button>
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickNone">해제</button>
+            </span>
+          </div>
+          <div class="chips" id="ndPickList"><!-- ui.js 가 제도 결과의 조각으로 생성 --></div>
+          <p class="hint">체크한 조각만 인쇄·PDF 에 나갑니다. 화면 도면과 DXF 는 늘 전체입니다.</p>
         </div>
 
         <button type="button" class="btn btn-primary btn-wide" id="ndPdfBtn">PDF 저장 · 배율 고정 1:1</button>

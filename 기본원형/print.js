@@ -43,6 +43,8 @@ var DEFAULTS = {
   overview: true,        // A4 모드 1페이지에 전체배치 축소도 + 사용법
   maxCols: 8,            // 네스팅 후보 열 수 탐색 상한
   title: '',             // 페이지 머리말(호수·치수 요약 등)
+  pieces: null,          // 인쇄할 조각 — null/빈 배열이면 전부. [id…] 이면 그 조각만 (SPEC §17-1)
+  stamp: '',             // 앱 버전·빌드시각. 종이에 찍어 어느 판으로 뽑았는지 남긴다 (SPEC §17-2)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
   rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
   rollMaxHmm: 841        // 롤지 한 장의 최대 길이(mm). 넘으면 여러 장으로 나눈다.
@@ -451,6 +453,23 @@ function rangeIdx(a, b, N) {
   return out;
 }
 
+/* ── 조각별 인쇄 선택 (SPEC §17-1) ─────────────────────────────────────
+   o.pieces 가 비어 있지 않은 배열이면 그 안에 든 조각만 인쇄한다.
+   id 를 먼저 보고, id 가 없는 조각은 name 으로 맞춘다.
+   비었거나 배열이 아니면 전부 인쇄 — 옵션을 안 준 기존 호출과 동작이 같다.
+   ⚠ 걸러내기는 normalizePieces 루프 첫머리에서 해야 한다. 그래야 배치(pack)·
+     개요 축소도·페이지 수·info.pieces 가 전부 걸러진 배열 기준으로 따라온다. */
+function wantPiece(want, p) {
+  if (!want || !want.length || typeof want.length !== 'number') return true;
+  var id = (p && p.id != null) ? String(p.id) : '';
+  var nm = (p && p.name != null) ? String(p.name) : '';
+  for (var q = 0; q < want.length; q++) {
+    var w = String(want[q]);
+    if (w && (w === id || w === nm)) return true;
+  }
+  return false;
+}
+
 function normalizePieces(draft, o, warn) {
   var SEAM = o._seam;                    // normalizeSeamOpt 결과
   var pieces = [], i;
@@ -458,6 +477,7 @@ function normalizePieces(draft, o, warn) {
 
   for (i = 0; i < src.length; i++) {
     var p = src[i] || {};
+    if (!wantPiece(o.pieces, p)) continue;              // 조각별 인쇄 선택 (SPEC §17-1)
     var outlineCm = cleanLoop(p.outline || []);
     if (outlineCm.length < 3) { warn.push('조각 #' + i + '(' + (p.name || p.id || '?') + ') outline 점이 3개 미만 — 건너뜀'); continue; }
     var outline = toMM(outlineCm);
@@ -1247,7 +1267,8 @@ function buildA4Pages(ctx) {
              'font-family="sans-serif" fill="#000" text-anchor="end">' + esc(id) + '</text>');
       s.push('<text x="' + n(A4_W - ML) + '" y="' + n(fy + 10) + '" font-size="2.8" font-family="sans-serif" ' +
              'fill="#444" text-anchor="end">' + (r * ctx.cols + c + 1) + ' / ' + (ctx.cols * ctx.rows) +
-             '장 (' + ctx.cols + '열 × ' + ctx.rows + '행) · 겹침 ' + n(o.overlapMm, 1) + 'mm</text>');
+             '장 (' + ctx.cols + '열 × ' + ctx.rows + '행) · 겹침 ' + n(o.overlapMm, 1) + 'mm' +
+             (o.stamp ? ' · ' + esc(o.stamp) : '') + '</text>');
       s.push('<text x="' + n(A4_W - ML) + '" y="' + n(fy + 14) + '" font-size="2.8" font-family="sans-serif" ' +
              'fill="#a11" text-anchor="end">인쇄 배율 100%(실제 크기) · &quot;용지에 맞춤&quot; 반드시 해제</text>');
       /* 머리말·부위별 시접은 하단 정보띠에 — 상단 여백은 정합 십자 좌표 라벨 전용 */
@@ -1281,6 +1302,8 @@ function buildOverviewPage(ctx, previewInner) {
   s.push('<text x="' + n(ML) + '" y="18" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
          '기본 무다트 원형 — 1:1 A4 분할 출력</text>');
   if (o.title) s.push('<text x="' + n(ML) + '" y="25" font-size="3.6" font-family="sans-serif" fill="#444">' + esc(o.title) + '</text>');
+  if (o.stamp) s.push('<text x="' + n(A4_W - ML) + '" y="18" font-size="3.2" font-family="sans-serif" ' +
+    'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
   if (ctx.seamNote) s.push('<text data-ndp-seamnote="1" x="' + n(ML) + '" y="30" font-size="3.6" ' +
     'font-family="sans-serif" fill="#000">' + esc(ctx.seamNote) + '</text>');
 
@@ -1365,6 +1388,8 @@ function buildRollPage(ctx, page, idx, total) {
     (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');
+  if (o.stamp) s.push('<text x="' + n(W - M) + '" y="' + n(M + 6) + '" font-size="3.2" font-family="sans-serif" ' +
+    'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
   s.push('<text x="' + n(M) + '" y="' + n(M + 19) + '" font-size="3.4" font-family="sans-serif" fill="#a11">' +
     '플로터/프린터 배율 100% 필수 — &quot;용지에 맞춤&quot; 해제. 아래 눈금이 50mm 여야 1:1 입니다.</text>');
   if (ctx.seamNote) {
@@ -1622,6 +1647,7 @@ function buildPrintLayout(draft, opt) {
 
   var info = {
     version: VERSION,
+    appStamp: o.stamp || '',            // 앱 버전·빌드시각 (SPEC §17-2)
     mode: mode,
     size: sizeLabel,
     seamMode: o._seam.mode,              // 'none' | 'uniform' | 'perRole'

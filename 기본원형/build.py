@@ -21,7 +21,7 @@ for name, src in (('ui.css', ui_css), ('print.css', print_css), ('ui.html', ui_h
     if '</script' in src.lower() and name.endswith('.js'):
         raise SystemExit(f'{name}: </script 문자열이 있어 인라인하면 깨집니다')
 
-stamp = datetime.date.today().isoformat()
+stamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')   # 분까지 — 재빌드 후 새로고침이 먹혔는지 화면에서 확인하려면 날짜만으론 부족하다
 html = f'''<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -40,6 +40,7 @@ html = f'''<!DOCTYPE html>
 </head>
 <body>
 {ui_html}
+<script>window.ND_BUILD = '{stamp}';</script>
 <script>
 /* ══ engine.js ══ */
 {engine_js}

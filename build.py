@@ -61,12 +61,13 @@ def render(shell, apps, portable):
             f'<iframe class="suiteframe" data-app="{folder}" title="{label}" '
             f'{attr}{"" if i == 0 else " hidden"}></iframe>'
         )
-    for ph in ('<!--TABS-->', '<!--FRAMES-->'):
+    for ph in ('<!--TABS-->', '<!--FRAMES-->', '<!--BUILD-->'):
         if shell.count(ph) != 1:
             sys.exit(f'shell.html: 자리표시자 {ph} 가 정확히 1번 나와야 합니다 (현재 {shell.count(ph)}번)')
+    stamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')   # 분까지 — 재빌드 후 새로고침 확인용
     body = shell.replace('<!--TABS-->', '\n      '.join(tabs)) \
-                .replace('<!--FRAMES-->', '\n    '.join(frames))
-    stamp = datetime.date.today().isoformat()
+                .replace('<!--FRAMES-->', '\n    '.join(frames)) \
+                .replace('<!--BUILD-->', '빌드 ' + stamp)
     kind = '포터블 — 이 파일 하나로 전부 동작' if portable else '개발용 — 앱 파일을 따로 읽음'
     return f'''<!DOCTYPE html>
 <html lang="ko">

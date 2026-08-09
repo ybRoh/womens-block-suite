@@ -6,7 +6,7 @@
 <title>숙녀복 기본원형 II · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-09 -->
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-09 17:43 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -398,6 +398,21 @@ td.n.n-fail{color:var(--red)}
 #ndDxfResult .dxf-ok { color: #1d7a4c; font-weight: 600; }
 #ndDxfResult .dxf-warn { color: #b4530a; }
 
+/* ══ 인쇄할 조각 고르기 (출력 패널) — SPEC §17-1 ══════════════════════ */
+.pickbox{margin:10px 0 4px}
+.pickhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.picklab{font-size:12.5px;color:var(--ink-2)}
+.picknum{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.picknum.is-part{color:#b06000;font-weight:600}
+.pickbtns{display:flex;gap:4px;flex-shrink:0}
+.pickbox .chips{max-height:158px;overflow:auto}
+.pickbox .chip{max-width:100%}
+.pickbox .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pickbox .chip:not(:has(input:checked)){opacity:.5}
+
+/* ══ 버전 배지 — 재빌드 후 새로고침 확인용 (SPEC §17-2) ══════════════ */
+.badge-ver{font-variant-numeric:tabular-nums;letter-spacing:0}
+
 /* ══ print.css ══ */
 /* ============================================================================
  * print.css — 기본 무다트 원형 1:1 출력용 규칙
@@ -551,6 +566,7 @@ td.n.n-fail{color:var(--red)}
 
     <div class="topmeta">
       <span class="badge" id="ndStateBadge" data-state="std">표준 치수</span>
+      <span class="badge badge-quiet badge-ver" id="ndVerBadge" title="앱 버전 · 빌드 시각 — 소스를 고쳐 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">v—</span>
       <span class="badge badge-quiet" id="ndEngineBadge" title="제도 엔진 연결 상태">엔진 확인 중</span>
     </div>
   </header>
@@ -633,6 +649,18 @@ td.n.n-fail{color:var(--red)}
         <div class="field">
           <label for="ndCalib">인쇄 보정 <span class="sublab">직전 인쇄물의 5cm 눈금 실측</span></label>
           <span class="numwrap"><input type="number" id="ndCalib" value="50" min="30" max="70" step="0.5"><span class="unit">mm</span></span>
+        </div>
+
+        <div class="pickbox" id="ndPickBox">
+          <div class="pickhead">
+            <span class="picklab">인쇄할 조각 <span class="picknum" id="ndPickCount">—</span></span>
+            <span class="pickbtns">
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickAll">전체</button>
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickNone">해제</button>
+            </span>
+          </div>
+          <div class="chips" id="ndPickList"><!-- ui.js 가 제도 결과의 조각으로 생성 --></div>
+          <p class="hint">체크한 조각만 인쇄·PDF 에 나갑니다. 화면 도면과 DXF 는 늘 전체입니다.</p>
         </div>
 
         <button type="button" class="btn btn-primary btn-wide" id="ndPdfBtn">PDF 저장 · 배율 고정 1:1</button>
@@ -784,6 +812,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
+<script>window.ND_BUILD = '2026-08-09 17:43';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1916,6 +1945,8 @@ var DEFAULTS = {
   overview: true,        // A4 모드 1페이지에 전체배치 축소도 + 사용법
   maxCols: 8,            // 네스팅 후보 열 수 탐색 상한
   title: '',             // 페이지 머리말(호수·치수 요약 등)
+  pieces: null,          // 인쇄할 조각 — null/빈 배열이면 전부. [id…] 이면 그 조각만 (SPEC §17-1)
+  stamp: '',             // 앱 버전·빌드시각. 종이에 찍어 어느 판으로 뽑았는지 남긴다 (SPEC §17-2)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
   rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
   rollMaxHmm: 0          // 롤지 한 장의 최대 길이(mm). 0 = 연속 롤(안 나눔) — 기본.
@@ -2325,6 +2356,23 @@ function rangeIdx(a, b, N) {
   return out;
 }
 
+/* ── 조각별 인쇄 선택 (SPEC §17-1) ─────────────────────────────────────
+   o.pieces 가 비어 있지 않은 배열이면 그 안에 든 조각만 인쇄한다.
+   id 를 먼저 보고, id 가 없는 조각은 name 으로 맞춘다.
+   비었거나 배열이 아니면 전부 인쇄 — 옵션을 안 준 기존 호출과 동작이 같다.
+   ⚠ 걸러내기는 normalizePieces 루프 첫머리에서 해야 한다. 그래야 배치(pack)·
+     개요 축소도·페이지 수·info.pieces 가 전부 걸러진 배열 기준으로 따라온다. */
+function wantPiece(want, p) {
+  if (!want || !want.length || typeof want.length !== 'number') return true;
+  var id = (p && p.id != null) ? String(p.id) : '';
+  var nm = (p && p.name != null) ? String(p.name) : '';
+  for (var q = 0; q < want.length; q++) {
+    var w = String(want[q]);
+    if (w && (w === id || w === nm)) return true;
+  }
+  return false;
+}
+
 function normalizePieces(draft, o, warn) {
   var SEAM = o._seam;                    // normalizeSeamOpt 결과
   var pieces = [], i;
@@ -2332,6 +2380,7 @@ function normalizePieces(draft, o, warn) {
 
   for (i = 0; i < src.length; i++) {
     var p = src[i] || {};
+    if (!wantPiece(o.pieces, p)) continue;              // 조각별 인쇄 선택 (SPEC §17-1)
     var outlineCm = cleanLoop(p.outline || []);
     if (outlineCm.length < 3) { warn.push('조각 #' + i + '(' + (p.name || p.id || '?') + ') outline 점이 3개 미만 — 건너뜀'); continue; }
     var outline = toMM(outlineCm);
@@ -3184,7 +3233,8 @@ function buildA4Pages(ctx) {
              'font-family="sans-serif" fill="#000" text-anchor="end">' + esc(id) + '</text>');
       s.push('<text x="' + n(A4_W - ML) + '" y="' + n(fy + 10) + '" font-size="2.8" font-family="sans-serif" ' +
              'fill="#444" text-anchor="end">' + (r * ctx.cols + c + 1) + ' / ' + (ctx.cols * ctx.rows) +
-             '장 (' + ctx.cols + '열 × ' + ctx.rows + '행) · 겹침 ' + n(o.overlapMm, 1) + 'mm</text>');
+             '장 (' + ctx.cols + '열 × ' + ctx.rows + '행) · 겹침 ' + n(o.overlapMm, 1) + 'mm' +
+             (o.stamp ? ' · ' + esc(o.stamp) : '') + '</text>');
       s.push('<text x="' + n(A4_W - ML) + '" y="' + n(fy + 14) + '" font-size="2.8" font-family="sans-serif" ' +
              'fill="#a11" text-anchor="end">인쇄 배율 100%(실제 크기) · &quot;용지에 맞춤&quot; 반드시 해제</text>');
       /* 머리말·부위별 시접은 하단 정보띠에 — 상단 여백은 정합 십자 좌표 라벨 전용 */
@@ -3218,6 +3268,8 @@ function buildOverviewPage(ctx, previewInner) {
   s.push('<text x="' + n(ML) + '" y="18" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
          '숙녀복 기본원형 II — 1:1 A4 분할 출력</text>');
   if (o.title) s.push('<text x="' + n(ML) + '" y="25" font-size="3.6" font-family="sans-serif" fill="#444">' + esc(o.title) + '</text>');
+  if (o.stamp) s.push('<text x="' + n(A4_W - ML) + '" y="18" font-size="3.2" font-family="sans-serif" ' +
+    'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
   if (ctx.seamNote) s.push('<text data-ndp-seamnote="1" x="' + n(ML) + '" y="30" font-size="3.6" ' +
     'font-family="sans-serif" fill="#000">' + esc(ctx.seamNote) + '</text>');
 
@@ -3302,6 +3354,8 @@ function buildRollPage(ctx, page, idx, total) {
     (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');
+  if (o.stamp) s.push('<text x="' + n(W - M) + '" y="' + n(M + 6) + '" font-size="3.2" font-family="sans-serif" ' +
+    'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
   s.push('<text x="' + n(M) + '" y="' + n(M + 19) + '" font-size="3.4" font-family="sans-serif" fill="#a11">' +
     '플로터/프린터 배율 100% 필수 — &quot;용지에 맞춤&quot; 해제. 아래 눈금이 50mm 여야 1:1 입니다.</text>');
   if (ctx.seamNote) {
@@ -3562,6 +3616,7 @@ function buildPrintLayout(draft, opt) {
 
   var info = {
     version: VERSION,
+    appStamp: o.stamp || '',            // 앱 버전·빌드시각 (SPEC §17-2)
     mode: mode,
     size: sizeLabel,
     seamMode: o._seam.mode,              // 'none' | 'uniform' | 'perRole'
@@ -5159,10 +5214,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   /* ═══════════════════════════════════════════════════════════════════
      상태
      ═══════════════════════════════════════════════════════════════════ */
+  /* ══ 앱 버전 · 빌드 시각 (SPEC §17-2) ═══════════════════════════════
+     ND_BUILD 는 build.py 가 빌드할 때 심는 문자열입니다. 소스를 고쳐 다시 빌드했는데
+     화면 배지의 시각이 그대로면 브라우저가 옛 HTML 을 들고 있는 것입니다(강제 새로고침).
+     print.js 의 VERSION 은 출력 엔진 버전이라 이것과 별개입니다. */
+  var APP_VERSION = '1.1.0';
+  function buildStamp() {
+    var b = (typeof window !== 'undefined' && window.ND_BUILD) ? String(window.ND_BUILD) : '';
+    return 'v' + APP_VERSION + ' · ' + (b || '개발판');
+  }
+
   var state = {
     size: '66호',
     custom: false,
     m: null,
+    printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄
+
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
@@ -5894,6 +5961,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       return '<li class="ck ' + (c.k === 'ok' ? 'ck-ok' : 'ck-bad') + '">' + esc(c.t) + '</li>';
     }).join('');
 
+    renderPickList(d);          // 인쇄할 조각 체크박스 (SPEC §17-1)
+
     els.pieces.innerHTML = ((d && d.pieces) || []).map(function (p) {
       var bb = p.bbox || { w: 0, h: 0 };
       var fold = Array.isArray(p.foldEdges) ? (p.foldEdges.length ? '골선 ' + p.foldEdges.length : '골선 없음') : '골선 정보 없음';
@@ -5958,6 +6027,37 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
        applyPageCss 를 빼먹으면 롤지(594×가변)가 @page 210×297 로 잘립니다.
      ═══════════════════════════════════════════════════════════════════ */
   /** 인쇄·PDF 가 공유하는 레이아웃 생성. 실패하면 null 을 돌려주고 toast 로 알립니다. */
+  /* ══ 조각별 인쇄 선택 (SPEC §17-1) ═════════════════════════════════
+     담아 두는 것은 **뺀 조각**입니다. 넣은 조각을 담으면, 소매 종류를 바꾸는 식으로
+     조각 id 가 통째로 갈리는 순간 새 조각이 조용히 인쇄에서 빠집니다. */
+  function pieceKey(p, i) { return String((p && (p.id || p.name)) || ('조각' + (i + 1))); }
+
+  /** 인쇄할 조각 id 배열. 전부 뺐으면 빈 배열 → makeLayout 이 막습니다. */
+  function pickedIds(d) {
+    var src = (d && d.pieces) || [], out = [], i;
+    for (i = 0; i < src.length; i++) {
+      var k = pieceKey(src[i], i);
+      if (!state.printExclude[k]) out.push(k);
+    }
+    return out;
+  }
+
+  /** 조각 목록 다시 그리기 — 체크 상태는 DOM 이 아니라 state 에 있습니다. */
+  function renderPickList(d) {
+    if (!els || !els.pickList) return;
+    var src = (d && d.pieces) || [];
+    els.pickList.innerHTML = src.map(function (p, i) {
+      var k = pieceKey(p, i);
+      return '<label class="chip"><input type="checkbox" data-piece="' + esc(k) + '"' +
+        (state.printExclude[k] ? '' : ' checked') + '><span>' + esc(p.name || k) + '</span></label>';
+    }).join('') || '<span class="hint">조각 없음</span>';
+    var on = pickedIds(d).length;
+    if (els.pickCount) {
+      els.pickCount.textContent = src.length ? (on + ' / ' + src.length) : '—';
+      els.pickCount.className = 'picknum' + (src.length && on !== src.length ? ' is-part' : '');
+    }
+  }
+
   function makeLayout(what) {
     var P = PRN();
     if (!P || typeof P.buildPrintLayout !== 'function') {
@@ -5965,6 +6065,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       return null;
     }
     if (!state.draft) { toast('제도 결과가 없어 ' + what + '할 수 없습니다.'); return null; }
+
+    /* 조각별 인쇄 선택 — 전부 빼면 print.js 가 '유효한 조각이 없습니다' 로 던지므로 여기서 막습니다 */
+    var want = pickedIds(state.draft);
+    if (!want.length) {
+      toast('인쇄할 조각이 하나도 없습니다. 「인쇄할 조각」에서 최소 1개를 체크하세요.');
+      return null;
+    }
 
     var opt = {
       mode: state.printMode,
@@ -5977,6 +6084,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       seam: (P.normalizeSeamOpt || P.SEAM_DEFAULTS) ? copyObj(state.seam) : maxSeam(state.seam),
       seamByRole: copyObj(state.seam),
       calibMm: state.calibMm,
+      pieces: want,             // 조각별 인쇄 선택 (SPEC §17-1)
+      stamp: buildStamp(),      // 종이에 앱 버전·빌드시각을 남깁니다 (SPEC §17-2)
       title: state.size + (state.custom ? ' (사용자 지정)' : '') +
         ' · B ' + f1(state.m.B) + ' · 등길이 ' + f1(state.m.backLen) +
         ' · 시접 ' + (SEAM_PRESET_LABEL[state.seamPreset] || state.seamPreset)
@@ -6219,6 +6328,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       state.calibMm = (isFinite(v) && v >= 30 && v <= 70) ? v : 50;
       els.calib.value = state.calibMm;
     });
+    /* ── 조각별 인쇄 선택 (SPEC §17-1) ── */
+    if (els.pickList) els.pickList.addEventListener('change', function (e) {
+      var el = e.target;
+      if (!el || !el.getAttribute || !el.getAttribute('data-piece')) return;
+      var k = el.getAttribute('data-piece');
+      if (el.checked) delete state.printExclude[k]; else state.printExclude[k] = true;
+      renderPickList(state.draft);
+    });
+    if (els.pickAll) els.pickAll.addEventListener('click', function () {
+      state.printExclude = {}; renderPickList(state.draft);
+    });
+    if (els.pickNone) els.pickNone.addEventListener('click', function () {
+      var src = (state.draft && state.draft.pieces) || [], i;
+      state.printExclude = {};
+      for (i = 0; i < src.length; i++) state.printExclude[pieceKey(src[i], i)] = true;
+      renderPickList(state.draft);
+      toast('조각을 전부 뺐습니다 — 인쇄하려면 최소 1개는 체크하세요.');
+    });
+
     els.printBtn.addEventListener('click', function () { doPrint(); });
     if (els.pdfBtn) els.pdfBtn.addEventListener('click', function () { doSavePdf(); });
 
@@ -6338,8 +6466,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
       checks: $('ndChecks'), pieces: $('ndPieces'), notes: $('ndNotes'), notesBlock: $('ndNotesBlock'),
       sideWarn: $('ndSideWarn'), sideWarnDetail: $('ndSideWarnDetail'),
       footSize: $('ndFootSize'), footMeas: $('ndFootMeas'), footSeam: $('ndFootSeam'), footBox: $('ndFootBox'),
+      pickBox: $('ndPickBox'), pickList: $('ndPickList'), pickCount: $('ndPickCount'),
+      pickAll: $('ndPickAll'), pickNone: $('ndPickNone'), verBadge: $('ndVerBadge'),
       printArea: $('ndp-print-area'), toast: $('ndToast')
     };
+
+    /* 버전·빌드시각 배지 (SPEC §17-2) — 재빌드 후 새로고침이 먹혔는지 눈으로 확인 */
+    if (els.verBadge) els.verBadge.textContent = buildStamp();
 
     /* 인쇄 컨테이너가 body 직속인지 확인 — print.css 규약 (SPEC §8.1) */
     if (els.printArea && els.printArea.parentNode !== document.body) {
@@ -6438,6 +6571,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
         printMode: state.printMode, rollWidthMm: state.rollWidthMm, overlapMm: state.overlapMm,
         gapMm: state.gapMm,
         calibMm: state.calibMm, engineOk: state.engineOk, lastError: state.lastError,
+        appVersion: APP_VERSION, build: (typeof window !== 'undefined' && window.ND_BUILD) || '',
+        printExclude: copyObj(state.printExclude || {}),
         zoom: state.view.s / PX_PER_CM
       };
     },
