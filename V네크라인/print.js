@@ -35,7 +35,7 @@ var DEFAULTS = {
 
   marginMm: 8,           // A4 좌·우·상 여백 (프린터 비인쇄 영역 회피)
   footerMm: 16,          // A4 하단 정보띠(캘리브레이션 눈금·페이지좌표)
-  gapMm: 12,             // 네스팅 조각 간격 (world mm)
+  gapMm: 6,              // 네스팅 조각 간격 (world mm) — 종이 낭비를 줄이려 12 → 6
   padMm: 4,              // 네스팅 캔버스 바깥 여백 (world mm)
   calibMm: 50,           // 지난 인쇄에서 5cm 눈금을 자로 잰 값(mm). 50 이면 보정 없음
   grid: 'major',         // false | 'major'(5cm) | 'full'(1cm+5cm)
@@ -45,7 +45,8 @@ var DEFAULTS = {
   title: '',             // 페이지 머리말(호수·치수 요약 등)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
   rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
-  rollMaxHmm: 841        // 롤지 한 장의 최대 길이(mm). 넘으면 여러 장으로 나눈다.
+  rollMaxHmm: 0          // 롤지 한 장의 최대 길이(mm). 0 = 연속 롤(안 나눔) — 기본.
+                         //   나누면 장마다 길이를 가장 긴 장에 맞춰 통일해서 종이가 크게 남는다.
                          // 0 이면 제한 없음 — 프린터가 받는 최대 길이로 두세요.
 };
 
@@ -830,29 +831,92 @@ function normalizePieces(draft, o, warn) {
 /* =========================================================================
  * 2. 네스팅 (shelf packing + 90° 회전)
  * =======================================================================*/
-function pack(pieces, binW, gap, allowRotate) {
+function pack(pieces, binW, gap, allowRotate, pageH) {
+  /* 스카이라인(bottom-left) 배치.
+     예전 선반(shelf) 방식은 한 줄의 높이를 그 줄에서 제일 큰 조각이 정해서,
+     낮은 조각 아래가 통째로 비었다 (A1 롤에서 종이가 크게 낭비됐다).
+     스카이라인은 이미 놓인 조각들의 윗선을 기억했다가 **가장 낮은 자리**에 채워 넣는다.
+     조각 간격 gap 은 조각 크기에 미리 더해 두고(w+gap, h+gap) 자리만 찾는다. */
   var items = [], i;
-  for (i = 0; i < pieces.length; i++) {
-    var w = pieces[i].bbox.w, h = pieces[i].bbox.h, rot = false;
-    if (allowRotate && w > h) { var t = w; w = h; h = t; rot = true; }   // 세로로 세움
-    if (w > binW && allowRotate) {                                        // 그래도 안 들어가면 반대로
-      var t2 = w; w = h; h = t2; rot = !rot;
-    }
-    items.push({ idx: i, w: w, h: h, rot: rot });
-  }
-  items.sort(function (a, b) { return (b.h - a.h) || (b.w - a.w); });
+  for (i = 0; i < pieces.length; i++)
+    items.push({ idx: i, w0: pieces[i].bbox.w, h0: pieces[i].bbox.h });
+  /* 큰 것부터 — 작은 조각이 큰 조각 옆 빈틈을 메우게 된다 */
+  items.sort(function (a, b) {
+    return (Math.max(b.w0, b.h0) - Math.max(a.w0, a.h0)) || (b.w0 * b.h0 - a.w0 * a.h0);
+  });
 
-  var x = 0, y = 0, shelfH = 0, usedW = 0, placed = [];
+  var W = binW + gap;                       // 오른쪽 끝 조각도 gap 을 붙여 계산
+  var sky = [{ x: 0, w: W, y: 0 }];         // 윗선 — x 오름차순, 서로 겹치지 않는다
+  var placed = [], usedW = 0, usedH = 0;
+
+  function fitAt(k, w) {                    // sky[k] 왼쪽 끝에 폭 w 를 놓을 때의 y
+    var x = sky[k].x;
+    if (x + w > W + 1e-9) return null;
+    var y = sky[k].y, rest = w, j = k;
+    while (rest > 1e-9) {
+      if (j >= sky.length) return null;
+      if (sky[j].y > y) y = sky[j].y;
+      rest -= sky[j].w; j++;
+    }
+    return y;
+  }
+  function place(x, w, y, h) {              // 윗선 갱신
+    var ns = [], t = { x: x, w: w, y: y + h }, k;
+    for (k = 0; k < sky.length; k++) {
+      var sg = sky[k], a = sg.x, b = sg.x + sg.w;
+      if (b <= x + 1e-9 || a >= x + w - 1e-9) { ns.push(sg); continue; }
+      if (a < x - 1e-9) ns.push({ x: a, w: x - a, y: sg.y });
+      if (b > x + w + 1e-9) ns.push({ x: x + w, w: b - (x + w), y: sg.y });
+    }
+    ns.push(t);
+    ns.sort(function (p1, p2) { return p1.x - p2.x; });
+    var mg = [];                            // 같은 높이 이웃은 합친다
+    for (k = 0; k < ns.length; k++) {
+      var last = mg[mg.length - 1];
+      if (last && Math.abs(last.y - ns[k].y) < 1e-9 && Math.abs(last.x + last.w - ns[k].x) < 1e-9)
+        last.w += ns[k].w;
+      else mg.push({ x: ns[k].x, w: ns[k].w, y: ns[k].y });
+    }
+    sky = mg;
+  }
+
   for (i = 0; i < items.length; i++) {
-    var it = items[i];
-    if (x > 0 && x + it.w > binW + 1e-9) { y += shelfH + gap; x = 0; shelfH = 0; }
-    placed.push({ idx: it.idx, x: x, y: y, w: it.w, h: it.h, rot: it.rot });
-    x += it.w + gap;
-    if (x - gap > usedW) usedW = x - gap;
-    if (it.h > shelfH) shelfH = it.h;
+    var it = items[i], best = null;
+    var forms = [{ w: it.w0 + gap, h: it.h0 + gap, rot: false }];
+    if (allowRotate) forms.push({ w: it.h0 + gap, h: it.w0 + gap, rot: true });
+    for (var f = 0; f < forms.length; f++) {
+      for (var k2 = 0; k2 < sky.length; k2++) {
+        var y = fitAt(k2, forms[f].w);
+        if (y === null) continue;
+        /* 롤을 여러 장으로 자를 때 조각이 장 경계를 걸치면 안 된다 —
+           걸치면 다음 장 머리로 내린다. 그래야 장마다 꽉 차고 장수가 준다. */
+        if (pageH > 0 && forms[f].h <= pageH + 1e-9) {
+          var pg = Math.floor(y / pageH + 1e-9);
+          if (y + forms[f].h > (pg + 1) * pageH + 1e-9) y = (pg + 1) * pageH;
+        }
+        var cand = { x: sky[k2].x, y: y, f: forms[f] };
+        /* ① 놓았을 때 위쪽 끝이 가장 낮은 자리 ② 같으면 왼쪽 ③ 같으면 회전 안 한 쪽 */
+        if (!best || y + forms[f].h < best.y + best.f.h - 1e-9 ||
+            (Math.abs((y + forms[f].h) - (best.y + best.f.h)) < 1e-9 &&
+             (cand.x < best.x - 1e-9 ||
+              (Math.abs(cand.x - best.x) < 1e-9 && !forms[f].rot && best.f.rot))))
+          best = cand;
+      }
+    }
+    if (!best) {                            // 어떤 자리에도 안 들어가면 맨 위에 새 줄
+      var hAll = 0;
+      for (var z = 0; z < sky.length; z++) if (sky[z].y > hAll) hAll = sky[z].y;
+      best = { x: 0, y: hAll, f: forms[0] };
+      sky = [{ x: 0, w: W, y: hAll }];
+    }
+    place(best.x, best.f.w, best.y, best.f.h);
+    placed.push({ idx: it.idx, x: best.x, y: best.y,
+                  w: best.f.w - gap, h: best.f.h - gap, rot: best.f.rot });
+    if (best.x + best.f.w - gap > usedW) usedW = best.x + best.f.w - gap;
+    if (best.y + best.f.h - gap > usedH) usedH = best.y + best.f.h - gap;
   }
   placed.sort(function (a, b) { return a.idx - b.idx; });
-  return { placed: placed, w: usedW, h: y + shelfH };
+  return { placed: placed, w: usedW, h: usedH };
 }
 
 /* A4 타일: 페이지 수가 최소가 되는 캔버스 폭을 탐색 */
@@ -1514,7 +1578,10 @@ function buildPrintLayout(draft, opt) {
   } else {
     rollWmm = +o.rollWidthMm || 594;
     var usableW = (rollWmm - 2 * o.rollMarginMm) / k;   // world mm
-    var res = pack(pieces, usableW - 2 * o.padMm, o.gapMm, o.allowRotate);
+    /* 장 경계를 걸치지 않게 — 프린터 최대 길이가 있으면 그 안쪽 높이를 넘겨 준다 */
+    var pageUsable = (+o.rollMaxHmm > 0)
+      ? ((+o.rollMaxHmm - (2 * o.rollMarginMm + 26 + 8)) / k) - 2 * o.padMm : 0;
+    var res = pack(pieces, usableW - 2 * o.padMm, o.gapMm, o.allowRotate, pageUsable);
     placed = res.placed;
     canvasW = res.w + 2 * o.padMm; canvasH = res.h + 2 * o.padMm;
     if (canvasW > usableW + 1e-6) {

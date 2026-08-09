@@ -8,13 +8,51 @@ import sys, math, json, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dxfdump import read_dxf, entities, gf, gv
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else '/Users/ybr/Downloads/V네크라인.dxf'
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dxf-66-groundtruth.json')
-
-CB, CF, TOP = 2022.077, 1961.774, 1694.871      # 뒤 중심 · 앞 중심 · 공통 상단 기준선
-WL = 1657.371                                    # 허리선 (앞뒤 공통)
+SRC  = sys.argv[1] if len(sys.argv) > 1 else '/Users/ybr/Downloads/V네크라인.dxf'
+SIZE = sys.argv[2] if len(sys.argv) > 2 else '66호'
+BACKLEN = {'44호': 36.5, '55호': 37.0, '66호': 37.5, '77호': 38.0, '88호': 38.5}[SIZE]
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                   'dxf-%s-groundtruth.json' % SIZE.replace('호', ''))
 
 ents = entities(read_dxf(SRC))
+
+def find_frame():
+    """기준선 자동 검출 — 다른 호수 도면도 바로 읽으려고.
+       · 허리선 = 가장 긴 수평선 (앞면 허리선 = 옆선x × 2, 자락이라 제일 길다)
+       · 앞중심 = 그 선의 중점 (자락이 앞중심 기준 좌우 같은 폭)
+       · 뒤중심 = 오른쪽에서 길이가 등길이쯤 되는 수직선의 x
+       · 상단 기준선 = 허리선 + 등길이 """
+    hor, ver = [], []
+    for e in ents:
+        if e['type'] != 'LINE':
+            continue
+        x1, y1, x2, y2 = gf(e, 10), gf(e, 20), gf(e, 11), gf(e, 21)
+        if abs(y1 - y2) < 1e-6:
+            hor.append((abs(x2 - x1), y1, min(x1, x2), max(x1, x2)))
+        elif abs(x1 - x2) < 1e-6:
+            ver.append((abs(y2 - y1), x1, min(y1, y2)))
+    if not hor or not ver:
+        raise SystemExit('기준선을 못 찾았습니다 — 좌표를 직접 넣으세요')
+    # 도면에 같은 길이(옆선x × 2)의 수평선이 여러 개다 —
+    #   행1(제도 본체)에 허리선과 자락 끝 안내선 둘, 행3(완성 조각 사본)에 허리선 하나.
+    #   ① 가장 긴 것들만 추리고 ② 제일 위 행(y 큰 쪽)을 고른 뒤 ③ 그 행의 아래쪽이 허리선.
+    mx = max(h[0] for h in hor)
+    cand_h = [h for h in hor if h[0] > mx - 0.05]
+    top_y = max(h[1] for h in cand_h)
+    row1 = [h for h in cand_h if top_y - h[1] < 20]
+    wl_len, wl, x0, x1_ = min(row1, key=lambda h: h[1])
+    cf = (x0 + x1_) / 2
+    cand = [v for v in ver if abs(v[0] - (BACKLEN + 0.3)) < 0.6 and v[1] > cf + 5]
+    if not cand:
+        cand = [v for v in ver if abs(v[0] - BACKLEN) < 1.0 and v[1] > cf + 5]
+    if not cand:
+        raise SystemExit('뒤중심 수직선(길이 ≈ 등길이 %.1f)을 못 찾았습니다' % BACKLEN)
+    cb = max(cand, key=lambda v: v[1])[1]
+    return cb, cf, wl + BACKLEN, wl, wl_len
+
+CB, CF, TOP, WL, WLLEN = find_frame()
+print('기준선 자동 검출 — CB %.3f · CF %.3f · 상단 %.3f · 허리 %.3f (허리선 길이 %.2f = 옆선x × 2)'
+      % (CB, CF, TOP, WL, WLLEN))
 
 def collect():
     out = []; i = 0
@@ -82,11 +120,13 @@ curves.sort(key=lambda c: (c['side'], c['name']))
 lines.sort(key=lambda l: (l['side'], -l['len']))
 
 doc = {
- 'note': ('66호 V 네크라인 원본 DXF — 행1(제도 본체)에서 뽑은 좌표. 스플라인 fit 정점만.'
-          ' 앞: CF=%g, 뒤: CB=%g, 공통 상단 기준선 y=%g, 허리선 y=%g (원본 도면 좌표)' % (CF, CB, TOP, WL)),
+ 'note': ('%s V 네크라인 원본 DXF — 행1(제도 본체)에서 뽑은 좌표. 스플라인 fit 정점만.'
+          ' 앞: CF=%g, 뒤: CB=%g, 공통 상단 기준선 y=%g, 허리선 y=%g (원본 도면 좌표)'
+          % (SIZE, CF, CB, TOP, WL)),
+ 'size': SIZE,
  'ref': {'CB': CB, 'CF': CF, 'TOP': TOP, 'WL_DXF': WL,
-         'backLen': round(TOP - WL, 4), 'B': 87.6,
-         'BL': 21.9, 'armpitY': 18.9, 'sideXback': 23.8, 'sideXfront': 23.5},
+         'backLen': round(TOP - WL, 4),
+         'waistLineLen': round(WLLEN, 4)},
  'curves': curves, 'lines': lines, 'points': points, 'arcs': arcs,
 }
 json.dump(doc, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)

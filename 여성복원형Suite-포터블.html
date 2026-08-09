@@ -21677,9 +21677,9 @@ td.n.n-fail{color:var(--red)}
         &lt;div class=&quot;field&quot; id=&quot;ndRollMaxRow&quot; hidden&gt;
           &lt;label for=&quot;ndRollMax&quot;&gt;한 장 최대 길이&lt;/label&gt;
           &lt;select id=&quot;ndRollMax&quot;&gt;
-            &lt;option value=&quot;841&quot; selected&gt;841 mm (A1 세로)&lt;/option&gt;
+            &lt;option value=&quot;841&quot;&gt;841 mm (A1 세로)&lt;/option&gt;
             &lt;option value=&quot;1189&quot;&gt;1189 mm (A0 세로)&lt;/option&gt;
-            &lt;option value=&quot;0&quot;&gt;제한 없음 (연속 롤)&lt;/option&gt;
+            &lt;option value=&quot;0&quot; selected&gt;제한 없음 (연속 롤)&lt;/option&gt;
           &lt;/select&gt;
         &lt;/div&gt;
         &lt;p class=&quot;hint&quot; id=&quot;ndRollHint&quot; hidden&gt;
@@ -21690,6 +21690,9 @@ td.n.n-fail{color:var(--red)}
         &lt;div class=&quot;field&quot; id=&quot;ndOverlapRow&quot;&gt;
           &lt;label for=&quot;ndOverlap&quot;&gt;겹침 여백&lt;/label&gt;
           &lt;span class=&quot;numwrap&quot;&gt;&lt;input type=&quot;number&quot; id=&quot;ndOverlap&quot; value=&quot;10&quot; min=&quot;0&quot; max=&quot;30&quot; step=&quot;1&quot;&gt;&lt;span class=&quot;unit&quot;&gt;mm&lt;/span&gt;&lt;/span&gt;
+        &lt;/label&gt;
+        &lt;label class=&quot;field&quot;&gt;&lt;span class=&quot;field-l&quot;&gt;조각 간격&lt;/span&gt;
+          &lt;span class=&quot;numwrap&quot;&gt;&lt;input type=&quot;number&quot; id=&quot;ndGap&quot; value=&quot;6&quot; min=&quot;0&quot; max=&quot;30&quot; step=&quot;1&quot;&gt;&lt;span class=&quot;unit&quot;&gt;mm&lt;/span&gt;&lt;/span&gt;
         &lt;/div&gt;
         &lt;div class=&quot;field&quot;&gt;
           &lt;label for=&quot;ndCalib&quot;&gt;인쇄 보정 &lt;span class=&quot;sublab&quot;&gt;직전 인쇄물의 5cm 눈금 실측&lt;/span&gt;&lt;/label&gt;
@@ -22481,7 +22484,7 @@ td.n.n-fail{color:var(--red)}
       outline: frontLoop.pts, seamline: frontSeam.seamline, foldEdges: frontSeam.foldEdges,
       seamEdges: frontSeam.seamEdges, seamFoldEdges: frontSeam.seamFoldEdges,
       seamByRole: frontSeam.seamByRole, edges: withSeam(frontLoop.ranges, frontSeam.edgeSeam),
-      internal: frontInternal(g), notches: [
+      internal: frontInternal(g, true), notches: [
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: &#x27;어깨점&#x27; },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: &#x27;목옆점&#x27; },
         { p: cp(g.Uf),   angle: 180,                                          label: &#x27;겨드랑&#x27; },
@@ -22542,7 +22545,7 @@ td.n.n-fail{color:var(--red)}
       outline: plainLoop.pts, seamline: plainSeam.seamline, foldEdges: plainSeam.foldEdges,
       seamEdges: plainSeam.seamEdges, seamFoldEdges: plainSeam.seamFoldEdges,
       seamByRole: plainSeam.seamByRole, edges: withSeam(plainLoop.ranges, plainSeam.edgeSeam),
-      internal: frontInternal(g).filter(function (x) { return x.id !== &#x27;wrapLine&#x27;; }),
+      internal: frontInternal(g, false).filter(function (x) { return x.id !== &#x27;wrapLine&#x27;; }),
       notches: [
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: &#x27;어깨점&#x27; },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: &#x27;목옆점&#x27; },
@@ -23014,12 +23017,13 @@ td.n.n-fail{color:var(--red)}
       L(&#x27;SNP&#x27;,     &#x27;point&#x27;,  [g.SNPb], &#x27;SNP&#x27;)
     ];
   }
-  function frontInternal(g) {
-    var dep = g.FNP[1];
+  /** @param wrap true = 자락 앞판(앞중심 좌우로 뻗음) · false = 자락 없는 앞판(0~옆선만) */
+  function frontInternal(g, wrap) {
+    var dep = g.FNP[1], xL = wrap ? -g.fSideX : 0;
     return [
       L(&#x27;topLine&#x27;,  &#x27;line&#x27;,   [[0, 0], [K.fixedX, 0]], &#x27;상단 기준선&#x27;),
       L(&#x27;cfRise&#x27;,   &#x27;dashed&#x27;, [[0, -K.frontNeckLift], [g.nw, -K.frontNeckLift]], &#x27;CF 올림&#x27;),
-      L(&#x27;BL&#x27;,       &#x27;line&#x27;,   [[-g.fSideX, g.BL], [g.fSideX, g.BL]], &#x27;BL (B/4)&#x27;),
+      L(&#x27;BL&#x27;,       &#x27;line&#x27;,   [[xL, g.BL], [g.fSideX, g.BL]], &#x27;BL (B/4)&#x27;),
       L(&#x27;armLine&#x27;,  &#x27;dashed&#x27;, [[0, g.armY], [g.fSideX, g.armY]], &#x27;겨드랑선&#x27;),
       L(&#x27;frontW&#x27;,   &#x27;dashed&#x27;, [[g.fPitchX, -K.frontNeckLift], [g.fPitchX, g.BL]], &#x27;앞품선&#x27;),
       /* 앞면은 자락이라 앞중심이 조각 한가운데를 지난다 — 재단·시착 기준이므로 실선으로 긋는다 */
@@ -23030,11 +23034,11 @@ td.n.n-fail{color:var(--red)}
       L(&#x27;neckDiag&#x27;, &#x27;dashed&#x27;, [[0, 0], [g.nw, dep]], &#x27;목 사각 대각선&#x27;),
       L(&#x27;vMark&#x27;,    &#x27;point&#x27;,  [g.vMark], &#x27;V 통과점 (대각선 2/3 + 1)&#x27;),
       L(&#x27;vLine&#x27;,    &#x27;dashed&#x27;, [g.SNPf, g.Vcf], &#x27;V 직선&#x27;),
-      L(&#x27;wrapLine&#x27;, &#x27;dashed&#x27;, [[g.fSideX, g.Vend[1]], [-g.fSideX, g.Vend[1]]], &#x27;자락 끝 수평선&#x27;),
+      L(&#x27;wrapLine&#x27;, &#x27;dashed&#x27;, [[g.fSideX, g.Vend[1]], [xL, g.Vend[1]]], &#x27;자락 끝 수평선&#x27;),
       L(&#x27;shExt&#x27;,    &#x27;dashed&#x27;, [g.SPf, [K.fixedX, K.frontShDrop]], &#x27;어깨선 연장&#x27;),
       L(&#x27;bpLen&#x27;,    &#x27;dashed&#x27;, [g.SNPf, g.BP], &#x27;유장&#x27;),
       L(&#x27;bpSpan&#x27;,   &#x27;dashed&#x27;, [[g.BP[0], 0], [g.BP[0], g.BP[1]]], &#x27;유폭&#x27;),
-      L(&#x27;hemLevel&#x27;, &#x27;dashed&#x27;, [[-g.fSideX, g.WL], [g.fSideX, g.WL]], &#x27;허리선 (다트 접은 뒤 밑단)&#x27;),
+      L(&#x27;hemLevel&#x27;, &#x27;dashed&#x27;, [[xL, g.WL], [g.fSideX, g.WL]], &#x27;허리선 (다트 접은 뒤 밑단)&#x27;),
       L(&#x27;dartMid&#x27;,  &#x27;dashed&#x27;, [g.BP, [(g.dartHi[0] + g.dartLo[0]) / 2, (g.dartHi[1] + g.dartLo[1]) / 2]], &#x27;다트 중심&#x27;),
       L(&#x27;BP&#x27;,       &#x27;point&#x27;,  [g.BP], &#x27;BP&#x27;),
       L(&#x27;SP&#x27;,       &#x27;point&#x27;,  [g.SPf], &#x27;SP&#x27;),
@@ -23145,7 +23149,7 @@ var DEFAULTS = {
 
   marginMm: 8,           // A4 좌·우·상 여백 (프린터 비인쇄 영역 회피)
   footerMm: 16,          // A4 하단 정보띠(캘리브레이션 눈금·페이지좌표)
-  gapMm: 12,             // 네스팅 조각 간격 (world mm)
+  gapMm: 6,              // 네스팅 조각 간격 (world mm) — 종이 낭비를 줄이려 12 → 6
   padMm: 4,              // 네스팅 캔버스 바깥 여백 (world mm)
   calibMm: 50,           // 지난 인쇄에서 5cm 눈금을 자로 잰 값(mm). 50 이면 보정 없음
   grid: &#x27;major&#x27;,         // false | &#x27;major&#x27;(5cm) | &#x27;full&#x27;(1cm+5cm)
@@ -23155,7 +23159,8 @@ var DEFAULTS = {
   title: &#x27;&#x27;,             // 페이지 머리말(호수·치수 요약 등)
   rollMarginMm: 15,      // 롤지 상하좌우 여백
   rollFitWidth: true,    // 롤지 페이지를 배치 크기로 줄인다
-  rollMaxHmm: 841        // 롤지 한 장의 최대 길이(mm). 넘으면 여러 장으로 나눈다.
+  rollMaxHmm: 0          // 롤지 한 장의 최대 길이(mm). 0 = 연속 롤(안 나눔) — 기본.
+                         //   나누면 장마다 길이를 가장 긴 장에 맞춰 통일해서 종이가 크게 남는다.
                          // 0 이면 제한 없음 — 프린터가 받는 최대 길이로 두세요.
 };
 
@@ -23940,29 +23945,92 @@ function normalizePieces(draft, o, warn) {
 /* =========================================================================
  * 2. 네스팅 (shelf packing + 90° 회전)
  * =======================================================================*/
-function pack(pieces, binW, gap, allowRotate) {
+function pack(pieces, binW, gap, allowRotate, pageH) {
+  /* 스카이라인(bottom-left) 배치.
+     예전 선반(shelf) 방식은 한 줄의 높이를 그 줄에서 제일 큰 조각이 정해서,
+     낮은 조각 아래가 통째로 비었다 (A1 롤에서 종이가 크게 낭비됐다).
+     스카이라인은 이미 놓인 조각들의 윗선을 기억했다가 **가장 낮은 자리**에 채워 넣는다.
+     조각 간격 gap 은 조각 크기에 미리 더해 두고(w+gap, h+gap) 자리만 찾는다. */
   var items = [], i;
-  for (i = 0; i &lt; pieces.length; i++) {
-    var w = pieces[i].bbox.w, h = pieces[i].bbox.h, rot = false;
-    if (allowRotate &amp;&amp; w &gt; h) { var t = w; w = h; h = t; rot = true; }   // 세로로 세움
-    if (w &gt; binW &amp;&amp; allowRotate) {                                        // 그래도 안 들어가면 반대로
-      var t2 = w; w = h; h = t2; rot = !rot;
-    }
-    items.push({ idx: i, w: w, h: h, rot: rot });
-  }
-  items.sort(function (a, b) { return (b.h - a.h) || (b.w - a.w); });
+  for (i = 0; i &lt; pieces.length; i++)
+    items.push({ idx: i, w0: pieces[i].bbox.w, h0: pieces[i].bbox.h });
+  /* 큰 것부터 — 작은 조각이 큰 조각 옆 빈틈을 메우게 된다 */
+  items.sort(function (a, b) {
+    return (Math.max(b.w0, b.h0) - Math.max(a.w0, a.h0)) || (b.w0 * b.h0 - a.w0 * a.h0);
+  });
 
-  var x = 0, y = 0, shelfH = 0, usedW = 0, placed = [];
+  var W = binW + gap;                       // 오른쪽 끝 조각도 gap 을 붙여 계산
+  var sky = [{ x: 0, w: W, y: 0 }];         // 윗선 — x 오름차순, 서로 겹치지 않는다
+  var placed = [], usedW = 0, usedH = 0;
+
+  function fitAt(k, w) {                    // sky[k] 왼쪽 끝에 폭 w 를 놓을 때의 y
+    var x = sky[k].x;
+    if (x + w &gt; W + 1e-9) return null;
+    var y = sky[k].y, rest = w, j = k;
+    while (rest &gt; 1e-9) {
+      if (j &gt;= sky.length) return null;
+      if (sky[j].y &gt; y) y = sky[j].y;
+      rest -= sky[j].w; j++;
+    }
+    return y;
+  }
+  function place(x, w, y, h) {              // 윗선 갱신
+    var ns = [], t = { x: x, w: w, y: y + h }, k;
+    for (k = 0; k &lt; sky.length; k++) {
+      var sg = sky[k], a = sg.x, b = sg.x + sg.w;
+      if (b &lt;= x + 1e-9 || a &gt;= x + w - 1e-9) { ns.push(sg); continue; }
+      if (a &lt; x - 1e-9) ns.push({ x: a, w: x - a, y: sg.y });
+      if (b &gt; x + w + 1e-9) ns.push({ x: x + w, w: b - (x + w), y: sg.y });
+    }
+    ns.push(t);
+    ns.sort(function (p1, p2) { return p1.x - p2.x; });
+    var mg = [];                            // 같은 높이 이웃은 합친다
+    for (k = 0; k &lt; ns.length; k++) {
+      var last = mg[mg.length - 1];
+      if (last &amp;&amp; Math.abs(last.y - ns[k].y) &lt; 1e-9 &amp;&amp; Math.abs(last.x + last.w - ns[k].x) &lt; 1e-9)
+        last.w += ns[k].w;
+      else mg.push({ x: ns[k].x, w: ns[k].w, y: ns[k].y });
+    }
+    sky = mg;
+  }
+
   for (i = 0; i &lt; items.length; i++) {
-    var it = items[i];
-    if (x &gt; 0 &amp;&amp; x + it.w &gt; binW + 1e-9) { y += shelfH + gap; x = 0; shelfH = 0; }
-    placed.push({ idx: it.idx, x: x, y: y, w: it.w, h: it.h, rot: it.rot });
-    x += it.w + gap;
-    if (x - gap &gt; usedW) usedW = x - gap;
-    if (it.h &gt; shelfH) shelfH = it.h;
+    var it = items[i], best = null;
+    var forms = [{ w: it.w0 + gap, h: it.h0 + gap, rot: false }];
+    if (allowRotate) forms.push({ w: it.h0 + gap, h: it.w0 + gap, rot: true });
+    for (var f = 0; f &lt; forms.length; f++) {
+      for (var k2 = 0; k2 &lt; sky.length; k2++) {
+        var y = fitAt(k2, forms[f].w);
+        if (y === null) continue;
+        /* 롤을 여러 장으로 자를 때 조각이 장 경계를 걸치면 안 된다 —
+           걸치면 다음 장 머리로 내린다. 그래야 장마다 꽉 차고 장수가 준다. */
+        if (pageH &gt; 0 &amp;&amp; forms[f].h &lt;= pageH + 1e-9) {
+          var pg = Math.floor(y / pageH + 1e-9);
+          if (y + forms[f].h &gt; (pg + 1) * pageH + 1e-9) y = (pg + 1) * pageH;
+        }
+        var cand = { x: sky[k2].x, y: y, f: forms[f] };
+        /* ① 놓았을 때 위쪽 끝이 가장 낮은 자리 ② 같으면 왼쪽 ③ 같으면 회전 안 한 쪽 */
+        if (!best || y + forms[f].h &lt; best.y + best.f.h - 1e-9 ||
+            (Math.abs((y + forms[f].h) - (best.y + best.f.h)) &lt; 1e-9 &amp;&amp;
+             (cand.x &lt; best.x - 1e-9 ||
+              (Math.abs(cand.x - best.x) &lt; 1e-9 &amp;&amp; !forms[f].rot &amp;&amp; best.f.rot))))
+          best = cand;
+      }
+    }
+    if (!best) {                            // 어떤 자리에도 안 들어가면 맨 위에 새 줄
+      var hAll = 0;
+      for (var z = 0; z &lt; sky.length; z++) if (sky[z].y &gt; hAll) hAll = sky[z].y;
+      best = { x: 0, y: hAll, f: forms[0] };
+      sky = [{ x: 0, w: W, y: hAll }];
+    }
+    place(best.x, best.f.w, best.y, best.f.h);
+    placed.push({ idx: it.idx, x: best.x, y: best.y,
+                  w: best.f.w - gap, h: best.f.h - gap, rot: best.f.rot });
+    if (best.x + best.f.w - gap &gt; usedW) usedW = best.x + best.f.w - gap;
+    if (best.y + best.f.h - gap &gt; usedH) usedH = best.y + best.f.h - gap;
   }
   placed.sort(function (a, b) { return a.idx - b.idx; });
-  return { placed: placed, w: usedW, h: y + shelfH };
+  return { placed: placed, w: usedW, h: usedH };
 }
 
 /* A4 타일: 페이지 수가 최소가 되는 캔버스 폭을 탐색 */
@@ -24624,7 +24692,10 @@ function buildPrintLayout(draft, opt) {
   } else {
     rollWmm = +o.rollWidthMm || 594;
     var usableW = (rollWmm - 2 * o.rollMarginMm) / k;   // world mm
-    var res = pack(pieces, usableW - 2 * o.padMm, o.gapMm, o.allowRotate);
+    /* 장 경계를 걸치지 않게 — 프린터 최대 길이가 있으면 그 안쪽 높이를 넘겨 준다 */
+    var pageUsable = (+o.rollMaxHmm &gt; 0)
+      ? ((+o.rollMaxHmm - (2 * o.rollMarginMm + 26 + 8)) / k) - 2 * o.padMm : 0;
+    var res = pack(pieces, usableW - 2 * o.padMm, o.gapMm, o.allowRotate, pageUsable);
     placed = res.placed;
     canvasW = res.w + 2 * o.padMm; canvasH = res.h + 2 * o.padMm;
     if (canvasW &gt; usableW + 1e-6) {
@@ -26354,8 +26425,9 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
     printMode: &#x27;a4&#x27;,
     rollWidthMm: 594,
-    rollMaxHmm: 841,       // 롤지 한 장 최대 길이 — 0 이면 제한 없음
+    rollMaxHmm: 0,         // 롤지 한 장 최대 길이 — 0 = 연속 롤(기본). 컷시트 플로터면 841/1189
     overlapMm: 10,
+    gapMm: 6,              // 네스팅 조각 간격 — 크면 종이가 낭비된다
     calibMm: 50,
     show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
     view: { s: 8, tx: 60, ty: 40 },
@@ -27148,6 +27220,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
       rollWidthMm: state.rollWidthMm,
       rollMaxHmm: state.rollMaxHmm,
       overlapMm: state.overlapMm,
+      gapMm: state.gapMm,
       /* print.js 가 부위별 객체를 이해하면(normalizeSeamOpt/SEAM_DEFAULTS 노출) 그대로 넘기고,
          숫자만 받는 구버전이면 가장 큰 부위값을 넘겨 시접이 모자라게 잘리지 않도록 합니다. */
       seam: (P.normalizeSeamOpt || P.SEAM_DEFAULTS) ? copyObj(state.seam) : maxSeam(state.seam),
@@ -27386,7 +27459,14 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
     els.overlap.addEventListener(&#x27;change&#x27;, function () {
       var v = parseFloat(els.overlap.value);
       state.overlapMm = isFinite(v) ? v : 10;
-    });
+    })
+    if (els.gap) els.gap.addEventListener(&#x27;change&#x27;, function () {
+      var g = parseFloat(els.gap.value);
+      if (!isFinite(g) || g &lt; 0) g = 6;
+      state.gapMm = Math.min(30, Math.max(0, g));
+      els.gap.value = state.gapMm;
+      recompute(false);
+    });;
     els.calib.addEventListener(&#x27;change&#x27;, function () {
       var v = parseFloat(els.calib.value);
       state.calibMm = (isFinite(v) &amp;&amp; v &gt;= 30 &amp;&amp; v &lt;= 70) ? v : 50;
@@ -27538,6 +27618,9 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
     state.seamPreset = detectPreset(state.seam);
     state.style = styleDefaults();
 
+    if (els.gap) els.gap.value = state.gapMm;
+    if (els.rollMax) els.rollMax.value = String(state.rollMaxHmm);
+
     buildFields();
     buildStyleFields();
     buildSeamRoles();
@@ -27610,6 +27693,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
         size: state.size, custom: state.custom, measures: state.m ? cloneM(state.m) : null,
         seam: copyObj(state.seam || {}), seamPreset: state.seamPreset, style: copyObj(state.style || {}),
         printMode: state.printMode, rollWidthMm: state.rollWidthMm, overlapMm: state.overlapMm,
+        gapMm: state.gapMm,
         calibMm: state.calibMm, engineOk: state.engineOk, lastError: state.lastError,
         zoom: state.view.s / PX_PER_CM
       };

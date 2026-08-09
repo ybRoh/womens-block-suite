@@ -374,8 +374,9 @@
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
     printMode: 'a4',
     rollWidthMm: 594,
-    rollMaxHmm: 841,       // 롤지 한 장 최대 길이 — 0 이면 제한 없음
+    rollMaxHmm: 0,         // 롤지 한 장 최대 길이 — 0 = 연속 롤(기본). 컷시트 플로터면 841/1189
     overlapMm: 10,
+    gapMm: 6,              // 네스팅 조각 간격 — 크면 종이가 낭비된다
     calibMm: 50,
     show: { dim: true, formula: false, seam: true, notch: true, inner: true, grid: true },
     view: { s: 8, tx: 60, ty: 40 },
@@ -1168,6 +1169,7 @@
       rollWidthMm: state.rollWidthMm,
       rollMaxHmm: state.rollMaxHmm,
       overlapMm: state.overlapMm,
+      gapMm: state.gapMm,
       /* print.js 가 부위별 객체를 이해하면(normalizeSeamOpt/SEAM_DEFAULTS 노출) 그대로 넘기고,
          숫자만 받는 구버전이면 가장 큰 부위값을 넘겨 시접이 모자라게 잘리지 않도록 합니다. */
       seam: (P.normalizeSeamOpt || P.SEAM_DEFAULTS) ? copyObj(state.seam) : maxSeam(state.seam),
@@ -1406,7 +1408,14 @@
     els.overlap.addEventListener('change', function () {
       var v = parseFloat(els.overlap.value);
       state.overlapMm = isFinite(v) ? v : 10;
-    });
+    })
+    if (els.gap) els.gap.addEventListener('change', function () {
+      var g = parseFloat(els.gap.value);
+      if (!isFinite(g) || g < 0) g = 6;
+      state.gapMm = Math.min(30, Math.max(0, g));
+      els.gap.value = state.gapMm;
+      recompute(false);
+    });;
     els.calib.addEventListener('change', function () {
       var v = parseFloat(els.calib.value);
       state.calibMm = (isFinite(v) && v >= 30 && v <= 70) ? v : 50;
@@ -1558,6 +1567,9 @@
     state.seamPreset = detectPreset(state.seam);
     state.style = styleDefaults();
 
+    if (els.gap) els.gap.value = state.gapMm;
+    if (els.rollMax) els.rollMax.value = String(state.rollMaxHmm);
+
     buildFields();
     buildStyleFields();
     buildSeamRoles();
@@ -1630,6 +1642,7 @@
         size: state.size, custom: state.custom, measures: state.m ? cloneM(state.m) : null,
         seam: copyObj(state.seam || {}), seamPreset: state.seamPreset, style: copyObj(state.style || {}),
         printMode: state.printMode, rollWidthMm: state.rollWidthMm, overlapMm: state.overlapMm,
+        gapMm: state.gapMm,
         calibMm: state.calibMm, engineOk: state.engineOk, lastError: state.lastError,
         zoom: state.view.s / PX_PER_CM
       };

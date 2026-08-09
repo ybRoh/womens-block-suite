@@ -632,7 +632,7 @@
       outline: frontLoop.pts, seamline: frontSeam.seamline, foldEdges: frontSeam.foldEdges,
       seamEdges: frontSeam.seamEdges, seamFoldEdges: frontSeam.seamFoldEdges,
       seamByRole: frontSeam.seamByRole, edges: withSeam(frontLoop.ranges, frontSeam.edgeSeam),
-      internal: frontInternal(g), notches: [
+      internal: frontInternal(g, true), notches: [
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: '목옆점' },
         { p: cp(g.Uf),   angle: 180,                                          label: '겨드랑' },
@@ -693,7 +693,7 @@
       outline: plainLoop.pts, seamline: plainSeam.seamline, foldEdges: plainSeam.foldEdges,
       seamEdges: plainSeam.seamEdges, seamFoldEdges: plainSeam.seamFoldEdges,
       seamByRole: plainSeam.seamByRole, edges: withSeam(plainLoop.ranges, plainSeam.edgeSeam),
-      internal: frontInternal(g).filter(function (x) { return x.id !== 'wrapLine'; }),
+      internal: frontInternal(g, false).filter(function (x) { return x.id !== 'wrapLine'; }),
       notches: [
         { p: cp(g.SPf),  angle: angDeg(perpToward(g.fShDir, g.SPf, g.Uf)),   label: '어깨점' },
         { p: cp(g.SNPf), angle: angDeg(perpToward(g.fShDir, g.SNPf, g.Vcf)), label: '목옆점' },
@@ -1165,12 +1165,13 @@
       L('SNP',     'point',  [g.SNPb], 'SNP')
     ];
   }
-  function frontInternal(g) {
-    var dep = g.FNP[1];
+  /** @param wrap true = 자락 앞판(앞중심 좌우로 뻗음) · false = 자락 없는 앞판(0~옆선만) */
+  function frontInternal(g, wrap) {
+    var dep = g.FNP[1], xL = wrap ? -g.fSideX : 0;
     return [
       L('topLine',  'line',   [[0, 0], [K.fixedX, 0]], '상단 기준선'),
       L('cfRise',   'dashed', [[0, -K.frontNeckLift], [g.nw, -K.frontNeckLift]], 'CF 올림'),
-      L('BL',       'line',   [[-g.fSideX, g.BL], [g.fSideX, g.BL]], 'BL (B/4)'),
+      L('BL',       'line',   [[xL, g.BL], [g.fSideX, g.BL]], 'BL (B/4)'),
       L('armLine',  'dashed', [[0, g.armY], [g.fSideX, g.armY]], '겨드랑선'),
       L('frontW',   'dashed', [[g.fPitchX, -K.frontNeckLift], [g.fPitchX, g.BL]], '앞품선'),
       /* 앞면은 자락이라 앞중심이 조각 한가운데를 지난다 — 재단·시착 기준이므로 실선으로 긋는다 */
@@ -1181,11 +1182,11 @@
       L('neckDiag', 'dashed', [[0, 0], [g.nw, dep]], '목 사각 대각선'),
       L('vMark',    'point',  [g.vMark], 'V 통과점 (대각선 2/3 + 1)'),
       L('vLine',    'dashed', [g.SNPf, g.Vcf], 'V 직선'),
-      L('wrapLine', 'dashed', [[g.fSideX, g.Vend[1]], [-g.fSideX, g.Vend[1]]], '자락 끝 수평선'),
+      L('wrapLine', 'dashed', [[g.fSideX, g.Vend[1]], [xL, g.Vend[1]]], '자락 끝 수평선'),
       L('shExt',    'dashed', [g.SPf, [K.fixedX, K.frontShDrop]], '어깨선 연장'),
       L('bpLen',    'dashed', [g.SNPf, g.BP], '유장'),
       L('bpSpan',   'dashed', [[g.BP[0], 0], [g.BP[0], g.BP[1]]], '유폭'),
-      L('hemLevel', 'dashed', [[-g.fSideX, g.WL], [g.fSideX, g.WL]], '허리선 (다트 접은 뒤 밑단)'),
+      L('hemLevel', 'dashed', [[xL, g.WL], [g.fSideX, g.WL]], '허리선 (다트 접은 뒤 밑단)'),
       L('dartMid',  'dashed', [g.BP, [(g.dartHi[0] + g.dartLo[0]) / 2, (g.dartHi[1] + g.dartLo[1]) / 2]], '다트 중심'),
       L('BP',       'point',  [g.BP], 'BP'),
       L('SP',       'point',  [g.SPf], 'SP'),

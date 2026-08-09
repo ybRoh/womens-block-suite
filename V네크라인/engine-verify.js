@@ -343,6 +343,40 @@ console.log('══════════════════════�
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 5-4. 인쇄 배치 — 캔버스 밖으로 나가는 조각이 없어야 한다');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var PR;
+  try { PR = require('./print.js'); } catch (e) { console.log('  ? print.js 로드 실패 — 건너뜀'); warns++; return; }
+  [['roll', { mode: 'roll', rollWidthMm: 594 }], ['a4', { mode: 'a4' }]].forEach(function (w) {
+    var bad = [], tot = 0;
+    E.SIZES.forEach(function (sz) {
+      var d = E.draftVNeck(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT });
+      var o = { seam: E.SEAM_DEFAULT };
+      for (var kk in w[1]) o[kk] = w[1][kk];
+      var L = PR.buildPrintLayout(d, o), c = L.info.canvas;
+      L.info.placements.forEach(function (q) {
+        if (q.xMm < -1e-6 || q.yMm < -1e-6) bad.push(sz + ' ' + q.name + ' 음수좌표');
+        if (q.xMm + q.wMm > c.wMm + 1e-6) bad.push(sz + ' ' + q.name + ' 우측 넘침 ' + (q.xMm + q.wMm - c.wMm).toFixed(2));
+        if (q.yMm + q.hMm > c.hMm + 1e-6) bad.push(sz + ' ' + q.name + ' 하단 넘침 ' + (q.yMm + q.hMm - c.hMm).toFixed(2));
+      });
+      /* 조각끼리 겹치면 안 된다 */
+      var pls = L.info.placements;
+      for (var a = 0; a < pls.length; a++) for (var b2 = a + 1; b2 < pls.length; b2++) {
+        var A = pls[a], B = pls[b2];
+        if (A.xMm < B.xMm + B.wMm - 1e-6 && B.xMm < A.xMm + A.wMm - 1e-6 &&
+            A.yMm < B.yMm + B.hMm - 1e-6 && B.yMm < A.yMm + A.hMm - 1e-6)
+          bad.push(sz + ' ' + A.name + ' ↔ ' + B.name + ' 겹침');
+      }
+      tot += L.pageCount;
+    });
+    if (bad.length) fails++;
+    console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(w[0] === 'roll' ? 'A1 롤' : 'A4 타일', 8) +
+      '전 호수 배치 정상 · 총 ' + tot + '장' + (bad.length ? '\n      → ' + bad.slice(0, 5).join('\n      → ') : ''));
+  });
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 6. 자락 없는 앞면 — 자락 앞면과 같은 변을 써야 한다');
 console.log('════════════════════════════════════════════════════════════');
 E.SIZES.forEach(function (sz) {
