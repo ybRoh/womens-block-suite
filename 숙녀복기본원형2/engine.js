@@ -271,6 +271,7 @@
   var K = {
     ease         : 4.0,        // 여유분 — 폭 = B/4 + 여유분/2 (도면 `B/4 + 여유분/2`)
     frontBackDiff: 4.0,        // 앞 등길이 차이치수 — 앞 상단이 뒤 상단보다 위 (도면 `앞 등길이 차이치수 4`)
+    frontSpOut   : 1.0,        // 앞 어깨점 x = 앞품/2 + 1.0 [도면 18.1539 − 17.15 = 1.0039]
     shEase       : 0.5,        // 어깨 이세분 0.3~0.6 — 뒤 어깨 안내선 = 어깨너비/2 + 이세분
     shEaseMin    : 0.3,
     shEaseMax    : 0.6,
@@ -405,7 +406,15 @@
     var fShGuide= [SNPf[0] + dx, SNPf[1] + dy];
     var shLenFront = shLenBack - shEase;
     var fShDir  = V.norm(V.sub(fShGuide, SNPf));
-    var SPf     = V.add(SNPf, V.mul(fShDir, shLenFront));
+    /* ★ 실제 어깨점은 **안내선 위에 있지 않다** — x 는 `앞품/2 + 1.0` 으로 따로 정해지고
+       (도면 SP x 18.1539 − 앞품선 17.15 = 1.0039), y 는 어깨선 길이로 결정된다.
+       숙녀복 기본원형 III 도 같은 구조다(거기는 +1.25). 안내선(깊이 4.5)은 **길이·경사를
+       재는 보조선**일 뿐이다.
+       ⚠ 예전에는 안내선 위에서 이세분만큼 되돌린 점을 썼다. 그러면 SP 가 도면과 0.115
+         어긋나고, 그 현이 0.094 길어져 **앞 암홀 호가 +0.090** 이 됐다 (곡선 모양은 맞았다). */
+    var fSpX    = fPitchX + K.frontSpOut;
+    var fSpDx   = fSpX - SNPf[0];
+    var SPf     = [fSpX, SNPf[1] + Math.sqrt(Math.max(shLenFront * shLenFront - fSpDx * fSpDx, 0.01))];
     var Uf      = [fSideX, BL];
     var fWaist  = [fSideX, WLf];
     var BP      = [m.bpSpan / 2, SNPf[1] + m.bpLen];
@@ -423,7 +432,7 @@
     var backNeck  = curveBackNeck(BNP, SNPb, SPb);
     var backArm   = curveBackArm(SPb, SNPb, bPitchX, Ub, BL);
     var frontNeck = curveFrontNeck(FNP, SNPf, nw, SPf);
-    var frontArm  = curveFrontArm(SPf, SNPf, fPitchX, Uf, BL);
+    var frontArm  = curveFrontArm(SPf, SNPf, fPitchX, Uf, BL, fShGuide);
 
     /* ───────── 타이트 소매 ───────── */
     var sleeve = (opt.includeSleeve === false) ? null
@@ -438,7 +447,9 @@
       fSideX: fSideX, fPitchX: fPitchX, fShGuide: fShGuide, fShDir: fShDir, shLenFront: shLenFront,
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaist: fWaist, BP: BP,
       bPitchTop: SNPb[1] + (bPitchX - SNPb[0]) * (SPb[1] - SNPb[1]) / (SPb[0] - SNPb[0]),
-      fPitchTop: SNPf[1] + (fPitchX - SNPf[0]) * (SPf[1] - SNPf[1]) / (SPf[0] - SNPf[0]),
+      /* ★ 앞품선 위끝은 **어깨 안내선** ∩ 앞품선이다 (도면 3.9055 · 안내선으로 재면 3.9053).
+         실제 어깨선(SP 로 가는 선)과의 교점(4.004)이 아니다 — SP 가 안내선 위에 없기 때문. */
+      fPitchTop: SNPf[1] + (fPitchX - SNPf[0]) * (fShGuide[1] - SNPf[1]) / (fShGuide[0] - SNPf[0]),
       dartLo: dartLo, dartHi: dartHi, dartT: dartT, dartLeg: dartLeg, dartAng: dartAng,
       backNeck: backNeck, backArm: backArm, frontNeck: frontNeck, frontArm: frontArm
     };
@@ -630,8 +641,11 @@
    *  · 오목점 H = 품선×BL 모서리에서 [2/3점 → 겨드랑] 현에 내린 **수선의 중점**에서
    *    뒤 0.3 · 앞 0.2 더 나간 점 (도면 `0.3↑` `0.2↑`)
    *  · 뒤는 2/3 점에서 품선에 **접**하므로 거기서 수직 접선으로 끊어 두 조각으로 그린다 */
-  function curveArm(SP, SNP, pitchX, U, BL, mid, C) {
-    var topY = SNP[1] + (pitchX - SNP[0]) * (SP[1] - SNP[1]) / (SP[0] - SNP[0]);
+  function curveArm(SP, SNP, pitchX, U, BL, mid, C, guideEnd) {
+    /* 품선 위끝은 **어깨 안내선**과의 교점이다. 뒤는 SP 가 안내선 위에 있어 둘이 같고,
+       앞은 SP 가 안내선 밖이라 반드시 안내선(guideEnd)으로 재야 한다. */
+    var GE = guideEnd || SP;
+    var topY = SNP[1] + (pitchX - SNP[0]) * (GE[1] - SNP[1]) / (GE[0] - SNP[0]);
     var y1 = topY + (BL - topY) / 3, y2 = topY + (BL - topY) * 2 / 3;
     var A = [pitchX, y2], d = V.norm(V.sub(U, A)), Cn = [pitchX, BL];
     var F = V.add(A, V.mul(d, (Cn[0] - A[0]) * d[0] + (Cn[1] - A[1]) * d[1]));   // 수선의 발
@@ -649,8 +663,8 @@
   function curveBackArm(SP, SNP, pitchX, U, BL) {
     return curveArm(SP, SNP, pitchX, U, BL, K.backArmMid, CAL.backArm);
   }
-  function curveFrontArm(SP, SNP, pitchX, U, BL) {
-    return curveArm(SP, SNP, pitchX, U, BL, K.frontArmDown, CAL.frontArm);
+  function curveFrontArm(SP, SNP, pitchX, U, BL, guideEnd) {
+    return curveArm(SP, SNP, pitchX, U, BL, K.frontArmDown, CAL.frontArm, guideEnd);
   }
 
   var SLEEVE_TYPE = {
@@ -1718,7 +1732,7 @@
     return [
       L('topLine',  'line',   [[0, 0], [g.fSideX, 0]], '상단 기준선'),
       L('BL',       'line',   [[0, g.BL], [g.fSideX, g.BL]], 'BL (B/4)'),
-      L('frontW',   'dashed', [[g.fPitchX, g.fPitchTop], [g.fPitchX, g.BL]], '앞품선 (위끝 = 어깨선 교점)'),
+      L('frontW',   'dashed', [[g.fPitchX, g.fPitchTop], [g.fPitchX, g.BL]], '앞품선 (위끝 = 어깨 안내선 교점)'),
       L('neckBox',  'dashed', [[0, dep], [nw, dep], [nw, 0]], '앞목 사각'),
       L('neckDiag', 'dashed', [[0, 0], [nw, dep]], '목 사각 대각선'),
       L('shGuide',  'dashed', [g.fShGuide, [g.fShGuide[0], 0]], '어깨 안내선 (4.5↓)'),
