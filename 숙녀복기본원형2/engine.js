@@ -320,7 +320,8 @@
     twoFrontElbowIn: 1.44,     // 큰소매 앞 경계의 팔꿈치 들임
     twoBackElbowOut: -1.91,    // 작은소매 바깥 뒤 — 48P 와 **휘는 방향이 반대**다
     twoInsetY      : 20.8,     // 절개짝 너치 y (정답지 20.805)     // 이세처리 구간 표시용 y (원형1 은 반소매 길이를 썼다)
-    ventW          : 2.0,      // 트임 폭 (정답지 작은 2.0000)
+    ventW          : 2.0,      // 작은소매 트임 너비 [도면 2.0]
+    ventWBig       : 2.174,    // 큰소매 트임 너비 [도면 2.174] — 조각마다 다르다
     ventLen        : 9.0,
     ventMitre      : 2.0,
     capApexShift : 0.6,        // 소매산 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
@@ -800,14 +801,17 @@
     }
     return { head: segs.slice(), tail: [] };
   }
-  function ventOf(seamSegs, insideRef) {
+  /** 트임 덧단 — 폭은 조각마다 다르다 (도면 큰 2.174 / 작은 2.0). 하나로 쓰면
+   *  큰소매 트임 밑단이 −0.21, 미터가 −0.19 짧다. */
+  function ventOf(seamSegs, insideRef, wIn) {
+    var ventW = (wIn === undefined) ? K.ventW : wIn;
     var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
     var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
     var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
     var hem = seamSegs[seamSegs.length - 1].p1;
     var ch = V.norm(V.sub(hem, top)), nr = [ch[1], -ch[0]];
     if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) < 0) nr = [-nr[0], -nr[1]];
-    var vv = [nr[0] * K.ventW, nr[1] * K.ventW];
+    var vv = [nr[0] * ventW, nr[1] * ventW];
     /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
     var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
     return {
@@ -815,7 +819,7 @@
       mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,
       topOut: [top[0] + vv[0], top[1] + vv[1]],
       hemOut: [hem[0] + vv[0], hem[1] + vv[1]],
-      vec: vv, len: polyLen(sampleSegs(fold, 0.02))
+      vec: vv, w: ventW, len: polyLen(sampleSegs(fold, 0.02))
     };
   }
   /** 점열의 **끝에서부터** 기준점 ref 와의 현(직선거리)이 d 가 되는 자리.
@@ -996,8 +1000,8 @@
        두 절개선이 그 0.8 만큼 겹쳐 그것이 이세로 들어간다 (도면 `0.8` 두 곳). */
     var undBack = mkSeam(undHemF, splitU, +1);   // 작은소매는 반대쪽(앞)으로 부푼다 — 큰소매의 거울
     /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
-    var ventBig = ventOf(bigBack, [halfF, elbowY]);      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
-    var ventUnd = ventOf(undBack, [backOutX, elbowY]);   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
+    var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig));      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
+    var ventUnd = ventOf(undBack, [backOutX, elbowY], num(opt.ventWUnd, K.ventW));   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
 
     var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
       endTan([0, 1], CAL.twoFront.k0), null);
