@@ -313,7 +313,11 @@
     twoHemDrop     : 1.492,    // 소맷부리 다트분 (도면 `1.5` 두 개 · 실측 1.4920)
     twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 (실측 60.7 = 1+60−0.3) [식 미상]
     twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 (도면 17.019 / 25.479 = 0.6680)
-    twoSeamBulge   : 0.661,    // 절개선 S 자 정점 — 절개점 수직선에서 조각 바깥으로 (실측 10.335−9.674)
+    twoSeamBulge   : 0.661,    // 절개선 앵커 1 — 가장 부푼 자리 (실측 10.335−9.674)
+    twoSeamBulge2  : 0.404,    // 절개선 앵커 2 — 팔꿈치 아래 (실측 10.078−9.674)
+    twoSeamBulgeU  : 1.139,    // 작은소매 앵커 1 (실측 10.474−9.335)
+    twoSeamBulgeU2 : 0.882,    // 작은소매 앵커 2 (실측 10.474−9.592)
+    twoSeamY2      : 34.315,   // 앵커 2 의 y (도면 점열 자리)    // 절개선 S 자 정점 — 절개점 수직선에서 조각 바깥으로 (실측 10.335−9.674)
     twoUndHemIn    : 1.175,    // 작은소매 부리 뒤 모서리 — 뒤 경계에서 **안쪽** (실측 21.425−20.250)
     twoUndHemRise  : 0.300,    // 위 모서리 올림 (도면 마크 `0.3 올림`)
     twoFrontHemIn  : 6.25,     // 큰소매 앞 밑단 들임 (정답지 x 9.250)
@@ -349,7 +353,7 @@
     /* 2장소매 소매산 — 패드점 수선 + 4점 스플라인 구성에 맞춰 앞뒤 따로 적합 (2장소매 DXF) */
     capBack  : { k0: 1.10, k1: 1.50 },
     capFront : { k0: 1.40, k1: 1.60 },
-    twoSeam  : { k0: 0.50, k1: 0.50 },   // 완만한 C자 — 절개점 수직 출발, 부푼 점 → 밑단
+    twoSeam  : { k0: 0.10, k1: 2.00 },   // 완만한 C자 — 절개점 수직 출발, 앵커 두 점 → 밑단
     twoFront : { k0: 1.00 },
     twoUnderCap: { k0: 1.00 },   // 작은소매 소매산 — 0.8 수평 뒤 출발접선 장력
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
@@ -991,9 +995,16 @@
     var mkSeam = function (endPt, startP, outSign) {
       var cs = CAL.twoSeam;
       var st = startP || splitP;
-      var bulge = [st[0] + (outSign || -1) * num(opt.twoSeamBulge, K.twoSeamBulge), K.twoInsetY];
-      return splineSegs([st, bulge, endPt],
-        endTan([0, 1], cs.k0), endTan(V.sub(endPt, bulge), cs.k1));
+      /* 앵커 **두 점** — 가장 부푼 자리(y 20.805)와 팔꿈치 아래(y 34.315).
+         한 점만 쓰면 아래쪽이 곧게 펴져 도면과 0.29 벗어난다 (도면 −10.078 · 엔진 −9.9). */
+      /* ★ 두 절개선은 서로의 거울이지만 **각자의 절개점**에서 출발한다. 그래서 자기
+         절개점 기준으로 재면 부푼 양이 다르다 (큰 0.661/0.404 · 작은 1.139/0.882).
+         차이는 둘 다 0.478 로 같다 — 대칭축이 절개점이 아니라 그 사이의 −9.835 이기 때문. */
+      var sg = (outSign || -1), un = (sg > 0);
+      var b1 = [st[0] + sg * num(opt.twoSeamBulge, un ? K.twoSeamBulgeU : K.twoSeamBulge), K.twoInsetY];
+      var b2 = [st[0] + sg * (un ? K.twoSeamBulgeU2 : K.twoSeamBulge2), K.twoSeamY2];
+      return splineSegs([st, b1, b2, endPt],
+        endTan([0, 1], cs.k0), endTan(V.sub(endPt, b2), cs.k1));
     };
     var bigBack = mkSeam(bigHemB);
     /* 작은소매 절개선은 **자기 절개점(splitU)** 에서 출발한다 — 큰소매보다 0.8 뒤.
