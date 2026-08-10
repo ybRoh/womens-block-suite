@@ -315,6 +315,10 @@
     twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 (도면 17.019 / 25.479 = 0.6680)
     twoSeamBulge   : 0.661,    // 절개선 앵커 1 — 가장 부푼 자리 (실측 10.335−9.674)
     twoSeamBulge2  : 0.404,    // 절개선 앵커 2 — 팔꿈치 아래 (실측 10.078−9.674)
+    twoUndOutIn1   : 1.965,    // 작은소매 바깥 뒤선 앵커 1 — 뒤 경계에서 (실측 21.425−19.460)
+    twoUndOutY1    : 36.199,   // 앵커 1 의 y — 가장 앞으로 나온 자리
+    twoUndOutIn2   : 1.809,    // 앵커 2 (실측 21.425−19.616)
+    twoUndOutY2    : 45.291,
     twoSeamBulgeU  : 1.139,    // 작은소매 앵커 1 (실측 10.474−9.335)
     twoSeamBulgeU2 : 0.882,    // 작은소매 앵커 2 (실측 10.474−9.592)
     twoSeamY2      : 34.315,   // 앵커 2 의 y (도면 점열 자리)    // 절개선 S 자 정점 — 절개점 수직선에서 조각 바깥으로 (실측 10.335−9.674)
@@ -355,6 +359,7 @@
     capFront : { k0: 1.40, k1: 1.60 },
     twoSeam  : { k0: 0.10, k1: 2.00 },   // 완만한 C자 — 절개점 수직 출발, 앵커 두 점 → 밑단
     twoFront : { k0: 1.00 },
+    twoUndOuter: { k0: 0.10, k1: 1.60 },   // 앵커 두 점 — 편차 0.217
     twoUnderCap: { k0: 1.00 },   // 작은소매 소매산 — 0.8 수평 뒤 출발접선 장력
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
     frontNeck: { along: 0.3009, a1: -20.40, k0: 1.3493, k1: 0.8123 },                      // 편차 0.007
@@ -1016,8 +1021,13 @@
 
     var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
       endTan([0, 1], CAL.twoFront.k0), null);
-    var undOuter = splineSegs([[backOutX, topY], [backOutX - K.twoBackElbowOut, elbowY], undHemB],
-      endTan([0, 1], CAL.twoFront.k0), null);
+    /* 작은소매 바깥 뒤선 — 앵커 **두 점**. 가장 앞으로 나온 자리는 팔꿈치선(33.5)이 아니라
+       그보다 아래 y 36.199 다 (도면 −19.460 · 뒤 경계에서 1.965). 팔꿈치선에 한 점만 두면
+       아래쪽이 곧게 펴져 도면과 0.53 벗어난다. */
+    var undOuter = splineSegs([[backOutX, topY],
+        [backOutX + K.twoUndOutIn1, K.twoUndOutY1],
+        [backOutX + K.twoUndOutIn2, K.twoUndOutY2], undHemB],
+      endTan([0, 1], CAL.twoUndOuter.k0), endTan([0, 1], CAL.twoUndOuter.k1));
     /* 소매통 연결 — 위에서 만든 **큰소매 앞 소매산의 잘린 꼬리를 평행이동한 것** 그대로다.
        예전에는 CAL.twoCapOut 으로 따로 적합한 스플라인을 그렸다 (도면에 없는 곡선이었다). */
     var undCapOut = lineSegs.apply(null, capOutPts);
