@@ -310,6 +310,10 @@
     twoSplitGap    : 0.8,      // 큰·작은 절개점 간격 (도면 `0.8` · 실측 0.8000)
     twoSideOff     : 3.0,      // 큰소매 앞 −3 · 작은소매 뒤 +3 (도면 `3` 두 개 · 총폭 불변)
     twoHemDrop     : 1.492,    // 소맷부리 다트분 (도면 `1.5` 두 개 · 실측 1.4920)
+    twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 (실측 60.7 = 1+60−0.3) [식 미상]
+    twoSeamBulge   : 0.661,    // 절개선 S 자 정점 — 절개점 수직선에서 조각 바깥으로 (실측 10.335−9.674)
+    twoUndHemIn    : 1.175,    // 작은소매 부리 뒤 모서리 — 뒤 경계에서 **안쪽** (실측 21.425−20.250)
+    twoUndHemRise  : 0.300,    // 위 모서리 올림 (도면 마크 `0.3 올림`)
     twoFrontHemIn  : 6.25,     // 큰소매 앞 밑단 들임 (정답지 x 9.250)
     twoFrontElbowIn: 1.44,     // 큰소매 앞 경계의 팔꿈치 들임
     twoBackElbowOut: -1.91,    // 작은소매 바깥 뒤 — 48P 와 **휘는 방향이 반대**다
@@ -342,7 +346,7 @@
     /* 2장소매 소매산 — 패드점 수선 + 4점 스플라인 구성에 맞춰 앞뒤 따로 적합 (2장소매 DXF) */
     capBack  : { k0: 1.10, k1: 1.50 },
     capFront : { k0: 1.40, k1: 1.60 },
-    twoSeam  : { mr: 0.172537, my: -6.831831, k0: 0.847411, k1: 0.150000 },
+    twoSeam  : { k0: 0.50, k1: 0.50 },   // 완만한 C자 — 절개점 수직 출발, 부푼 점 → 밑단
     twoFront : { k0: 1.00 },
     twoUnderCap: { k0: 1.00 },   // 작은소매 소매산 — 0.8 수평 뒤 출발접선 장력
     backNeck : { mx: 0.6624, my: 0.1858, a0: 21.21, k0: 1.3386, k1: 0.3122 },              // 편차 0.009
@@ -652,7 +656,7 @@
   var SLEEVE_TYPE = {
     tight: { name: '타이트 소매', len: 58.0, lenGrade: 1.0, cuff: 24.0, cuffGrade: 0.5 },
     two:   { name: '2장소매',    len: 60.0, lenGrade: 1.0,   // 패드점에서 잰 길이
-             cuff: 25.183, cuffGrade: 0.65, twoPiece: true }
+             cuff: 25.479, cuffGrade: 0.65, twoPiece: true }   // 도면 큰 17.019 + 작은 8.460
   };
   var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
 
@@ -926,10 +930,17 @@
     var capOutPts = capFrontPts.slice(cutF.i + 1);
     capOutPts = [cutF.p].concat(capOutPts, [cg.bicepF]).map(function (q) { return [q[0] - sleeveW, q[1]]; });
     var backOutX = capOutPts[0][0];
-    var hemY = sleeveLen, hemLowY = sleeveLen + K.twoHemDrop;
+    /* 밑단선 y — **패드점 기준**이라야 팔꿈치(33.5)와 앞뒤가 맞는다.
+       도면 실측 60.7 = 패드분 1 + 소매길이 60 − 0.3. 그 0.3 이 어디서 오는지는 [미확정]. */
+    var hemY = pad2 + sleeveLen - K.twoHemUp, hemLowY = hemY + K.twoHemDrop;
 
     var bigHemF = [halfF - K.twoFrontHemIn, hemY];
-    var undHemB = [backOutX - K.twoHemDrop, hemY];
+    /* ★ 작은소매 부리 뒤 모서리는 뒤 경계보다 **안쪽**이고 **0.3 올라간다**
+       (도면 마크 「작은소매 부리 뒤모서리(0.3 올림)」 실측 (−20.250, 60.4) · 뒤 경계 −21.425).
+       예전에는 `backOutX − 1.492` 로 **바깥으로** 내밀어 부호가 반대였다. 그 2.6 때문에
+       바깥 뒤선이 팔꿈치 아래에서 크게 휘고(휨 0.404 · 도면 0.117) 부리 몫도 틀렸다
+       (작은 9.85 / 도면 8.46). 팔꿈치선까지는 도면과 0.05 로 맞고 있었다. */
+    var undHemB = [backOutX + K.twoUndHemIn, hemY - K.twoUndHemRise];
     /* ★ 작은소매 절개선은 큰소매 절개선을 **절개점 수직선에 대칭**시킨 것이다.
        도면이 그렇다 — 큰 −5.586 / 작은 −15.836 은 절개점 −10.711 에 대해 정확히 대칭.
        대칭이면 두 절개변 길이가 저절로 같아진다(도면 53.7565 = 53.7565).
@@ -944,19 +955,23 @@
 
     /* 절개선 — 절개점 → 팔꿈치선 위의 중간 앵커 → 밑단.
        앵커 위치(mr·my)와 양 끝 접선(k0·k1)은 도면 bigBack 41점에 적합했다. */
-    var mkSeam = function (endPt, startP) {
+    /* 절개선은 **C 자**다 — 한쪽으로만 휘고 곡률 부호가 바뀌지 않는다.
+       x 의 극값이 중간(y = twoInsetY 20.805)에 있을 뿐이다.
+       도면 큰소매 뒤선: 절개점 −9.674 → 가장 부푼 점 −10.335(y 20.805) → 트임어깨 −8.796.
+       즉 절개점 수직선에서 **뒤로 0.661** 부풀었다가 밑단 쪽으로 돌아온다.
+       ⚠ 예전 앵커는 팔꿈치선보다 6.8 **위**의 한 점이라 이 S 를 못 그렸고, 팔꿈치 휨이
+         0.25(도면 0.94)로 거의 곧은 선이었다. 앵커를 정점 자리로 옮긴다. */
+    var mkSeam = function (endPt, startP, outSign) {
       var cs = CAL.twoSeam;
-      var sx = (startP || splitP)[0];
-      var mid = [sx + (endPt[0] - sx) * cs.mr, elbowY + cs.my];
-      /* 시작점을 인자로 받는다 — 큰소매는 splitP, 작은소매는 그보다 0.8 뒤인 splitU */
       var st = startP || splitP;
-      return splineSegs([st, mid, endPt],
-        endTan(V.sub(mid, st), cs.k0), endTan(V.sub(endPt, mid), cs.k1));
+      var bulge = [st[0] + (outSign || -1) * num(opt.twoSeamBulge, K.twoSeamBulge), K.twoInsetY];
+      return splineSegs([st, bulge, endPt],
+        endTan([0, 1], cs.k0), endTan(V.sub(endPt, bulge), cs.k1));
     };
     var bigBack = mkSeam(bigHemB);
     /* 작은소매 절개선은 **자기 절개점(splitU)** 에서 출발한다 — 큰소매보다 0.8 뒤.
        두 절개선이 그 0.8 만큼 겹쳐 그것이 이세로 들어간다 (도면 `0.8` 두 곳). */
-    var undBack = mkSeam(undHemF, splitU);
+    var undBack = mkSeam(undHemF, splitU, +1);   // 작은소매는 반대쪽(앞)으로 부푼다 — 큰소매의 거울
     /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
     var ventBig = ventOf(bigBack, [halfF, elbowY]);      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
     var ventUnd = ventOf(undBack, [backOutX, elbowY]);   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
