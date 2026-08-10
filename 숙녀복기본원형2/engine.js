@@ -312,6 +312,7 @@
     twoSideOff     : 3.0,      // 큰소매 앞 −3 · 작은소매 뒤 +3 (도면 `3` 두 개 · 총폭 불변)
     twoHemDrop     : 1.492,    // 소맷부리 다트분 (도면 `1.5` 두 개 · 실측 1.4920)
     twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 (실측 60.7 = 1+60−0.3) [식 미상]
+    twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 (도면 17.019 / 25.479 = 0.6680)
     twoSeamBulge   : 0.661,    // 절개선 S 자 정점 — 절개점 수직선에서 조각 바깥으로 (실측 10.335−9.674)
     twoUndHemIn    : 1.175,    // 작은소매 부리 뒤 모서리 — 뒤 경계에서 **안쪽** (실측 21.425−20.250)
     twoUndHemRise  : 0.300,    // 위 모서리 올림 (도면 마크 `0.3 올림`)
@@ -963,8 +964,16 @@
          ⇒ 큰끝 = (앞 − 작은바깥 + 2·절개x − C) / 2
        ⚠ 큰소매 몫만 따로 등급을 주면 대칭 때문에 작은소매 몫이 호수마다 널뛴다
          (66호 6.9 → 88호 3.4 로 줄었다). 총둘레를 등급하고 몫은 계산해야 한다. */
-    var bigHemB = [(bigHemF[0] - undHemB[0] + 2 * splitX - cuffW) / 2, hemLowY];
-    var undHemF = [2 * splitX - bigHemB[0], hemLowY];
+    /* ★ 소맷부리는 **큰:작은 = 2:1** 로 나눈다 (도면 17.019 / 8.460 = 0.668 / 0.332).
+       예전에는 두 조각을 절개점 수직선에 대칭시켜 몫을 정했다. 그러면 대칭축이
+       절개점(엔진 −9.585)에 묶이는데, 도면의 축은 **밑단 두 모서리의 중점 −9.835** 이고
+       절개점의 중점(−10.074)과도 다르다 — 즉 대칭이 아니라 이 비율이 축을 정한다. */
+    /* 비율은 **호(부리선 길이)** 기준이다. 밑단 두 끝의 y 가 달라(하강 1.492 · 올림 0.3)
+       x 폭으로 그대로 쓰면 호가 길어진다 — y 차를 빼고 x 폭을 낸다. */
+    var xOf = function (arc, dy) { return Math.sqrt(Math.max(arc * arc - dy * dy, 0.01)); };
+    var cuffBigArc = cuffW * K.twoCuffBigShare, cuffUndArc = cuffW * (1 - K.twoCuffBigShare);
+    var bigHemB = [bigHemF[0] - xOf(cuffBigArc, hemLowY - bigHemF[1]), hemLowY];
+    var undHemF = [undHemB[0] + xOf(cuffUndArc, hemLowY - undHemB[1]), hemLowY];
     var cuffBig = bigHemF[0] - bigHemB[0], cuffUnder = undHemF[0] - undHemB[0];
 
     /* 절개선 — 절개점 → 팔꿈치선 위의 중간 앵커 → 밑단.
