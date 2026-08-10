@@ -115,6 +115,143 @@ E.SIZES.forEach(function (sz) {
 });
 
 console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3.5 2장소매 66호 — 원본 DXF 대조 (dxf-two-sleeve-groundtruth.json)');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var G2, T;
+  try { G2 = JSON.parse(fs.readFileSync(path.join(__dirname, 'dxf-two-sleeve-groundtruth.json'), 'utf8')); }
+  catch (e) { console.log('  ? 2장소매 정답지 없음'); warns++; return; }
+  T = {}; G2.curves.forEach(function (c) { T[c.name] = c; });
+  var R = G2.ref;
+
+  var d2 = E.draftBodice2(m66, { seam: E.SEAM_DEFAULT, sleeveType: 'two' });
+  var P = {}; d2.pieces.forEach(function (p) { P[p.id] = p; });
+  function edgePts(pid, ename) {
+    var p = P[pid]; if (!p) return null;
+    var e = (p.edges || []).filter(function (x) { return x.name === ename; })[0];
+    return e ? p.outline.slice(e.start, e.end + 1) : null;
+  }
+  function plen(pts) { var L = 0; for (var i = 1; i < pts.length; i++) L += V.dist(pts[i - 1], pts[i]); return L; }
+  function devPts(pts, gt) {                       // 점열 ↔ 점열 최대편차
+    var mx = 0;
+    gt.forEach(function (q) {
+      var b = Infinity;
+      for (var i = 0; i < pts.length - 1; i++) {
+        var a = pts[i], c = pts[i + 1], dx = c[0] - a[0], dy = c[1] - a[1], L2 = dx * dx + dy * dy;
+        var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        var er = Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)); if (er < b) b = er;
+      }
+      if (b > mx) mx = b;
+    });
+    return mx;
+  }
+  /* 아직 정답지에 못 맞춘 항목과 그 이유. 여기 적힌 것만 ⚠ 로 넘어간다 —
+     적어 두지 않은 변이 어긋나면 ✗(회귀)다. 맞추면 그 줄을 지운다.
+     ※ 이 절은 합격/불합격 문이 아니라 **적합도 보고**다. 하드 실패는
+       ① 앞·뒤 이세가 음수 ② 봉제 짝 길이 불일치 — 그 둘뿐이다. */
+  var OPEN = {
+    '큰소매 뒤 소매산':      '소매산 곡선이 도면보다 배부르다 (편차 0.38 · 길이 +0.15)',
+    '큰소매 앞 소매산':      '위와 같음 (+0.20). 앞경계 상단 y 도 0.14 낮다',
+    '작은소매 소매통 연결':  '뒤바깥 상단이 도면보다 0.16 낮다 (edgeRaise 0.558 미반영)',
+    '작은소매 소매산':       '끝점이 큰소매 절개점 — 작은소매 절개점(0.8 뒤)이라야 한다',
+    '큰소매 앞선':           '앞 어깨점(SPf) 0.12 차이가 앞암홀 → 소매폭 → 앞선까지 내려온다',
+    '큰소매 뒤선':           '절개선 곡선 배부름 — 도면 41점에 적합했으나 중간이 1.85 벗어난다',
+    '작은소매 앞선':         '위와 같음 (큰소매 절개선의 대칭이라 같이 벗어난다)',
+    '작은소매 뒤바깥선':     '뒤바깥 상단 y 0.16 + 밑단 하강 차이',
+    '큰소매 트임':           '트임은 절개선 아래 끝에 얹힌다 — 절개선 편차를 그대로 물려받는다',
+    '큰소매 트임 미터':      '위와 같음 · 트임 너비도 도면은 큰 2.174 / 작은 2.0 인데 하나(2.0)를 쓴다',
+    '큰소매 트임 밑단':      '위와 같음',
+    '작은소매 트임':         '절개선 편차를 물려받는다',
+    '작은소매 트임 미터':    '위와 같음',
+    '작은소매 트임 밑단':    '위와 같음',
+    '큰소매 부리':           '정답지는 곡선(25점) · 엔진은 직선 — 부리 곡선 미구현',
+    '작은소매 부리':         '위와 같음 (17점)'
+  };
+  var fitOK = 0, fitAll = 0;
+  var MAP = [
+    ['큰소매 소매산 뒤(절개점→정점)',            'sleeveBig',   '뒤 소매산',    '큰소매 뒤 소매산'],
+    ['큰소매 소매산 앞(정점→앞경계)',            'sleeveBig',   '앞 소매산',    '큰소매 앞 소매산'],
+    ['큰소매 앞선(앞경계→부리)',                 'sleeveBig',   '앞 밑선',      '큰소매 앞선'],
+    ['큰소매 뒤선(절개점→트임어깨)',             'sleeveBig',   '뒤 절개선',    '큰소매 뒤선'],
+    ['큰소매 트임 연장선(9)',                    'sleeveBig',   '트임',         '큰소매 트임'],
+    ['큰소매 트임 미터',                         'sleeveBig',   '트임 미터',    '큰소매 트임 미터'],
+    ['큰소매 트임 밑단',                         'sleeveBig',   '트임 밑단',    '큰소매 트임 밑단'],
+    ['큰소매 부리',                              'sleeveBig',   '밑단',         '큰소매 부리'],
+    ['작은소매 뒤바깥 위 곡선(뒤바깥점→소매폭점B)', 'sleeveUnder', '소매통 연결', '작은소매 소매통 연결'],
+    ['작은소매 소매산(소매폭점B→절개점)',        'sleeveUnder', '뒤 소매산',    '작은소매 소매산'],
+    ['작은소매 앞선(절개점→트임어깨)',           'sleeveUnder', '절개선',       '작은소매 앞선'],
+    ['작은소매 트임 연장선(9)',                  'sleeveUnder', '트임',         '작은소매 트임'],
+    ['작은소매 트임 미터',                       'sleeveUnder', '트임 미터',    '작은소매 트임 미터'],
+    ['작은소매 트임 밑단',                       'sleeveUnder', '트임 밑단',    '작은소매 트임 밑단'],
+    ['작은소매 부리',                            'sleeveUnder', '밑단',         '작은소매 부리'],
+    ['작은소매 뒤바깥선',                        'sleeveUnder', '바깥 뒤선',    '작은소매 뒤바깥선']
+  ];
+  console.log(' [곡선]  허용 편차 ' + TOL_CURVE.toFixed(2) + ' · 길이 ' + TOL_LEN.toFixed(2));
+  MAP.forEach(function (r) {
+    var gt = T[r[0]], pts = edgePts(r[1], r[2]);
+    if (!gt || !pts) { console.log('  ? ' + pad(r[3], 22) + '없음'); warns++; return; }
+    var dv = devPts(pts, gt.local), L = plen(pts), dL = Math.abs(L - gt.arc);
+    var pass = dv <= TOL_CURVE && dL <= TOL_LEN, open = OPEN[r[3]];
+    fitAll++; if (pass) fitOK++;
+    if (!pass) { if (open) warns++; else fails++; }
+    console.log('  ' + (pass ? '✓ ' : open ? '⚠ ' : '✗ ') + pad(r[3], 22) +
+      '편차 ' + f(dv, 6) + ' · 길이 ' + f(L, 7) + ' (도면 ' + f(gt.arc, 7) + ' · 차 ' + f(L - gt.arc, 6) + ')' +
+      (pass || !open ? '' : '\n      ⚠ ' + open));
+  });
+  console.log('  ── 정답지 적합 ' + fitOK + '/' + fitAll + ' — 나머지는 위에 이유를 적었다 (미해결 목록)');
+
+  console.log(' [제도점]');
+  function mk(pid, ename, atEnd) { var q = edgePts(pid, ename); return q && (atEnd ? q[q.length - 1] : q[0]); }
+  [['소매산 정점',        mk('sleeveBig', '앞 소매산'),        [R.apexShift, 0]],
+   ['절개점 (큰소매)',    mk('sleeveBig', '뒤 소매산'),        R.splitBig],
+   ['소매폭 뒤끝 B',      mk('sleeveUnder', '뒤 소매산'),      [R.halfB, R.capH]],
+   ['절개점 (작은소매)',  mk('sleeveUnder', '뒤 소매산', true), R.splitSmall],
+   ['앞경계 상단',        mk('sleeveBig', '앞 소매산', true),  [R.frontIn, R.capH - R.edgeRaise]],
+   ['뒤바깥 상단',        mk('sleeveUnder', '소매통 연결'),    [R.backOut, R.capH - R.edgeRaise]]
+  ].forEach(function (r) {
+    if (!r[1]) { console.log('  ? ' + pad(r[0], 22) + '없음'); warns++; return; }
+    var dd = V.dist(r[1], r[2]), pass = dd <= 0.12;
+    if (!pass) warns++;                       // 위 곡선 ⚠ 들과 같은 원인이라 중복 실패로 세지 않는다
+    console.log('  ' + (pass ? '✓ ' : '⚠ ') + pad(r[0], 22) + '(' + f(r[1][0], 8) + ',' + f(r[1][1], 7) +
+      ')  도면 (' + f(r[2][0], 8) + ',' + f(r[2][1], 7) + ') · 차 ' + f(dd, 6));
+  });
+
+  console.log(' [앞뒤 이세 — 총합이 맞아도 한쪽이 음수면 소매가 안 들어간다]');
+  console.log('   앞 = 큰소매 앞 소매산 + 작은소매 소매통 연결 · 뒤 = 큰소매 뒤 + 작은소매 뒤');
+  console.log('   (큰소매 앞폭 3 을 작은소매 뒤에 붙인 설계라 조각 경계와 앞뒤 경계가 다르다)');
+  var M2 = d2.measures, CA = R.capArc;
+  [['앞 소매산', M2.sleeveCapFront, CA.bigFront + CA.smallBackTop, M2.sleeveCapEaseFront, R.AHf],
+   ['뒤 소매산', M2.sleeveCapBack,  CA.bigBack + CA.smallCap,      M2.sleeveCapEaseBack,  R.AHb]
+  ].forEach(function (r) {
+    var dd = Math.abs(r[1] - r[2]), pass = dd <= 0.30;
+    if (!pass) warns++;                      // 구간별 편차는 위 [곡선] 에서 이미 세었다
+    console.log('  ' + (pass ? '✓ ' : '⚠ ') + pad(r[0], 22) + f(r[1], 8) + '  (도면 ' + f(r[2], 8) +
+      ' · 차 ' + f(r[1] - r[2], 6) + ')  이세 ' + f(r[3], 6) + ' (도면 ' + f(r[2] - r[4], 6) + ')');
+  });
+  E.SIZES.forEach(function (sz) {
+    var dd = E.draftBodice2(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT, sleeveType: 'two' });
+    var mm = dd.measures, bad = (mm.sleeveCapEaseFront < 0.8 || mm.sleeveCapEaseBack < 0.8);
+    if (bad) fails++;
+    console.log('  ' + (bad ? '✗ ' : '✓ ') + pad(sz, 6) + '앞 ' + f(mm.sleeveCapFront, 7) + ' − 암홀 ' +
+      f(mm.armholeFront, 7) + ' = ' + f(mm.sleeveCapEaseFront, 6) + '  · 뒤 ' + f(mm.sleeveCapBack, 7) +
+      ' − ' + f(mm.armholeBack, 7) + ' = ' + f(mm.sleeveCapEaseBack, 6));
+  });
+
+  console.log(' [봉제 짝 — 맞물리는 두 변 (하드 검사)]');
+  ok('절개선 큰↔작',  plen(edgePts('sleeveBig', '뒤 절개선')) - plen(edgePts('sleeveUnder', '절개선')), 0, 0.10);
+  /* 앞솔기는 이세를 두고 붙이는 짝이라 길이가 조금 달라도 되지만 **어느 쪽이 긴지**가
+     이세 조절 너치의 자리를 정한다. 도면은 큰소매가 0.291 길고, 엔진은 작은소매가 길다. */
+  var dFB = plen(edgePts('sleeveBig', '앞 밑선')) - plen(edgePts('sleeveUnder', '바깥 뒤선'));
+  var dGT = R.seamPair.front[0] - R.seamPair.front[1];
+  var sameSide = (dFB > 0) === (dGT > 0), okAmt = Math.abs(dFB) <= 0.6;
+  if (!okAmt) fails++; else if (!sameSide) warns++;
+  console.log('  ' + (okAmt && sameSide ? '✓ ' : okAmt ? '⚠ ' : '✗ ') + pad('앞솔기 큰↔작', 22) +
+    f(dFB, 8) + '  (도면 ' + f(dGT, 8) + ')  ' +
+    (dFB > 0 ? '큰소매' : '작은소매') + '가 길다 · 도면은 ' + (dGT > 0 ? '큰소매' : '작은소매') +
+    (sameSide ? '' : '\n      ⚠ 긴 쪽이 도면과 반대다 — 이세 조절 너치를 반대 조각에 찍고 있다'));
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 4. 인쇄 배치 — 캔버스 밖 이탈 · 조각 겹침');
 console.log('════════════════════════════════════════════════════════════');
 (function () {
