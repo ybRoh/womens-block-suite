@@ -301,18 +301,19 @@
      *  작은소매 뒤쪽에 붙이므로 소매통 총폭은 그대로다 (사용자 확정 2026-08-10).
      *  다른 것은 ① 소매산 높이 AH/3 (48P 는 AH/4+2) ② **패드분**이 올라간다는 점.
      *  ⚠ CAL.two* 곡선 적합값은 48P 도면 것이라 이 도면 DXF 가 오면 재적합 대상이다. */
-    capPad         : 1.0,      // 패드분 — 소매산을 이만큼 더 올린다 (도면 `패드분 ↑1`)
+    capPad         : 1.0,      // 패드분 (정답지 정확히 1.0000)
+    twoMarkBotB    : 4.5,      // 뒤 하단 마크 — 고정 4.5 (AH/12+0.6 아님)      // 패드분 — 소매산을 이만큼 더 올린다 (도면 `패드분 ↑1`)
     capReduce      : 0,
     armNotchDiv    : 3,
     capEaseShare   : [0.0, 0.5, 0.5],
     capEaseBack    : 0.6,
     twoSideOff     : 3.0,      // 큰소매 앞 −3 · 작은소매 뒤 +3 (도면 `3` 두 개 · 총폭 불변)
-    twoHemDrop     : 1.3,
-    twoFrontHemIn  : 1.7,
-    twoFrontElbowIn: 0.30,
-    twoBackElbowOut: 0.55,
-    twoInsetY      : 23.0,     // 이세처리 구간 표시용 y (원형1 은 반소매 길이를 썼다)
-    ventW          : 2.2,
+    twoHemDrop     : 1.492,    // 소맷부리 다트분 (도면 `1.5` 두 개 · 실측 1.4920)
+    twoFrontHemIn  : 6.25,     // 큰소매 앞 밑단 들임 (정답지 x 9.250)
+    twoFrontElbowIn: 1.44,     // 큰소매 앞 경계의 팔꿈치 들임
+    twoBackElbowOut: -1.91,    // 작은소매 바깥 뒤 — 48P 와 **휘는 방향이 반대**다
+    twoInsetY      : 20.8,     // 절개짝 너치 y (정답지 20.805)     // 이세처리 구간 표시용 y (원형1 은 반소매 길이를 썼다)
+    ventW          : 2.0,      // 트임 폭 (정답지 작은 2.0000)
     ventLen        : 9.0,
     ventMitre      : 2.0,
     capApexShift : 0.6,        // 소매산 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
@@ -629,8 +630,8 @@
 
   var SLEEVE_TYPE = {
     tight: { name: '타이트 소매', len: 58.0, lenGrade: 1.0, cuff: 24.0, cuffGrade: 0.5 },
-    two:   { name: '2장소매',    len: 58.0, lenGrade: 1.0,
-             cuff: 26.765, cuffGrade: 0.65, twoPiece: true }
+    two:   { name: '2장소매',    len: 60.0, lenGrade: 1.0,   // 패드점에서 잰 길이
+             cuff: 25.183, cuffGrade: 0.65, twoPiece: true }
   };
   var SLEEVE_TYPES = Object.keys(SLEEVE_TYPE);
 
@@ -767,16 +768,21 @@
       vec: vv, len: polyLen(sampleSegs(fold, 0.02))
     };
   }
-  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn) {
+  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn, padIn, botBIn) {
     var capH = (capHIn === undefined) ? AH / 4 + 2 : capHIn;   // ★ 이 모듈은 AH/3 + 패드분
+    /* ★ AH 대각선은 **상단선이 아니라 패드점 (0, 패드분) 에서** 내린다 — 정답지 확인.
+       패드분은 소매산을 위로 밀어 올릴 뿐 대각선(=암홀 길이)의 수직변이 아니다.
+       상단선에서 내리면 66호 소매폭이 1.87 좁아진다. */
+    var pad = padIn || 0, vert = capH - pad;
     var diagB = AHb - capReduce, diagF = AHf - capReduce;    // 대각선 = 각 암홀 길이
-    var halfB = Math.sqrt(Math.max(diagB * diagB - capH * capH, 0.01));
-    var halfF = Math.sqrt(Math.max(diagF * diagF - capH * capH, 0.01));
+    var halfB = Math.sqrt(Math.max(diagB * diagB - vert * vert, 0.01));
+    var halfF = Math.sqrt(Math.max(diagF * diagF - vert * vert, 0.01));
     var apex = [apexShift, 0], bicepB = [-halfB, capH], bicepF = [halfF, capH];
 
     // 마크 — 상단은 중심선 상단점에서 수평 AH/8, 하단은 소매폭 끝에서 안쪽으로
     var markTopB = [-AH / 8, 0], markTopF = [AH / 8, 0];
-    var markBotB = [-halfB + (AH / 12 + 0.6), capH];
+    /* 뒤 하단 마크는 **고정 4.5** — 정답지 실측 4.5000 (AH/12+0.6 = 4.41 이 아니다) */
+    var markBotB = [-halfB + (botBIn === undefined ? AH / 12 + 0.6 : botBIn), capH];
     var markBotF = [halfF - AH / 8, capH];
 
     // 각 마크에서 대각선에 수선 → 발점. 곡선은 발점↔마크 사이 capBulge 비율 지점을 지난다
@@ -827,9 +833,11 @@
     /* ★ 소매산 높이를 넘긴다 — 원형1 은 AH/4+2, 이 모듈은 **AH/3 + 패드분** 이다.
        capGeom 안에 하드코딩돼 있던 것을 파라미터로 뺐다. */
     var capH2 = AH / K.capHeightDiv + num(opt.capPad, K.capPad);
-    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2);
+    var pad2 = num(opt.capPad, K.capPad);
+    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2, pad2, K.twoMarkBotB);
     var halfB = cg.halfB, halfF = cg.halfF;
-    var elbowY = sleeveLen / 2 + K.elbowAdd;
+    /* 길이 골격은 **패드점 기준** — 정답지: 팔꿈치 33.5 = 1 + 60/2 + 2.5 · 부리 61.0 = 1 + 60 */
+    var elbowY = pad2 + sleeveLen / 2 + K.elbowAdd;
     var insetY = K.twoInsetY;              // 이세처리 구간 표시용
 
     var splitX = -AH / 4;                                   // 절개 시작 x
