@@ -104,12 +104,15 @@ E.SIZES.forEach(function (sz) {
     ' · 목둘레 ' + f(Me.neckTotal, 7, 2) + ' · 옆선 뒤 ' + f(Me.sideBack, 6, 1) + ' 앞 ' + f(Me.sideFront, 6, 1) +
     ' · 허리 ' + f(Me.waistTotal, 6, 1) + (bad.length ? '\n      → ' + bad.join(' · ') : ''));
 });
-/* ⚠ 앞 옆선(16.69)이 뒤 옆선(15.66)보다 1.03 길다 — **도면도 그렇다**(16.666 / 15.666).
-   교재 도면 자체의 성질이라 임의로 맞추지 않고 그대로 둔다. 실제 봉제 때는
-   앞 옆선을 이세로 넣거나 허리에서 트루잉해야 한다. */
-console.log('\n  ※ 앞 옆선이 뒤보다 1.03 길다 — 도면도 16.666 / 15.666 으로 같은 차이다.');
-console.log('     교재 도면의 성질이라 임의로 맞추지 않았다 (봉제 시 이세 또는 허리 트루잉 필요).');
-warns++;
+/* 가슴다트 벌림은 파생값이다 — 앞 옆선을 벌리고 남는 길이가 뒤 옆선과 같아야 한다.
+   도면 실측 벌림 1.4877 을 그대로 쓰면 앞이 1.03 길어 안 맞는다. */
+console.log('  ── 옆선 짝 (앞 = 뒤 라야 봉제된다)');
+E.SIZES.forEach(function (sz) {
+  var d = E.draftBodice3(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), Me = d.measures;
+  var bad = Math.abs(Me.sideBack - Me.sideFront) > 0.03; if (bad) fails++;
+  console.log('  ' + (bad ? '✗ ' : '✓ ') + pad(sz, 5) + '뒤 ' + f(Me.sideBack, 8) + ' 앞 ' + f(Me.sideFront, 8) +
+    ' · 차 ' + f(Me.sideFront - Me.sideBack, 7) + '  (가슴다트 벌림 ' + f(Me.bustDart, 6) + ')');
+});
 
 console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 4. 인쇄 배치 — 캔버스 밖 이탈 · 조각 겹침');
