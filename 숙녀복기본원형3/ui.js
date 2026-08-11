@@ -30,19 +30,21 @@
   var SLEEVE_KEYS = {};                        // 소매 제외 (2026-08-07)
   /* 스타일 값 — 교재가 범위로 준 것(진동 올림 1.9~3.1 등)은 사용자가 고를 수 있게 UI 로 뺐다.
      기본값은 원본 66호 DXF 와 같다. 엔진 K 와 이름이 1:1 대응된다. */
+  /* ★ **엔진이 실제로 읽는 opt 키만** 넣는다 (engine.js 의 `num(opt.xxx, K.xxx)` 자리).
+     원형2 에서 복붙한 shoulderEase/dartAmount/dartRise 는 이 엔진이 안 읽어
+     **입력란 3개가 무동작**이었다 (2026-08-12 QA). 가슴다트 벌림(wedgeAmt)은 옆선
+     짝이 맞도록 엔진이 3회 반복해 수렴시키는 값이라 사용자가 정할 수 있는 값이 아니다
+     — opt 로 줘도 같은 값으로 수렴하므로 UI 에 두면 또 무동작이 된다. */
   var STYLE_KEYS = [
-    { k: 'ease',        label: '여유분',    min: 0, max: 12, step: 0.5, hint: '폭 = B/4 + 여유분/2 · 원본 도면 4' },
-    { k: 'shoulderEase',label: '어깨 이세분', min: 0, max: 1.5, step: 0.1, hint: '뒤 어깨 안내선 = 어깨너비/2 + 이세분 · 도면 0.3~0.6' },
-    { k: 'dartAmount',  label: '다트분',    min: 0, max: 8,  step: 0.1, hint: '가슴다트 · 도면 4' },
-    { k: 'dartRise',    label: '다트 위치',  min: 4, max: 20, step: 0.1, hint: '허리선에서 위로 · 도면 9.9' }
+    { k: 'ease',       label: '여유분',     min: 0, max: 12,  step: 0.5, hint: '가슴선 폭에 더하는 여유 · 원본 도면 4' },
+    { k: 'backShDrop', label: '뒤 어깨 내림', min: 0, max: 3, step: 0.1, hint: '뒤 어깨 경사 끝점 y · 원본 도면 0.8' }
   ];
+  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {
-    var E = ENG(), K = (E && E.K) || {};
+    var K = (ENG() && ENG().K) || {};
     return {
-      ease:         (K.ease         === undefined) ? 4.0 : K.ease,
-      shoulderEase: (K.shEase       === undefined) ? 0.5 : K.shEase,
-      dartAmount:   (K.dartAmount   === undefined) ? 4.0 : K.dartAmount,
-      dartRise:     (K.dartRise     === undefined) ? 9.9 : K.dartRise
+      ease:       (K.ease       === undefined) ? 4.0 : K.ease,
+      backShDrop: (K.backShDrop === undefined) ? 0.8 : K.backShDrop
     };
   }
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
@@ -93,7 +95,7 @@
     var d;
     try {
       var sp = splitMeasures();
-      d = E.draftBodice3(sp.m, styleOpt({ seam: {}, shoulderEase: SHOULDER_EASE }));
+      d = E.draftBodice3(sp.m, styleOpt({ seam: {} }));
     } catch (e) { return null; }
     if (!d || !d.pieces) return null;
     var out = null;
@@ -152,7 +154,7 @@
     if (!E || typeof E.draftBodice3 !== 'function' || !state.m) return null;
     try {
       var sp = splitMeasures();
-      var d = E.draftBodice3(sp.m, styleOpt(styleOpt({ seam: {}, shoulderEase: SHOULDER_EASE })));
+      var d = E.draftBodice3(sp.m, styleOpt({ seam: {} }));
       var merged = collectSeamByRole(d);
       return (merged && Object.keys(merged).length) ? merged : null;
     } catch (e) { return null; }
@@ -267,7 +269,7 @@
     if (_probeCache[ck] !== undefined) return _probeCache[ck];
     var v = null;
     try {
-      var d = E.draftBodice3(m, styleOpt({ seam: 0, shoulderEase: SHOULDER_EASE }));
+      var d = E.draftBodice3(m, styleOpt({ seam: 0 }));
       v = (d && d.measures) ? num(d.measures[key]) : null;
     } catch (e) { v = null; }
     _probeCache[ck] = v;
@@ -460,7 +462,6 @@
     seamOpt[FOLD_ROLE] = 0;                       // SPEC §11-1: 골선은 항상 0 강제
     var opt = {
       seam: seamOpt,
-      shoulderEase: SHOULDER_EASE,
       size: state.size
     };
     styleOpt(opt);
@@ -1087,17 +1088,25 @@
     put('sumNkB', num(M.neckBack)); put('sumNkF', num(M.neckFront)); put('sumNkT', num(M.neckTotal));
     put('sumSdB', num(M.sideBack)); put('sumSdF', num(M.sideFront));
 
-    /* 어깨 이세분 — 이 원형은 교재가 0.3~0.6 을 준다 (도면 `이세분 0.3~0.6`) */
+    /* 어깨 이세분 — ★ 이 원형은 이세로 먹이지 않고 **뒤 어깨 다트**로 처리한다.
+       다트를 접으면 앞뒤 어깨가 같아지므로 이세분은 0 이 정상이다.
+       원형2 의 「0.3~0.6」 검사를 복붙해 둔 탓에 **항상 거짓 경보**가 떠 있었다
+       (엔진은 언제나 0 을 낸다 — 2026-08-12 QA). 검사를 실제 규약으로 바꾼다. */
     var ease = num(M.shoulderEase);
     if (ease !== null) {
-      var ok = ease >= 0.3 - 1e-6 && ease <= 0.6 + 1e-6;
+      var ok = Math.abs(ease) <= 1e-6;
       mark('sumShEok', ok ? 'pass' : 'fail');
-      checks.push({ k: ok ? 'ok' : 'bad', t: '어깨 이세분 ' + f2(ease) + ' cm ' + (ok ? '(0.3~0.6)' : '(0.3~0.6 벗어남)') });
+      checks.push({ k: ok ? 'ok' : 'bad',
+        t: ok ? '어깨 이세분 0 — 뒤 어깨 다트로 처리한다'
+              : '어깨 이세분 ' + f2(ease) + ' cm — 이 원형은 0 이어야 한다' });
     } else mark('sumShEok', null);
 
     /* 어깨 솔기 — 이 원형은 앞을 **이세분만큼 짧게** 재단하고(도면 `이세분 커트`)
        뒤를 그만큼 이세로 먹여 붙인다. 그래서 |뒤 − 앞| = 이세분 이 정상이다. */
-    var sbs = num(M.shoulderBackSeam), sfs = num(M.shoulderFrontSeam);
+    /* 엔진이 내보내는 키 이름을 쓴다 — 옛 이름(shoulderBackSeam)을 읽어 항상 null 이라
+       **검사가 조용히 건너뛰어졌다** (2026-08-12 QA). 없는 키를 읽으면 통과도 실패도 안 한다. */
+    var sbs = num(M.shoulderBackSeam !== undefined ? M.shoulderBackSeam : M.shoulderBack),
+        sfs = num(M.shoulderFrontSeam !== undefined ? M.shoulderFrontSeam : M.shoulderFront);
     if (sbs !== null && sfs !== null) {
       var dd = Math.abs(sbs - sfs);
       var okS = (ease === null) ? dd <= 0.10 : Math.abs(dd - ease) <= 0.05;
@@ -1113,7 +1122,7 @@
     var sideWarnOn = false, minSide = null;
     if (sb !== null && sf !== null) {
       /* 앞 옆선은 **다트분만큼 길게 재단**하고 접으면 뒤와 같아진다 (앞 등길이 차이치수 = 다트분) */
-      var sfSewn = num(M.sideFrontSewn);
+      var sfSewn = num(M.sideFrontSewn !== undefined ? M.sideFrontSewn : M.sideFront);
       var diff = Math.abs(sb - (sfSewn === null ? sf : sfSewn)), okSide = diff <= 0.05;
       checks.push({ k: okSide ? 'ok' : 'bad',
         t: okSide ? ('앞뒤 옆선 일치 — 앞 재단 ' + f2(sf) + ' 에서 다트분을 접으면 ' + f2(sfSewn) + ' = 뒤 ' + f2(sb))

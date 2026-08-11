@@ -107,6 +107,16 @@ E.SIZES.forEach(function (sz) {
     ' · 가슴다트 ' + f(M.bustDart, 6) + (bad.length ? '\n      → ' + bad.join(' · ') : ''));
 });
 
+/** 점이 폐다각형 안에 있는가 — ray casting. 오목한 조각(암홀)에서도 정확하다. */
+function ptInPoly(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+        pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
+}
 console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 3.5 맞춤 너치 — 짝이 되는 두 변의 **같은 자리**에 있는가 (하드 검사)');
 console.log('════════════════════════════════════════════════════════════');
@@ -206,14 +216,13 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
           bad.push(p.name + ' 「' + e.name + '」(' + e.role + ') 시접 0');
       });
       /* 너치 각이 **조각 안쪽**을 향해야 한다 — 바깥이면 재단할 때 반대로 판다.
-         조각마다 손으로 넣은 inside 점이 틀려 8개가 뒤집힌 채 통과했었다 (2026-08-12). */
-      var cx = 0, cy = 0;
-      p.outline.forEach(function (q) { cx += q[0]; cy += q[1]; });
-      cx /= p.outline.length; cy /= p.outline.length;
+         ⚠ 무게중심으로 재면 **오목한 변(암홀)에서 새어 나간다** — 무게중심 판정은
+         통과하는데 실제 0.5cm 틱은 조각 밖이었다(암홀 2/3 너치 2개, 전 호수).
+         그리는 것과 같은 방식, 즉 **틱 끝점의 point-in-polygon** 으로 판정한다. */
       p.notches.forEach(function (n) {
         var a = n.angle * Math.PI / 180;
-        if (Math.cos(a) * (cx - n.p[0]) + Math.sin(a) * (cy - n.p[1]) < 0)
-          bad.push(p.name + ' 「' + n.label + '」 너치가 바깥을 향한다');
+        if (!ptInPoly([n.p[0] + Math.cos(a) * 0.5, n.p[1] + Math.sin(a) * 0.5], p.outline))
+          bad.push(p.name + ' 「' + n.label + '」 너치 틱이 조각 밖으로 나간다');
         /* 너치는 외곽선 위에 있어야 한다 */
         var b = Infinity;
         for (var i = 0; i < p.outline.length; i++) {
@@ -227,6 +236,48 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
       '너치 ' + d.pieces.map(function (p) { return p.name + ' ' + p.notches.length; }).join(' · ') +
       ' · 최대 어긋남 ' + f(worst, 6) + (bad.length ? '\n      → ' + bad.join(' · ') : ''));
   });
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3.6 전 호수 기하 sanity — 66호만 맞는 결함을 잡는다');
+console.log('════════════════════════════════════════════════════════════');
+console.log('   66호 실측 좌표를 골격에 박으면 다른 호수가 조용히 깨진다. 44호 뒤 암홀이');
+console.log('   겨드랑선 아래로 2.26 파고들어 갈고리가 된 채 통과했었다 (2026-08-12 QA).');
+(function () {
+  var prev = null, bad = [];
+  E.SIZES.forEach(function (sz) {
+    var m = E.measuresForSize(sz), BL = m.B / 4;
+    var d = E.draftTorso(m, { seam: E.SEAM_DEFAULT }), P = {}, cur = {};
+    d.pieces.forEach(function (p) { P[p.id] = p; });
+    var row = [];
+    /* ① 암홀이 겨드랑선(BL) 아래로 내려가면 안 된다 — 내려가면 소매를 못 단다 */
+    [['backSide', '뒤'], ['frontSide', '앞']].forEach(function (t) {
+      var p = P[t[0]], e = (p.edges || []).filter(function (x) { return x.role === 'armhole'; })[0];
+      if (!e) { bad.push(sz + ' ' + t[1] + ' 암홀 변 없음'); return; }
+      var lo = -1e9, L = 0;
+      for (var i = e.start; i <= e.end; i++) {
+        if (p.outline[i][1] > lo) lo = p.outline[i][1];
+        if (i > e.start) L += V.dist(p.outline[i - 1], p.outline[i]);
+      }
+      if (lo > BL + 0.02) bad.push(sz + ' ' + t[1] + ' 암홀이 겨드랑선 아래 ' + (lo - BL).toFixed(3));
+      cur[t[1] + ' 암홀'] = L;
+      row.push(t[1] + ' 암홀 ' + L.toFixed(2));
+    });
+    /* ② 둘레·길이류는 호수가 커지면 **반드시** 커진다 — 뒤집히면 그레이딩이 깨진 것 */
+    cur['뒤 절개선'] = (function () {
+      var p = P['back'], e = (p.edges || []).filter(function (x) { return x.role === 'princess'; })[0], L = 0;
+      for (var i = e.start + 1; i <= e.end; i++) L += V.dist(p.outline[i - 1], p.outline[i]);
+      return L;
+    })();
+    if (prev) Object.keys(cur).forEach(function (k) {
+      if (cur[k] <= prev[k]) bad.push(sz + ' ' + k + ' 단조성 위반 ' + prev[k].toFixed(3) + ' → ' + cur[k].toFixed(3));
+    });
+    prev = cur;
+    console.log('  ' + pad(sz, 5) + 'BL ' + f(BL, 6) + ' · ' + row.join(' · ') +
+      ' · 뒤 절개선 ' + f(cur['뒤 절개선'], 6));
+  });
+  if (bad.length) { fails++; console.log('    ✗ ' + bad.join('\n    ✗ ')); }
+  else console.log('  ✓ 암홀이 겨드랑선을 넘지 않고, 암홀·절개선 길이가 전 호수 단조 증가');
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');

@@ -363,9 +363,17 @@
     frontNeck: { a0: 0, a1: -4, k0: 1.20, k1: 1.00 },
     /* 뒤 암홀 — 오목점을 「수선의 중점」이 아니라 **도면 실측 자리**로 바꾸니 잡혔다
        (편차 0.475 → 0.058 · 길이 24.781 vs 도면 24.782). 앞은 수선의 중점이 맞는데
-       뒤만 다르다 — 왜인지는 [미확정]. 위 구간 통과점도 도면 자리(y 4.86)로 옮겼다. */
+       뒤만 다르다 — 왜인지는 [미확정].
+       ★ 통과점 두 개는 **자기 구간 안의 비율**이다 (절대 좌표 아님).
+       66호 실측 y(4.86 · 20.81)를 그대로 박아 뒀더니 BL = B/4 는 호수당 1.5 움직이는데
+       통과점은 안 움직여, **44호 암홀이 겨드랑선 아래로 2.26 파고들어** 갈고리가 됐다
+       (55호 0.41 · 암홀 길이도 25.92→24.51→24.74→25.72→27.01 로 역전, 2026-08-12 QA).
+       비율로 바꾸면 66호 값은 그대로이면서 전 호수가 따라 움직인다.
+         upT  = (4.86 − SP_y) / (A_y − SP_y)      · upFx  = 0.86 / (SP_x − 품선x)
+         lowT = (20.81 − A_y) / (BL − A_y)        · lowFx = 2.14 / (겨드랑x − 품선x) */
     backArm  : { k0: 1.50, kA: 1.10, kB: 1.50, k1: 2.00,
-                 upOut: 0.86, upY: 4.86, lowOut: 2.14, lowY: 20.81 },   // 편차 0.058
+                 upFx: 0.452632, upT: 0.377176,
+                 lowFx: 0.324784, lowT: 0.903668 },   // 66호 편차 0.058
     frontArm : { k0: 0.30, kA: 1.60, kB: 1.60, k1: 1.60 },
     side     : { k0: 0.60, k1: 1.20 },
     princess : { k0: 0.20, k1: 0.20 }
@@ -535,10 +543,16 @@
     var H  = _lerp(Cn, F, 0.5);
     /* 위 구간에 통과점이 하나 더 필요하다 — 어깨점 → 접점 사이가 2점 스플라인이면
        장력을 최대로 줘도 도면만큼 안 휜다 (뒤 암홀 길이가 0.31 모자랐다). */
-    var up = C.upOut !== undefined ? [SP, [pitchX + C.upOut, C.upY], A] : [SP, A];
+    /* ★ 통과점은 **자기 구간 안의 비율**로 잡는다 — 절대 좌표를 박으면 BL 이 호수 따라
+       움직일 때 따라가지 못해 44호 암홀이 겨드랑선 아래로 파고든다 (CAL.backArm 주석). */
+    var up = C.upT !== undefined
+      ? [SP, [pitchX + (SP[0] - pitchX) * C.upFx, SP[1] + (A[1] - SP[1]) * C.upT], A]
+      : [SP, A];
     /* 아래 구간도 앵커가 오목점 하나뿐이면 겨드랑 근처에서 0.47 안으로 들어간다.
-       도면 자리(등품/2 + lowOut, lowY)를 하나 더 박는다. */
-    var lo = C.lowOut !== undefined ? [A, [pitchX + C.lowOut, C.lowY], U] : [A, H, U];
+       도면 자리를 하나 더 박는다 — 이것도 비율이다. */
+    var lo = C.lowT !== undefined
+      ? [A, [pitchX + (U[0] - pitchX) * C.lowFx, A[1] + (U[1] - A[1]) * C.lowT], U]
+      : [A, H, U];
     return splineSegs(up, endTan(V.norm(V.sub(up[1], SP)), C.k0), endTan([0, 1], C.kA))
       .concat(splineSegs(lo, endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
   }
@@ -867,6 +881,18 @@
     var n2 = p.length;
     return { p: cp(p[n2 - 1]), tan: V.norm(V.sub(p[n2 - 1], p[n2 - 2])) };
   }
+  /** 너치 표시선 길이 (SPEC §8.1 — 안쪽 0.5cm). 방향 판정도 이 길이로 한다. */
+  var NOTCH_TICK = 0.5;
+  /** 점이 폐다각형 안에 있는가 — ray casting. 오목한 조각(암홀)에서도 정확하다. */
+  function ptInPoly(pt, poly) {
+    var c = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var a = poly[i], b = poly[j];
+      if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+          pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+    }
+    return c;
+  }
   function _inward(tan, at, inside) {
     var nr = [tan[1], -tan[0]];
     if (nr[0] * (inside[0] - at[0]) + nr[1] * (inside[1] - at[1]) < 0) nr = [-nr[0], -nr[1]];
@@ -963,16 +989,15 @@
 
     function mk(id, name, edges, grain, notches, internal) {
       var loop = edgesToLoop(edges), sm = buildSeamline(loop, seam);
-      /* ★ 너치 각은 **조각이 만들어진 뒤 무게중심 기준으로 일괄 보정**한다.
-         조각마다 `inside` 점을 손으로 넣으면 틀린다 — 옆면 조각(x 11~26)에 중심선
-         [0, WL] 을 줘서 옆선 너치 방향이 뒤집혔다 (2026-08-12). 무게중심은 조각에서
-         자동으로 나오므로 사람이 틀릴 여지가 없다. */
-      var cx = 0, cy = 0;
-      loop.pts.forEach(function (q) { cx += q[0]; cy += q[1]; });
-      cx /= loop.pts.length; cy /= loop.pts.length;
+      /* ★ 너치 각은 **조각이 만들어진 뒤 일괄 보정**한다. 조각마다 `inside` 점을 손으로
+         넣으면 틀린다 — 옆면 조각(x 11~26)에 중심선 [0, WL] 을 줘서 8개가 뒤집혔다.
+         ⚠ 무게중심으로 보정하던 것을 **틱 끝점이 조각 안에 있는지**로 바꿨다.
+         암홀처럼 **오목한** 변에서는 무게중심 방향과 폴리곤 내부가 달라, 무게중심
+         기준으로는 통과하는데 실제 틱은 조각 밖으로 나갔다 (암홀 2/3 너치 2개가
+         전 호수에서 그랬다 — 2026-08-12 QA). 판정은 그리는 것과 같은 방식이어야 한다. */
       (notches || []).forEach(function (n) {
         var a = n.angle * Math.PI / 180;
-        if (Math.cos(a) * (cx - n.p[0]) + Math.sin(a) * (cy - n.p[1]) < 0)
+        if (!ptInPoly([n.p[0] + Math.cos(a) * NOTCH_TICK, n.p[1] + Math.sin(a) * NOTCH_TICK], loop.pts))
           n.angle = angDeg([-Math.cos(a), -Math.sin(a)]);
       });
       return { id: id, name: name, cutCount: (id === 'back' || id === 'front') ? 1 : 2,
@@ -1089,6 +1114,10 @@
         shoulderBackSewn: r4(g.shLenBack - K.backDartSh),
         shoulderFrontSewn: r4(g.shLenFront - K.frontDartSh),
         neckBack: r4(sLen(g.backNeck)), neckFront: r4(sLen(g.frontNeck)),
+        neckTotal: r4(sLen(g.backNeck) + sLen(g.frontNeck)),
+        /* 어깨 이세분 = 다트를 접은 뒤 뒤 − 앞. 이 원형은 이세로 먹이지 않고
+           **어깨 다트/벌림**으로 처리하므로 0 이 정상이다 (UI 요약이 이 키를 읽는다). */
+        shoulderEase: r4((g.shLenBack - K.backDartSh) - (g.shLenFront - K.frontDartSh)),
         armholeBack: r4(sLen(g.backArm)), armholeFront: r4(sLen(g.frontArm)),
         armholeTotal: r4(sLen(g.backArm) + sLen(g.frontArm)),
         sideBack: r4(sLen(g.backSide)), sideFront: r4(sLen(g.fSideTop) + sLen(g.fSideBot)),
