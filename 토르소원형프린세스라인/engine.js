@@ -321,6 +321,14 @@
     /* 뒤 품선 위끝 — 앞은 어깨점 y 를 그대로 쓰면 맞는데(길이 차 0.0005) 뒤는 상단선(0)
        으로 하면 2등분점이 10.95 가 되어 실측 10.585 와 0.365 어긋난다. 실측에서 역산한
        −0.73 을 쓴다. 이 값이 무엇에서 나오는지는 [미확정]. */
+    fNeckPassX   : 5.13,    // 앞목둘레 통과점 [실측 (5.13, 4.57)]
+    fNeckPassY   : 4.57,
+    bSideMidX    : 24.10,   // 뒤 옆선 앵커 [실측 (24.10, 29.38)]
+    bSideMidY    : 29.38,
+    bPrinOutX3   : 12.76,   // 뒤 절개 바깥 앵커 3 [실측 (12.76, 29.99)]
+    bPrinOutY3   : 29.99,
+    bPrinInX3    : 11.79,   // 뒤 절개 안쪽 앵커 3 [실측 (11.79, 54.50)]
+    bPrinInY3    : 54.50,
     bArmTopY     : -0.73,
     bArmTanY     : 10.585,  // 뒤 암홀 접점 y [10.585] — 위 값의 2등분 결과
     bArmTanOut   : 0.040,   // 뒤 접점 x = 등품/2 + 0.04
@@ -437,7 +445,7 @@
     var backArm   = armCurve(SPb, bPitchX, K.bArmTopY, Ub, BL, CAL.backArm);
     var frontArm  = armCurve(SPf, fPitchX, SPf[1],      Uf, BL, CAL.frontArm);
     /* 옆선 — BL → 허리 → 밑단 (허리에서 들어갔다 밑단에서 다시 나온다) */
-    var backSide  = sideCurve(Ub, bWaistSide, bHemSide);
+    var backSide  = sideCurve(Ub, bWaistSide, bHemSide, [K.bSideMidX * s, K.bSideMidY]);
     /* 앞 옆선은 BL 아래 6.2 에서 가슴다트로 끊긴다 — 위 조각 · 다트 · 아래 조각 */
     var fSideFull = sideCurve(Uf, fWaistSide, fHemSide);
     var wedge = wedgeOn(fSideFull, BP, num(opt.bustDartAt, K.fBustDartAt),
@@ -464,9 +472,11 @@
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
       bPrinOut: princess(bPrinA, null, bPwA, bPhA,
-                 [[K.bPrinOutX1 * s, K.bPrinY1], [K.bPrinOutX2 * s, BL]]),
+                 [[K.bPrinOutX1 * s, K.bPrinY1], [K.bPrinOutX2 * s, BL],
+                  [K.bPrinOutX3 * s, K.bPrinOutY3]]),
       bPrinIn : princess(bPrinB, null, bPwB, bPhB,
                  [[K.bPrinInX1 * s, K.bPrinY1], [K.bPrinInX2 * s, BL]]),
+                 /* 밑단 쪽(y 54.5)에 앵커를 더해 봤으나 0.312 → 0.415 로 나빠져 뺐다 */
       fPrinOut: princess(fPrinA, BP, fPwA, fPhA),
       fPrinIn : princess(fPrinB, BP, fPwB, fPhB)
     };
@@ -482,8 +492,10 @@
       endTan(rotv([-sd[1], sd[0]], C.a0), C.k0), endTan([-1, 0], C.k1));
   }
   function curveFrontNeck(FNP, SNP, nw, SP) {
-    var C = CAL.frontNeck, d = [nw, FNP[1]], L = Math.hypot(d[0], d[1]);
-    var P = [d[0] * 2 / 3 + d[0] / L * 0.3, d[1] * 2 / 3 + d[1] / L * 0.3];
+    /* 통과점 — 목사각 대각선 2/3 + 0.3 식으로 하면 y 2.5~6.1 구간이 0.34 바깥으로 나간다.
+       도면 실측 자리(5.13, 4.57)를 쓴다 [식 미확정]. */
+    var C = CAL.frontNeck;
+    var P = [K.fNeckPassX * (nw / 7.3), K.fNeckPassY];
     var sd = V.norm(V.sub(SP, SNP));
     return splineSegs([FNP, P, SNP],
       endTan(rotv([1, 0], C.a0), C.k0), endTan(rotv([sd[1], -sd[0]], C.a1), C.k1));
@@ -510,14 +522,16 @@
       .concat(splineSegs(lo, endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
   }
   /** 옆선 — 겨드랑 → 허리(들임) → 밑단. 허리에서 잘록하고 밑단에서 다시 나간다 */
-  function sideCurve(U, waist, hem) {
+  function sideCurve(U, waist, hem, mid) {
     var C = CAL.side;
-    return splineSegs([U, waist, hem], endTan([0, 1], C.k0), endTan([0, 1], C.k1));
+    var pts = mid ? [U, mid, waist, hem] : [U, waist, hem];
+    return splineSegs(pts, endTan([0, 1], C.k0), endTan([0, 1], C.k1));
   }
   /** 프린세스 절개선 — 어깨 절개점 → (앞은 BP 통과) → 허리 → 밑단 */
-  function princess(shoulder, bp, waist, hem, mids) {
+  function princess(shoulder, bp, waist, hem, mids, lows) {
     var C = CAL.princess;
-    var pts = bp ? [shoulder, bp, waist, hem] : [shoulder].concat(mids || [], [waist, hem]);
+    var pts = bp ? [shoulder, bp, waist, hem]
+                 : [shoulder].concat(mids || [], [waist], lows || [], [hem]);
     return splineSegs(pts, endTan(V.norm(V.sub(bp || waist, shoulder)), C.k0),
       endTan([0, 1], C.k1));
   }
