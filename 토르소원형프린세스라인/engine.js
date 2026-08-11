@@ -349,7 +349,11 @@
   var CAL = {
     backNeck : { mx: 0.70, my: 0.20, a0: 10, k0: 1.60, k1: 0.60 },
     frontNeck: { a0: 0, a1: -4, k0: 1.20, k1: 1.00 },
-    backArm  : { k0: 0.30, kA: 0.30, kB: 2.00, k1: 2.00, upOut: 1.04, upY: 3 },  // 편차 0.475 (남은 과제)
+    /* 뒤 암홀 — 오목점을 「수선의 중점」이 아니라 **도면 실측 자리**로 바꾸니 잡혔다
+       (편차 0.475 → 0.058 · 길이 24.781 vs 도면 24.782). 앞은 수선의 중점이 맞는데
+       뒤만 다르다 — 왜인지는 [미확정]. 위 구간 통과점도 도면 자리(y 4.86)로 옮겼다. */
+    backArm  : { k0: 1.50, kA: 1.10, kB: 1.50, k1: 2.00,
+                 upOut: 0.86, upY: 4.86, lowOut: 2.14, lowY: 20.81 },   // 편차 0.058
     frontArm : { k0: 0.30, kA: 1.60, kB: 1.60, k1: 1.60 },
     side     : { k0: 0.60, k1: 1.20 },
     princess : { k0: 0.20, k1: 0.20 }
@@ -499,8 +503,11 @@
     /* 위 구간에 통과점이 하나 더 필요하다 — 어깨점 → 접점 사이가 2점 스플라인이면
        장력을 최대로 줘도 도면만큼 안 휜다 (뒤 암홀 길이가 0.31 모자랐다). */
     var up = C.upOut !== undefined ? [SP, [pitchX + C.upOut, C.upY], A] : [SP, A];
+    /* 아래 구간도 앵커가 오목점 하나뿐이면 겨드랑 근처에서 0.47 안으로 들어간다.
+       도면 자리(등품/2 + lowOut, lowY)를 하나 더 박는다. */
+    var lo = C.lowOut !== undefined ? [A, [pitchX + C.lowOut, C.lowY], U] : [A, H, U];
     return splineSegs(up, endTan(V.norm(V.sub(up[1], SP)), C.k0), endTan([0, 1], C.kA))
-      .concat(splineSegs([A, H, U], endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
+      .concat(splineSegs(lo, endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
   }
   /** 옆선 — 겨드랑 → 허리(들임) → 밑단. 허리에서 잘록하고 밑단에서 다시 나간다 */
   function sideCurve(U, waist, hem) {
