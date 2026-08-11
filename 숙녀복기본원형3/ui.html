@@ -45,13 +45,10 @@
 
       <section class="block">
         <h2>스타일 <span class="h2note">cm</span></h2>
-        <div class="field">
-          <label for="ndSleeveType">소매 종류</label>
-          <select id="ndSleeveType"><!-- ui.js 가 엔진 SLEEVE_TYPE 으로 채웁니다 --></select>
-        </div>
+        <!-- 소매 종류 선택 없음 — 교재 p.51 에 소매 도면이 없어 몸판 2조각만 낸다 -->
         <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
         <button type="button" class="btn btn-ghost btn-wide" id="ndStyleReset">기본값 복원</button>
-        <p class="hint">원본 도면이 범위로 준 값(어깨 이세분 0.3~0.6)을 여기서 고릅니다.
+        <p class="hint">원본 도면이 범위로 준 값을 여기서 고릅니다.
           <b>기본값은 66호 원본 도면과 같습니다.</b></p>
       </section>
 
