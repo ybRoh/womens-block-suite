@@ -279,6 +279,10 @@
     frontNeckAdd : 0.30,    // 앞목깊이 = B/12 + 0.3 [7.6]
     frontSpOut   : 1.015,   // 앞 어깨점 x = 앞품/2 + 1.015 [18.165]
                             //   ※ 원형 II(+1.0)·III(+1.25) 와 같은 구조. 도면엔 표기가 없다
+    /* 앞 밑단은 뒤보다 **1.463 아래**다 (앞처짐). 도면 회전 전 절개선 밑단 (8.895, 59.963) ·
+       옆선 밑단 (24.675, 59.963) 인데 뒤 밑단은 58.5 다. x 는 8.900 으로 이미 맞았고
+       세로만 틀려 있었다. */
+    frontHemDrop : 1.463,
     frontSpDrop  : 4.00,    // 앞 어깨점 y [4.0005]
     /* ★ 뒤 어깨점은 **식으로 나온다** — 실측 상수가 아니다.
          x = 어깨너비/2 + 다트분  [19.0 + 1.3 = 20.3 · 실측 20.2993]  (도면 「어깨너비/2 + 다트분 1.3」)
@@ -414,7 +418,8 @@
     var SPf  = [fPitchX + K.frontSpOut, K.frontSpDrop];
     var Uf   = [K.fSideBL * s, BL];
     var fWaistSide = [K.fSideWaist * s, WLb];
-    var fHemSide   = [K.fSideHem * s, hemY];
+    var fHemY      = hemY + K.frontHemDrop;          // 앞 밑단은 뒤보다 아래
+    var fHemSide   = [K.fSideHem * s, fHemY];
     var BP   = [bpSpan / 2, K.bpDrop];
     var shLenFront = V.dist(SNPf, SPf);
     var shDirF     = V.norm(V.sub(SPf, SNPf));
@@ -437,7 +442,7 @@
     var fDart = Math.max(0.2, fWaistW - (W / 4 + K.frontWaistEase));
     var fCx = BP[0];                                               // 앞 다트 중심 = BP 수직
     var fPwA = [fCx + fDart / 2, WLb], fPwB = [fCx - fDart / 2, WLb];
-    var fPhA = [K.fPrinHemIn * s, hemY],   fPhB = [K.fPrinHemOut * s, hemY];
+    var fPhA = [K.fPrinHemIn * s, fHemY],  fPhB = [K.fPrinHemOut * s, fHemY];
 
     /* ───────── 곡선 ───────── */
     var backNeck  = curveBackNeck(BNP, SNPb, SPb);
@@ -463,7 +468,7 @@
       backNeck: backNeck, backArm: backArm, backSide: backSide,
       bCenter: [[0, -K.bnpRise], [K.bCenterBL * s, BL], [K.bCenterWaist * s, WLb], [K.bCenterHem * s, hemY]],
       SNPf: SNPf, FNP: FNP, SPf: SPf, Uf: Uf, fWaistSide: fWaistSide, fHemSide: fHemSide,
-      fPitchX: fPitchX, BP: BP, shLenFront: shLenFront,
+      fPitchX: fPitchX, BP: BP, shLenFront: shLenFront, fHemY: fHemY,
       fPrinA: fPrinA, fPrinB: fPrinB, fPwA: fPwA, fPwB: fPwB, fPhA: fPhA, fPhB: fPhB,
       frontNeck: frontNeck, frontArm: frontArm,
       /* ★ 밑단 모서리는 **다트를 돌린 뒤의 옆선 끝**이다. 안 돌린 자리(fHemSide)를 쓰면
@@ -567,9 +572,14 @@
     /* ★ 이 다트는 옆선 길이를 **줄이지 않는다** — 아래 조각을 BP 축으로 돌려 벌릴 뿐이다.
        정답지: 앞 옆선 위 6.201 + 아래 30.644 = 36.845 ≈ 뒤 옆선 36.832 (차 0.013).
        길이를 빼는 방식(숙녀복 기본원형 III 의 웨지)으로 하면 앞이 1.4 짧아진다. */
-    var pTop = pts[i];
-    var r = V.dist(BP, pTop), ang = (r > 1e-6) ? amt / r : 0;
-    var lower = pts.slice(i).map(function (q) { return rotAbout(q, BP, ang); });
+    /* ★ 다트는 옆선에서 `amt` 를 **덜어낸다** — 회전이 아니다.
+       도면: 옆선 위 6.201 + 아래 30.644 = 36.845 ≈ 뒤 옆선 36.832.
+       전체 옆선 38.31 에서 다트 1.5 를 빼야 뒤와 맞는다 (안 빼면 −1.5045 벌어진다).
+       접었을 때 두 변이 만나는 것은 다트 다리 길이가 BP 에서 같기 때문이다. */
+    var pTop = pts[i], j = i;
+    for (; j < pts.length; j++) { acc += V.dist(pts[j - 1], pts[j]); if (acc >= at + amt) break; }
+    if (j >= pts.length) j = pts.length - 1;
+    var lower = pts.slice(j);
     return { top: lineSegs.apply(null, pts.slice(0, i + 1)), bot: lineSegs.apply(null, lower),
              pTop: pTop, pBot: lower[0], hem: lower[lower.length - 1],
              amt: V.dist(pTop, lower[0]) };
@@ -1039,7 +1049,9 @@
       /* ★ 가슴다트는 **닫은 상태**로 그린다 — 재단선은 이어진 옆선 한 줄이고 다트는
          내부선으로만 표시한다 (교재 앞옆면 조각의 「자연스럽게 곡선처리」).
          다트를 외곽선에 넣으면 꼭짓점이 BP(프린세스 절개선 위)라 조각이 두 쪽으로 갈린다. */
-      { name: '옆선',     role: 'side',     segs: g.fSideFull },
+      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop },
+      { name: '가슴다트', role: 'dart',     segs: lineSegs(g.wedgeTop, g.BP, g.wedgeBot) },
+      { name: '옆선 (아래)', role: 'side',   segs: g.fSideBot },
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSide, g.fPhA) },
       { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
@@ -1067,7 +1079,7 @@
     var pairs = [
       ['뒤 절개선', SL(g.bPrinIn), SL(g.bPrinOut)],
       ['앞 절개선', SL(g.fPrinIn), SL(g.fPrinOut)],
-      ['옆선',     SL(g.backSide), SL(g.fSideFull)],
+      ['옆선',     SL(g.backSide), SL(g.fSideTop) + SL(g.fSideBot)],
       ['어깨 (안)', V.dist(g.SNPb, g.bPrinB), V.dist(g.SNPf, g.fPrinB)],
       ['어깨 (밖)', V.dist(g.bPrinA, g.SPb), V.dist(g.fPrinA, g.SPf)]
     ];
