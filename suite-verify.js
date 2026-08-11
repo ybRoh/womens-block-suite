@@ -24,7 +24,9 @@ var MODULES = [
   { dir: '숙녀복기본원형1',        draft: 'draftLady1' },
   { dir: '언더암다트',            draft: 'draftLady1' },
   { dir: 'V네크라인',             draft: 'draftVNeck' },
-  { dir: '숙녀복기본원형2',        draft: 'draftBodice2' },
+  { dir: '숙녀복기본원형2',        draft: 'draftBodice2',
+    opt: { sleeveType: 'two' },
+    pairs: [['2장소매 절개선', '큰소매', '뒤 절개선', '작은소매', '절개선', 0.15]] },
   { dir: '숙녀복기본원형3',        draft: 'draftBodice3' },
   { dir: '토르소원형프린세스라인',   draft: 'draftTorso' }
 ];
@@ -52,6 +54,20 @@ function ptInPoly(pt, poly) {
   return c;
 }
 function finite(p) { return p && isFinite(p[0]) && isFinite(p[1]); }
+/** 조각의 변 하나를 outline 에서 **실측**한다 — 제도식/measures 값을 믿으면 안 된다.
+    원형2 옆선 검사가 measures 를 읽어 늘 0 으로 보였다 (실제 도면은 0.33~0.45 차). */
+function edgeLen(d, pieceName, edgeName) {
+  var p = (d.pieces || []).filter(function (x) { return x.name === pieceName || x.id === pieceName; })[0];
+  if (!p) return null;
+  var names = Array.isArray(edgeName) ? edgeName : [edgeName], tot = 0, hit = 0;
+  names.forEach(function (en) {
+    var e = (p.edges || []).filter(function (x) { return x.name === en; })[0];
+    if (!e) return;
+    hit++;
+    for (var i = e.start + 1; i <= e.end; i++) tot += dist(p.outline[i - 1], p.outline[i]);
+  });
+  return hit === names.length ? tot : null;
+}
 
 /* ── 조각 하나에 거는 검사 ───────────────────────────────────────────── */
 function checkPiece(p, bad) {
@@ -160,7 +176,9 @@ function runModule(mod) {
 
   E.SIZES.forEach(function (sz) {
     var bad = [], d;
-    try { d = draftFn(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }); }
+    var o = { seam: E.SEAM_DEFAULT };
+    for (var ok2 in (mod.opt || {})) o[ok2] = mod.opt[ok2];
+    try { d = draftFn(E.measuresForSize(sz), o); }
     catch (e) { console.log('   ✗ ' + pad(sz, 5) + '제도 실패: ' + e.message); fails++; return; }
     (d.pieces || []).forEach(function (p) { checkPiece(p, bad); checked++; });
 
@@ -177,6 +195,16 @@ function runModule(mod) {
         bad.push(k + ' 단조성 위반 ' + prev[k].toFixed(3) + ' → ' + cur[k].toFixed(3));
     });
     prev = cur;
+
+    /* 맞물리는 변 짝 — **모듈이 선언한 것만** 전 호수로 잰다. 66호 전용 검사 안에
+       숨어 있으면 44/88호가 깨져도 통과한다 (원형2 2장소매가 44호 1.16 · 88호 1.53
+       어긋난 채 나갔다 — 2026-08-12 QA). */
+    (mod.pairs || []).forEach(function (w) {
+      var A = edgeLen(d, w[1], w[2]), B = edgeLen(d, w[3], w[4]);
+      if (A === null || B === null) { bad.push(w[0] + ' 변을 못 찾음'); return; }
+      if (Math.abs(A - B) > (w[5] || 0.3))
+        bad.push(w[0] + ' 짝 ' + A.toFixed(3) + '↔' + B.toFixed(3) + ' 차 ' + (A - B).toFixed(3));
+    });
 
     var hard = bad.filter(function (x) { return x[0] !== '~'; });
     var soft = bad.filter(function (x) { return x[0] === '~'; });

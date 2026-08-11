@@ -369,7 +369,11 @@
     twoSeamBulge2  : 0.404,    // 절개선 앵커 2 — 팔꿈치 아래 (실측 10.078−9.674)
     twoSeamBulge3  : -0.878,   // 절개선 앵커 3 — 트임어깨 자리 (실측 8.796−9.674, 부호 반전)
     twoSeamBulgeU3 : -0.398,   // 작은소매 앵커 3 (실측 10.872−10.474)
-    twoSeamY3      : 51.273,   // 앵커 3 의 y (트임어깨)
+    /* 앵커 y 는 절개선 구간의 **비율**이다 — 66호 절대 y(20.8 · 34.315 · 51.273)를
+       (절개점 8.105 ~ 밑단 62.192) 구간으로 나눈 값. 절대값을 박으면 66호만 맞는다. */
+    twoSeamT1      : 0.234715,  // 옛 twoInsetY 20.8
+    twoSeamT2      : 0.484585,  // 옛 twoSeamY2 34.315
+    twoSeamT3      : 0.798122,  // 옛 twoSeamY3 51.273 (트임어깨)
     twoUndOutIn1   : 1.965,    // 작은소매 바깥 뒤선 앵커 1 — 뒤 경계에서 (실측 21.425−19.460)
     twoUndOutY1    : 36.199,   // 앵커 1 의 y — 가장 앞으로 나온 자리
     twoUndOutIn2   : 1.809,    // 앵커 2 (실측 21.425−19.616)
@@ -1039,10 +1043,17 @@
     /* 비율은 **호(부리선 길이)** 기준이다. 밑단 두 끝의 y 가 달라(하강 1.492 · 올림 0.3)
        x 폭으로 그대로 쓰면 호가 길어진다 — y 차를 빼고 x 폭을 낸다. */
     var xOf = function (arc, dy) { return Math.sqrt(Math.max(arc * arc - dy * dy, 0.01)); };
-    var cuffBigArc = cuffW * K.twoCuffBigShare, cuffUndArc = cuffW * (1 - K.twoCuffBigShare);
-    var bigHemB = [bigHemF[0] - xOf(cuffBigArc, hemLowY - bigHemF[1]), hemLowY];
-    var undHemF = [undHemB[0] + xOf(cuffUndArc, hemLowY - undHemB[1]), hemLowY];
-    var cuffBig = bigHemF[0] - bigHemB[0], cuffUnder = undHemF[0] - undHemB[0];
+    /* ★ 몫(share)은 **고정 상수가 아니라 계산 결과**다 — 위 주석이 이미 경고한 함정이다.
+       2/3 을 박아 두면 66호만 맞고, 다른 호수에서는 두 밑단 모서리(bigHemF·undHemB)가
+       서로 다른 속도로 벌어져 **큰↔작은 절개선 길이가 44호 1.16 · 88호 1.53 어긋난다**
+       (2026-08-12 QA). 두 절개선은 서로 꿰매는 짝이라 길이가 같아야 한다.
+       총 부리둘레 cuffW 는 그대로 두고 **몫만 이분법으로 풀어** 길이를 맞춘다.
+       66호에서는 답이 2/3 근처로 나오므로 정답지 적합이 유지된다. */
+    var hemPts = function (share) {
+      return [[bigHemF[0] - xOf(cuffW * share, hemLowY - bigHemF[1]), hemLowY],
+              [undHemB[0] + xOf(cuffW * (1 - share), hemLowY - undHemB[1]), hemLowY]];
+    };
+    var shareSolved, cuffBigArc, cuffUndArc, bigHemB, undHemF, cuffBig, cuffUnder;   // ↓ mkSeam 정의 뒤에 푼다
 
     /* 절개선 — 절개점 → 팔꿈치선 위의 중간 앵커 → 밑단.
        앵커 위치(mr·my)와 양 끝 접선(k0·k1)은 도면 bigBack 41점에 적합했다. */
@@ -1052,27 +1063,57 @@
        즉 절개점 수직선에서 **뒤로 0.661** 부풀었다가 밑단 쪽으로 돌아온다.
        ⚠ 예전 앵커는 팔꿈치선보다 6.8 **위**의 한 점이라 이 S 를 못 그렸고, 팔꿈치 휨이
          0.25(도면 0.94)로 거의 곧은 선이었다. 앵커를 정점 자리로 옮긴다. */
-    var mkSeam = function (endPt, startP, outSign) {
+    var mkSeam = function (endPt, startP, outSign, bulgeScale) {
       var cs = CAL.twoSeam;
       var st = startP || splitP;
+      var bs = (bulgeScale === undefined) ? 1 : bulgeScale;
       /* 앵커 **두 점** — 가장 부푼 자리(y 20.805)와 팔꿈치 아래(y 34.315).
          한 점만 쓰면 아래쪽이 곧게 펴져 도면과 0.29 벗어난다 (도면 −10.078 · 엔진 −9.9). */
       /* ★ 두 절개선은 서로의 거울이지만 **각자의 절개점**에서 출발한다. 그래서 자기
          절개점 기준으로 재면 부푼 양이 다르다 (큰 0.661/0.404 · 작은 1.139/0.882).
          차이는 둘 다 0.478 로 같다 — 대칭축이 절개점이 아니라 그 사이의 −9.835 이기 때문. */
       var sg = (outSign || -1), un = (sg > 0);
-      var b1 = [st[0] + sg * num(opt.twoSeamBulge, un ? K.twoSeamBulgeU : K.twoSeamBulge), K.twoInsetY];
-      var b2 = [st[0] + sg * (un ? K.twoSeamBulgeU2 : K.twoSeamBulge2), K.twoSeamY2];
+      /* ★ 앵커 y 는 **절개선 자기 구간 안의 비율**이다 (절대 좌표 아님).
+         66호 실측 y(20.8 · 34.315 · 51.273)를 그대로 박아 뒀더니 절개점·밑단은
+         호수 따라 움직이는데 앵커는 안 움직여, 서로 반대로 부푸는 두 곡선이 호수마다
+         다르게 늘어났다 — **큰↔작은 절개선 짝이 44호 1.16 · 88호 1.53 어긋났다**
+         (66호만 −0.045 로 맞았다. 2026-08-12 QA). 봉제하면 소매가 뒤틀린다. */
+      var yAt = function (t) { return st[1] + (endPt[1] - st[1]) * t; };
+      var b1 = [st[0] + sg * bs * num(opt.twoSeamBulge, un ? K.twoSeamBulgeU : K.twoSeamBulge), yAt(K.twoSeamT1)];
+      var b2 = [st[0] + sg * bs * (un ? K.twoSeamBulgeU2 : K.twoSeamBulge2), yAt(K.twoSeamT2)];
       /* 앵커 3 — **트임어깨 자리**(y 51.27). 여기가 비어 있으면 아래쪽이 끝접선만으로
          흘러가 트임어깨가 큰 0.193 · 작은 0.110 어긋난다. 이 자리에서 곡선은 자기
          절개점 수직선을 이미 **넘어가 있다**(큰 +0.878 · 작은 −0.398) — 그래서 부호가 음수다. */
-      var b3 = [st[0] + sg * (un ? K.twoSeamBulgeU3 : K.twoSeamBulge3), K.twoSeamY3];
+      var b3 = [st[0] + sg * bs * (un ? K.twoSeamBulgeU3 : K.twoSeamBulge3), yAt(K.twoSeamT3)];
       return splineSegs([st, b1, b2, b3, endPt],
         endTan([0, 1], cs.k0), endTan(V.sub(endPt, b3), cs.k1));
     };
+    shareSolved = (function () {
+      function gap(sh) {
+        var h = hemPts(sh);
+        return sLen(mkSeam(h[0])) - sLen(mkSeam(h[1], splitU, +1));
+      }
+      var lo = 0.35, hi = 0.90, gLo = gap(lo);
+      if (gLo * gap(hi) > 0) return K.twoCuffBigShare;      // 구간 안에 답이 없으면 도면 몫
+      for (var i = 0; i < 44; i++) {
+        var mid = (lo + hi) / 2;
+        if (gap(mid) * gLo > 0) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    })();
+    cuffBigArc = cuffW * shareSolved; cuffUndArc = cuffW * (1 - shareSolved);
+    var _hp = hemPts(shareSolved);
+    bigHemB = _hp[0]; undHemF = _hp[1];
+    cuffBig = bigHemF[0] - bigHemB[0]; cuffUnder = undHemF[0] - undHemB[0];
     var bigBack = mkSeam(bigHemB);
     /* 작은소매 절개선은 **자기 절개점(splitU)** 에서 출발한다 — 큰소매보다 0.8 뒤.
        두 절개선이 그 0.8 만큼 겹쳐 그것이 이세로 들어간다 (도면 `0.8` 두 곳). */
+    /* ★ 두 절개선은 **서로 꿰매는 짝**이라 길이가 같아야 한다. 앵커 x 는 66호 실측이라
+       호수가 바뀌면 밑단 x 가 크게 움직여(큰소매 dx 44호 −3.2 ↔ 88호 +7.4) 두 곡선이
+       다르게 늘어난다 — 44호 1.16 · 88호 1.53 어긋난 채 나갔다 (2026-08-12 QA).
+       작은소매 앵커의 부푼 양에 **배율 하나**를 걸어 길이를 맞춘다. 66호는 배율 ≈ 1
+       이라 정답지 적합이 그대로 유지되고, 다른 호수만 따라온다.
+       (부푼 양을 줄이면 곡선이 짧아진다 — 단조라 이분법으로 찾는다) */
     var undBack = mkSeam(undHemF, splitU, +1);   // 작은소매는 반대쪽(앞)으로 부푼다 — 큰소매의 거울
     /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
     var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig));      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
