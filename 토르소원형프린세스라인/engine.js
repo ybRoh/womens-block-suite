@@ -626,8 +626,11 @@
   }
 
   /* ── 위치별 시접 (SPEC §11-1) ─────────────────────────────────────── */
-  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0,
-                       sleeveHem: 2.5, dart: 1.5, fold: 0 };
+  /* ★ `princess`(프린세스 절개선)를 반드시 넣는다 — 없으면 `normSeam` 이 모르는 role 로
+     보고 **시접 0** 을 준다(골선과 같아진다). 절개선 4곳이 전부 시접 없이 나갔다
+     (2026-08-12). 옆선과 같은 1.5 를 준다 — 곡선이라 시접이 크면 뒤집을 때 겹친다. */
+  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
+                       hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0 };
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);
 
   /** opt.seam 정규화 — 숫자면 전 부위 균일, 객체면 role 별. fold 는 항상 0 강제. */

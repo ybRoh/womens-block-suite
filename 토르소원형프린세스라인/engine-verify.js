@@ -158,6 +158,13 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
     });
     d.pieces.forEach(function (p) {
       if (!p.notches.length) bad.push(p.name + ' 너치 0개');
+      /* ★ 봉제하는 변에 **시접이 0 이면** 재단하면 못 꿰맨다. 골선(fold)만 0 이어야 한다.
+         `princess` role 이 SEAM_DEFAULT 에 없어 절개선 4곳이 전부 0 으로 나갔다
+         (2026-08-12) — 검사가 없어서 통과했다. */
+      (p.edges || []).forEach(function (e) {
+        if (e.role !== 'fold' && !(e.seam > 0))
+          bad.push(p.name + ' 「' + e.name + '」(' + e.role + ') 시접 0');
+      });
       /* 너치 각이 **조각 안쪽**을 향해야 한다 — 바깥이면 재단할 때 반대로 판다.
          조각마다 손으로 넣은 inside 점이 틀려 8개가 뒤집힌 채 통과했었다 (2026-08-12). */
       var cx = 0, cy = 0;

@@ -6,7 +6,7 @@
 <title>토르소 원형 프린세스라인 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형프린세스라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-12 06:33 -->
+     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-12 06:41 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -816,7 +816,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 06:33'; window.ND_APP = '토르소원형프린세스라인';</script>
+<script>window.ND_BUILD = '2026-08-12 06:41'; window.ND_APP = '토르소원형프린세스라인';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1447,8 +1447,11 @@ td.n.n-fail{color:var(--red)}
   }
 
   /* ── 위치별 시접 (SPEC §11-1) ─────────────────────────────────────── */
-  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0,
-                       sleeveHem: 2.5, dart: 1.5, fold: 0 };
+  /* ★ `princess`(프린세스 절개선)를 반드시 넣는다 — 없으면 `normSeam` 이 모르는 role 로
+     보고 **시접 0** 을 준다(골선과 같아진다). 절개선 4곳이 전부 시접 없이 나갔다
+     (2026-08-12). 옆선과 같은 1.5 를 준다 — 곡선이라 시접이 크면 뒤집을 때 겹친다. */
+  var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
+                       hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0 };
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);
 
   /** opt.seam 정규화 — 숫자면 전 부위 균일, 객체면 role 별. fold 는 항상 0 강제. */
@@ -5013,10 +5016,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', hem: '밑단', fold: '골선'
+    side: '옆선', princess: '절개선', hem: '밑단', dart: '다트', fold: '골선'
   };
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem'];
-  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, fold: 0 };
+  /* ★ 엔진에 있는 role 을 **여기에도 넣어야** 입력란이 생긴다. 빠지면 UI 가 자기 목록만
+     넘겨 그 부위 시접이 **0 으로 나간다** — 프린세스 절개선 4곳이 그렇게 시접 없이
+     나갔다 (2026-08-12). 아래 renderSeam 이 엔진 SEAM_ROLES 와 대조해 경고한다. */
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'princess', 'hem', 'dart'];
+  var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
+                        hem: 3.0, dart: 1.5, fold: 0 };
   var SEAM_PRESETS = {
     none: function () { return zeroSeam(); },
     standard: function () { return standardSeam(); },
