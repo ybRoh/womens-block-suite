@@ -6,7 +6,7 @@
 <title>숙녀복 기본원형 II · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-12 07:49 -->
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-12 08:58 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -819,7 +819,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 07:49'; window.ND_APP = '숙녀복기본원형2';</script>
+<script>window.ND_BUILD = '2026-08-12 08:58'; window.ND_APP = '숙녀복기본원형2';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -2070,9 +2070,13 @@ td.n.n-fail{color:var(--red)}
         { p: cp(s.apex), angle: 90, label: '소매산 정점' },
         /* 앞 합인 — 도면 마크 (11.6975, 11.4023) */
         { p: cp(s.pBF), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBF))), label: '앞 합인' },
-        { p: cp(vB.top), angle: 0, label: '트임 끝 (9)' }]
+        /* ★ 트임 끝은 **외곽선 위의 mitreOn** 이다 — 절개선(봉제선)이 실제로 끝나는 자리.
+           예전엔 vB.top(원래 절개선 위 9 지점)을 썼는데 그 자리는 미터 사선으로 대체돼
+           **외곽선에서 1.4cm 떨어진 허공**이었다 (전 호수, 2026-08-12 QA).
+           봉제하는 사람에게 필요한 것은 「여기서 박음질을 멈춘다」는 재단선 위의 표시다. */
+        { p: cp(vB.mitreOn), angle: 0, label: '트임 끝' }]
        .concat(seamMatchNotches(s.bigFront, revSegs(s.undOuter), [0, s.sleeveLen * 0.5]).a)
-       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capBigFront) || onPts(nt.p, s.capBigBack); })));
+       );
     var und = mk('sleeveUnder', '작은소매', [
       { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
       { name: '절개선',     role: 'side',      segs: vU.seamHead },
@@ -2083,12 +2087,45 @@ td.n.n-fail{color:var(--red)}
       { name: '바깥 뒤선',  role: 'side',      segs: revSegs(s.undOuter) },
       { name: '소매통 연결', role: 'armhole',  segs: s.undCapOut }
     ], [[s.backOutX + 2, 15], [s.backOutX + 2, s.sleeveLen - 1.0]],
-       [{ p: cp(s.splitP), angle: 180, label: '절개 시작' },
+       /* ★ 작은소매의 절개 시작점은 **자기 절개점 splitU** 다 — splitP(큰소매 것)를 쓰면
+          twoSplitGap 0.8 만큼 통째로 어긋난다. 그 0.8 이 이세로 들어가는 값이라
+          숫자가 작아 눈에 안 띄었다 (전 호수 정확히 0.800 어긋나 있었다). */
+       [{ p: cp(s.splitU), angle: 180, label: '절개 시작' },
         /* 뒤 합인 — 도면 마크 (−14.9255, 11.7312). 절개점과 소매통 사이라 작은소매 몫 */
         { p: cp(s.pBB), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBB))), label: '뒤 합인' },
-        { p: cp(vU.top), angle: 180, label: '트임 끝 (9)' }]
+        { p: cp(vU.mitreOn), angle: 180, label: '트임 끝' }]
        .concat(seamMatchNotches(s.bigFront, revSegs(s.undOuter), [0, s.sleeveLen * 0.5]).b)
-       .concat(capNotches(s).filter(function (nt) { return onPts(nt.p, s.capUnderBack); })));
+       );
+    /* ★ 소매산 맞춤 너치는 **조각 외곽선에 붙여 나눈다.**
+       예전엔 「어느 곡선 위인가」(onPts)로 걸렀는데, 곡선 경계에 놓인 너치가 어느 쪽에도
+       안 잡혀 **통째로 사라졌다** — 「뒤 1/3」이 44·55·88호에 없었다(66·77호만 있었다).
+       몸판 암홀 3등분에 대응하는 필수 너치가 호수에 따라 있다 없다 한 것이다
+       (2026-08-12 QA). 외곽선이 기준이면 조각이 곧 판정 기준이라 빠질 수가 없다. */
+    (function () {
+      /** 외곽선까지 최단거리와 그 발 — 꼭짓점이 아니라 **변에 내린 수선**이라야
+          너치가 재단선 위에 정확히 앉는다 */
+      function foot(q, o) {
+        var best = null, bd = Infinity;
+        for (var i = 1; i < o.length; i++) {
+          var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var c = [a[0] + t * dx, a[1] + t * dy], e = V.dist(q, c);
+          if (e < bd) { bd = e; best = c; }
+        }
+        return { d: bd, p: best };
+      }
+      capNotches(s).forEach(function (nt) {
+        var fb = foot(nt.p, big.outline), fu = foot(nt.p, und.outline);
+        var host = fb.d <= fu.d ? big : und, hit = fb.d <= fu.d ? fb : fu;
+        /* ⚠ capNotches 는 **한 장 소매의 소매산**에서 잰다. 작은소매 소매산은 독립
+           재제도 곡선이라 「뒤 1/3」이 0.02~0.11 떠 있다 — 그래서 재단선 위로 내린다.
+           0.35 를 넘으면 그 조각 것이 아니므로 넣지 않는다. */
+        if (hit.d > 0.35) return;
+        var dup = host.notches.some(function (x) { return V.dist(x.p, hit.p) < 0.06; });
+        if (!dup) host.notches.push({ p: cp(hit.p), angle: nt.angle, label: nt.label });
+      });
+    })();
     return [big, und];
   }
   function twoInternal(s, id) {
@@ -2376,6 +2413,19 @@ td.n.n-fail{color:var(--red)}
     var pts = [], ranges = [];
     edges.forEach(function (e, ei) {
       var sp = sampleSegs(e.segs, FLATTEN), start = pts.length;
+      /* ★ **너무 촘촘한 점은 버린다.** sampleSegs 는 베지어 조각마다 최소 2점을 내므로,
+         점열을 이어 붙여 만든 변(poly·lineSegs 연쇄)은 조각 하나가 FLATTEN 보다 짧아도
+         2점이 찍혀 간격이 0.005 까지 내려간다 — 뒷판 허리선 9cm 에 1806점이 박혔다
+         (2026-08-12 QA). 치수는 안 변하지만 DXF·인쇄 파일이 헛되이 커진다.
+         변의 **첫 점과 끝 점은 반드시 남긴다** (모서리·시접 경계라서). */
+      var keep = [], MIN = FLATTEN * 0.375;              // 0.015
+      for (var si = 0; si < sp.length; si++) {
+        if (si === 0 || si === sp.length - 1 ||
+            V.dist(sp[si], keep[keep.length - 1]) >= MIN) keep.push(sp[si]);
+      }
+      if (keep.length > 2 && V.dist(keep[keep.length - 1], keep[keep.length - 2]) < MIN * 0.5)
+        keep.splice(keep.length - 2, 1);                 // 끝점 직전이 너무 붙으면 하나 뺀다
+      sp = keep;
       sp.forEach(function (p, i) { if (ei > 0 && i === 0) return; pts.push([p[0], p[1]]); });
       ranges.push({ name: e.name, role: e.role || 'side', fold: e.role === 'fold',
                     start: start, end: pts.length - 1 });

@@ -172,7 +172,7 @@ function runModule(mod) {
     console.log('  ✗ ' + mod.dir + ' — ' + mod.draft + ' 가 없다'); fails++; return;
   }
   console.log('\n── ' + mod.dir);
-  var prev = null, modBad = [];
+  var prev = null, modBad = [], prevSig = null, prevSize = null;
 
   E.SIZES.forEach(function (sz) {
     var bad = [], d;
@@ -195,6 +195,17 @@ function runModule(mod) {
         bad.push(k + ' 단조성 위반 ' + prev[k].toFixed(3) + ' → ' + cur[k].toFixed(3));
     });
     prev = cur;
+
+    /* 조각별 **너치 개수가 호수마다 같아야** 한다 — 호수 따라 있다 없다 하면
+       그 호수에는 맞출 자리가 없는 것이다. 원형2 「뒤 1/3」이 66·77호에만 있었다
+       (44·55·88호에는 아예 없었다 — 2026-08-12 QA). 「어느 곡선 위인가」로 너치를
+       조각에 나누다 보니 경계에 놓인 것이 어느 쪽에도 안 잡혀 사라졌다. */
+    var sig = (d.pieces || []).map(function (p) {
+      return (p.name || p.id) + ':' + (p.notches || []).length;
+    }).join(' · ');
+    if (prevSig !== null && sig !== prevSig)
+      bad.push('조각별 너치 개수가 호수마다 다르다\n           ' + prevSize + '  ' + prevSig + '\n           ' + sz + '  ' + sig);
+    prevSig = sig; prevSize = sz;
 
     /* 맞물리는 변 짝 — **모듈이 선언한 것만** 전 호수로 잰다. 66호 전용 검사 안에
        숨어 있으면 44/88호가 깨져도 통과한다 (원형2 2장소매가 44호 1.16 · 88호 1.53

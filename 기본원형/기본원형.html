@@ -6,7 +6,7 @@
 <title>기본 무다트 원형 (문화식) · 55·66·77호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 기본원형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-12 07:49 -->
+     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-12 08:58 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -804,7 +804,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 07:49'; window.ND_APP = '기본원형';</script>
+<script>window.ND_BUILD = '2026-08-12 08:58'; window.ND_APP = '기본원형';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1639,6 +1639,19 @@ td.n.n-fail{color:var(--red)}
     var pts = [], ranges = [];
     edges.forEach(function (e, ei) {
       var sp = sampleSegs(e.segs, FLATTEN), start = pts.length;
+      /* ★ **너무 촘촘한 점은 버린다.** sampleSegs 는 베지어 조각마다 최소 2점을 내므로,
+         점열을 이어 붙여 만든 변(poly·lineSegs 연쇄)은 조각 하나가 FLATTEN 보다 짧아도
+         2점이 찍혀 간격이 0.005 까지 내려간다 — 뒷판 허리선 9cm 에 1806점이 박혔다
+         (2026-08-12 QA). 치수는 안 변하지만 DXF·인쇄 파일이 헛되이 커진다.
+         변의 **첫 점과 끝 점은 반드시 남긴다** (모서리·시접 경계라서). */
+      var keep = [], MIN = FLATTEN * 0.375;              // 0.015
+      for (var si = 0; si < sp.length; si++) {
+        if (si === 0 || si === sp.length - 1 ||
+            V.dist(sp[si], keep[keep.length - 1]) >= MIN) keep.push(sp[si]);
+      }
+      if (keep.length > 2 && V.dist(keep[keep.length - 1], keep[keep.length - 2]) < MIN * 0.5)
+        keep.splice(keep.length - 2, 1);                 // 끝점 직전이 너무 붙으면 하나 뺀다
+      sp = keep;
       sp.forEach(function (p, i) { if (ei > 0 && i === 0) return; pts.push([p[0], p[1]]); });
       ranges.push({ name: e.name, role: e.role || 'side', fold: e.role === 'fold',
                     start: start, end: pts.length - 1 });
