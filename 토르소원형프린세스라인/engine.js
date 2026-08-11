@@ -411,6 +411,10 @@
       fPitchX: fPitchX, BP: BP, shLenFront: shLenFront,
       fPrinA: fPrinA, fPrinB: fPrinB, fPwA: fPwA, fPwB: fPwB, fPhA: fPhA, fPhB: fPhB,
       frontNeck: frontNeck, frontArm: frontArm,
+      /* ★ 밑단 모서리는 **다트를 돌린 뒤의 옆선 끝**이다. 안 돌린 자리(fHemSide)를 쓰면
+         외곽선이 그만큼 벌어진다 — 다트를 접었을 때 맞도록 옆선을 따라 연장하는 제도법.
+         (숙녀복 기본원형2 소맷부리를 다트분만큼 연장한 것과 같은 원리) */
+      fHemSideCut: wedge.hem,
       fSideTop: wedge.top, fSideBot: wedge.bot, wedgeTop: wedge.pTop, wedgeBot: wedge.pBot,
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
@@ -461,7 +465,8 @@
     var r = V.dist(BP, pTop), ang = (r > 1e-6) ? amt / r : 0;
     var lower = pts.slice(i).map(function (q) { return rotAbout(q, BP, ang); });
     return { top: lineSegs.apply(null, pts.slice(0, i + 1)), bot: lineSegs.apply(null, lower),
-             pTop: pTop, pBot: lower[0], amt: V.dist(pTop, lower[0]) };
+             pTop: pTop, pBot: lower[0], hem: lower[lower.length - 1],
+             amt: V.dist(pTop, lower[0]) };
   }
   /* ══════════════════════════════════════════════════════════════════
    * 5. 조각 부속 (기준선 · 주석 · 시접 · bbox)
@@ -928,7 +933,7 @@
       { name: '옆선 (위)', role: 'side',    segs: g.fSideTop },
       { name: '가슴다트', role: 'dart',     segs: lineSegs(g.wedgeTop, g.BP, g.wedgeBot) },
       { name: '옆선 (아래)', role: 'side',  segs: g.fSideBot },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSide, g.fPhA) },
+      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSideCut, g.fPhA) },
       { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
