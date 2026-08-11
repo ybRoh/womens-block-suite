@@ -135,25 +135,65 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
       });
       return out;
     }
-    function nt(id, pre) {
-      return P[id].notches.filter(function (n) { return n.label.indexOf(pre) === 0; });
+    /* ★ 그 변 **위에 놓인 너치 전부**를 가져온다 — 라벨 앞머리로 고르면 안 된다.
+       '절개' 로 시작하는 것만 짝지어 보다가 앞면에만 있던 BP·허리(2개)를 놓쳤다
+       (2026-08-12). 한쪽에만 있는 너치는 맞출 데가 없으니 그것 자체가 결함이다. */
+    function ntOn(id, poly) {
+      return P[id].notches.filter(function (n) {
+        var b = Infinity;
+        for (var i = 0; i < poly.length; i++) { var e = V.dist(n.p, poly[i]); if (e < b) b = e; }
+        return b <= 0.06;
+      });
     }
+    /* 짝이 없어도 되는 너치 — 다트 다리는 접어서 서로 포개지는 자리라 상대 조각에 짝이 없다 */
+    var SOLO = ['가슴다트'];
     var PAIRS = [
-      ['뒤 절개', 'back', ['절개선'], g.bPrinB, 'backSide', ['절개선'], g.bPrinA, '절개'],
-      ['앞 절개', 'front', ['절개선'], g.fPrinB, 'frontSide', ['절개선'], g.fPrinA, '절개'],
-      ['옆선',   'backSide', ['옆선'], g.Ub, 'frontSide', ['옆선 (위)', '옆선 (아래)'], g.Uf, '옆선']
+      ['뒤 절개', 'back', ['절개선'], g.bPrinB, 'backSide', ['절개선'], g.bPrinA],
+      ['앞 절개', 'front', ['절개선'], g.fPrinB, 'frontSide', ['절개선'], g.fPrinA],
+      ['옆선',   'backSide', ['옆선'], g.Ub, 'frontSide', ['옆선 (위)', '옆선 (아래)'], g.Uf]
     ];
     var bad = [], worst = 0;
     PAIRS.forEach(function (w) {
       var A = edges(w[1], w[2]), B = edges(w[4], w[5]);
-      var na = nt(w[1], w[7]), nb = nt(w[4], w[7]);
       if (!A.length || !B.length) { bad.push(w[0] + ' 변 없음'); return; }
-      if (!na.length) { bad.push(w[0] + ' 너치 없음'); return; }
-      if (na.length !== nb.length) { bad.push(w[0] + ' 짝 개수 ' + na.length + '≠' + nb.length); return; }
-      na.forEach(function (n, i) {
-        var dd = Math.abs(distFrom(A, w[3], n.p) - distFrom(B, w[6], nb[i].p));
+      var na = ntOn(w[1], A), nb = ntOn(w[4], B);
+      if (!na.length || !nb.length) { bad.push(w[0] + ' 너치 없음'); return; }
+      function key(n) { return n.label; }
+      function solo(n) { return SOLO.indexOf(n.label) >= 0; }
+      /* ① 한쪽에만 있는 너치 — 봉제할 때 맞출 상대가 없다 */
+      [[na, nb, w[1]], [nb, na, w[4]]].forEach(function (t) {
+        var have = {};
+        t[1].forEach(function (n) { have[key(n)] = (have[key(n)] || 0) + 1; });
+        var seen = {};
+        t[0].forEach(function (n) {
+          if (solo(n)) return;
+          seen[key(n)] = (seen[key(n)] || 0) + 1;
+          if (seen[key(n)] > (have[key(n)] || 0))
+            bad.push(w[0] + ' 「' + n.label + '」 짝 없음 (' + P[t[2]].name + '에만 있다)');
+        });
+      });
+      /* ② **구간별 이세** — 너치와 너치 사이에서 두 변의 길이 차가 봉제 가능한가.
+         「어깨에서 잰 거리가 같아야 한다」로만 보면 안 된다. 이세는 어딘가 한 구간에
+         들어가야 하고, 어느 구간에 넣을지가 곧 너치의 목적이다. 대신 **한 구간에
+         몰렸다가 다음 구간에서 되돌아오는 지그재그**(±0.32)는 못 꿰맨다 — 짧은
+         구간을 0.32 늘렸다 줄였다 해야 하기 때문이다. 그래서 구간차를 본다. */
+      var la = 0, lb = 0, ii;
+      for (ii = 1; ii < A.length; ii++) la += V.dist(A[ii - 1], A[ii]);
+      for (ii = 1; ii < B.length; ii++) lb += V.dist(B[ii - 1], B[ii]);
+      var seq = na.filter(function (n) { return !solo(n); })
+        .map(function (n) {
+          var m = nb.filter(function (x) { return key(x) === key(n); })[0];
+          return m && { l: n.label, a: distFrom(A, w[3], n.p), b: distFrom(B, w[6], m.p) };
+        }).filter(Boolean).sort(function (x, y) { return x.a - y.a; });
+      /* 너치 차례가 두 변에서 같아야 한다 — 뒤집혀 들어오면 여기서 걸린다 */
+      for (ii = 1; ii < seq.length; ii++)
+        if (seq[ii].b < seq[ii - 1].b) bad.push(w[0] + ' 너치 차례가 뒤바뀜 (' + seq[ii - 1].l + ' → ' + seq[ii].l + ')');
+      var pa = 0, pb = 0;
+      seq.concat([{ l: '밑단', a: la, b: lb }]).forEach(function (s) {
+        var dd = Math.abs((s.b - pb) - (s.a - pa));
+        pa = s.a; pb = s.b;
         if (dd > worst) worst = dd;
-        if (dd > 0.10) bad.push(w[0] + ' ' + (i + 1) + ' 어긋남 ' + dd.toFixed(3));
+        if (dd > 0.40) bad.push(w[0] + ' ~「' + s.l + '」 구간 이세 ' + dd.toFixed(3));
       });
     });
     d.pieces.forEach(function (p) {

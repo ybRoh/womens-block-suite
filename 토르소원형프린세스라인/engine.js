@@ -882,6 +882,31 @@
     }
     return out;
   }
+  /** 맞물리는 두 변에 **해부학적 높이**(가슴선·BP·허리·엉덩이선)로 짝 너치를 찍는다.
+   *  ★ 왜 비율(호길이)이 아니라 높이인가 — 비율 너치와 실제 기준점(허리·BP) 너치를
+   *  섞으면 **한 구간에 이세가 몰렸다 다음 구간에서 되돌아온다.** 88호 뒤 절개선에서
+   *  허리 앞 1.6cm 구간에 0.32 를 밀어넣고 바로 다음 구간에서 0.32 를 빼야 했다
+   *  (2026-08-12). 높이로 맞추면 이세가 **어깨~가슴선 한 구간에만** 모이고
+   *  (뒤 88호 0.339 / 21cm = 1.6%) 나머지 구간은 0.12 이하로 떨어진다.
+   *  @param levels [[라벨, y], …] 위에서 아래 순
+   *  @param post   점을 찍은 뒤 옮길 일이 있으면(앞옆면 다트 회전) 주는 변환
+   *  @returns {a:[], b:[]} */
+  function levelNotches(segsA, insideA, segsB, insideB, levels, postA, postB) {
+    var pa = sampleSegs(segsA, 0.02), pb = sampleSegs(segsB, 0.02), a = [], b = [];
+    function at(p, y) {
+      var bi = 0, bd = Infinity;
+      for (var i = 0; i < p.length; i++) { var e = Math.abs(p[i][1] - y); if (e < bd) { bd = e; bi = i; } }
+      var j = Math.max(1, Math.min(p.length - 1, bi));
+      return { p: cp(p[bi]), tan: V.norm(V.sub(p[j], p[j - 1])) };
+    }
+    levels.forEach(function (lv) {
+      var ha = at(pa, lv[1]), hb = at(pb, lv[1]);
+      var qa = postA ? postA(ha.p) : ha.p, qb = postB ? postB(hb.p) : hb.p;
+      a.push({ p: cp(qa), angle: _inward(ha.tan, qa, insideA), label: lv[0] });
+      b.push({ p: cp(qb), angle: _inward(hb.tan, qb, insideB), label: lv[0] });
+    });
+    return { a: a, b: b };
+  }
   /** 맞물리는 두 변에 **같은 자리** 너치를 찍는다 — 프린세스 4조각의 핵심이다.
    *  변마다 길이가 조금 다르므로(이세) **짧은 쪽 길이**를 기준으로 비율을 잡아
    *  양쪽 같은 비율 자리에 찍는다. 그래야 봉제할 때 어긋나지 않는다.
@@ -965,10 +990,15 @@
      *  뒤 절개선은 짝 차가 0.16 쯤이라 그 여유가 허리 위쪽에서 이세로 들어간다.       */
     var dc = g.dartClose;
     var fPrinOutC = rotSegsBelow(revSegs(g.fPrinOut), g.BP, dc);   // 앞옆면 절개선 (회전 후)
-    var nBack  = pairNotches(g.bPrinIn, revSegs(g.bPrinOut), [0.35, 0.62, 0.82],
-                   [0, g.WLb], [g.bSideBL, g.WLb], '절개', g.bPrinB);     // 기준 = 어깨 절개점
-    var nFront = pairNotches(g.fPrinIn, fPrinOutC, [0.35, 0.62, 0.82],
-                   [0, g.WLf], [g.sideX, g.WLf], '절개', g.fPrinB);       // 기준 = 어깨 절개점
+    /* 절개선 짝은 **높이**로 맞춘다 (위 levelNotches 주석 참고). 앞옆면 절개선은
+       BP 아래가 다트 회전을 받으므로 **회전 전 곡선에서 높이를 찾은 뒤 같이 돌린다**
+       — 회전 후 곡선에서 y 를 찾으면 해부학적 높이가 아니게 된다. */
+    function rotIfBelow(p) { return p[1] >= g.BP[1] - 1e-4 ? rotAbout(p, g.BP, dc) : cp(p); }
+    var nBack  = levelNotches(g.bPrinIn, [0, g.WLb], g.bPrinOut, [g.bSideBL, g.WLb],
+                   [['가슴선', g.BL], ['허리', g.WLb], ['엉덩이', g.hipY]]);
+    var nFront = levelNotches(g.fPrinIn, [0, g.WLf], g.fPrinOut, [g.sideX, g.WLf],
+                   [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]],
+                   null, rotIfBelow);
     var nSide  = pairNotches(g.backSide, g.fSideTop.concat(rotSegsBelow(g.fSideBot, g.BP, dc)),
                    [0.45, 0.75], [0, g.WLb], [0, g.WLf], '옆선', g.Ub);   // 기준 = 겨드랑
 
@@ -980,8 +1010,9 @@
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.bPhB, [g.bCenter[3][0], hemY]) },
       { name: '뒤중심',   role: 'fold',     segs: revSegs(lineSegs.apply(null, g.bCenter)) }
     ], [[2.0, 4.0], [2.0, hemY - 4.0]],
-      [{ p: cp(g.SNPb), angle: 90, label: '목옆점' },
-       { p: cp(g.bPwB), angle: 270, label: '허리' }].concat(nBack.a)));
+      /* 허리·가슴선·엉덩이 너치는 nBack 이 절개선 위에 짝으로 찍는다 — 여기서 또
+         찍으면 같은 자리에 두 개가 겹친다 */
+      [{ p: cp(g.SNPb), angle: 90, label: '목옆점' }].concat(nBack.a)));
 
     /* ② 뒷옆면 */
     pieces.push(mk('backSide', '뒷옆면', [
@@ -991,8 +1022,7 @@
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.bHemSide, g.bPhA) },
       { name: '절개선',   role: 'princess', segs: revSegs(g.bPrinOut) }
     ], [[g.bPwA[0] + 4.0, g.BL + 2.0], [g.bPwA[0] + 4.0, hemY - 4.0]],
-      [{ p: cp(g.Ub), angle: 180, label: '겨드랑' },
-       { p: cp(g.bPwA), angle: 270, label: '허리' }]
+      [{ p: cp(g.Ub), angle: 180, label: '겨드랑' }]
         .concat(armNotches(g.backArm, g.Ub, [g.bPwA[0], g.BL + 6], '뒤 암홀'))
         .concat(nBack.b).concat(nSide.a)));
 
@@ -1005,9 +1035,7 @@
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, [0, g.fHemY]) },
       { name: '앞중심',   role: 'fold',     segs: lineSegs([0, g.fHemY], g.FNP) }
     ], [[2.0, g.FNP[1] + 3.0], [2.0, g.fHemY - 4.0]],
-      [{ p: cp(g.SNPf), angle: 90, label: '목옆점' },
-       { p: cp(g.BP), angle: 0, label: 'BP' },
-       { p: cp(g.fPwB), angle: 270, label: '허리' }].concat(nFront.a)));
+      [{ p: cp(g.SNPf), angle: 90, label: '목옆점' }].concat(nFront.a)));
 
     /* ④ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
     var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);       // 아래 다리 입을 위 다리 쪽으로
@@ -1024,6 +1052,9 @@
       /* 절개선은 BP 아래 구간만 돈다 — BP 가 스플라인 앵커라 rotSegsBelow 판정으로 안전 */
       { name: '절개선',   role: 'princess', segs: fPrinOutC }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
+      /* ★ BP·허리·가슴선·엉덩이는 nFront 가 **앞면 절개선과 짝으로** 찍는다.
+         2026-08-12 까지 앞면에만 있고 앞옆면엔 없었다(앞면 5 ↔ 앞옆면 3) —
+         검증기가 라벨 '절개' 로 시작하는 것만 짝지어 봐서 통과시켰다. */
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
        { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
        { p: cp(wedgeBotC), angle: 180, label: '가슴다트' }]
