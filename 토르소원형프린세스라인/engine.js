@@ -316,6 +316,19 @@
          앞 다트분 = (앞 옆선허리 − 0) − (W/4 + 여유분 1.5)
                    = 22.100 − 19.9 = 2.200
        예전에는 좌우 x 를 실측 상수로 박고 폭 배율만 곱해 호수마다 어긋났다. */
+    /* 암홀 — 품선에 **접**한다 (앞 최소 x = 앞품/2 정확히 · 뒤는 등품/2 + 0.04).
+       접점에서 끊어 두 조각으로 그리고, 겨드랑 쪽에 오목점 하나를 더 둔다. */
+    /* 뒤 품선 위끝 — 앞은 어깨점 y 를 그대로 쓰면 맞는데(길이 차 0.0005) 뒤는 상단선(0)
+       으로 하면 2등분점이 10.95 가 되어 실측 10.585 와 0.365 어긋난다. 실측에서 역산한
+       −0.73 을 쓴다. 이 값이 무엇에서 나오는지는 [미확정]. */
+    bArmTopY     : -0.73,
+    bArmTanY     : 10.585,  // 뒤 암홀 접점 y [10.585] — 위 값의 2등분 결과
+    bArmTanOut   : 0.040,   // 뒤 접점 x = 등품/2 + 0.04
+    bArmLowX     : 20.00,   // 뒤 오목점 x (y=20) [20.00]
+    fArmTanY     : 12.717,  // 앞 암홀 접점 y [12.717]
+    fArmTanOut   : 0.000,   // 앞 접점 x = 앞품/2 정확히
+    fArmLowX     : 19.02,   // 앞 오목점 x (y=20) [19.02]
+    armLowY      : 20.0,
     backWaistEase: 1.9,     // 뒤 허리 여유분
     frontWaistEase: 1.5,    // 앞 허리 여유분
     /* 뒤 절개선 두 다리는 **모양이 다르다** — 바깥은 안으로 들어갔다 나오고(호/현 1.0085),
@@ -336,8 +349,8 @@
   var CAL = {
     backNeck : { mx: 0.70, my: 0.20, a0: 10, k0: 1.60, k1: 0.60 },
     frontNeck: { a0: 0, a1: -4, k0: 1.20, k1: 1.00 },
-    backArm  : { k0: 1.00, k1: 1.00 },
-    frontArm : { k0: 1.00, k1: 1.00 },
+    backArm  : { k0: 2.00, kA: 2.00, kB: 2.00, k1: 2.00 },   // 편차 0.475 (남은 과제)
+    frontArm : { k0: 0.30, kA: 1.60, kB: 1.60, k1: 1.60 },
     side     : { k0: 0.60, k1: 1.20 },
     princess : { k0: 0.20, k1: 0.20 }
   };
@@ -417,12 +430,8 @@
     /* ───────── 곡선 ───────── */
     var backNeck  = curveBackNeck(BNP, SNPb, SPb);
     var frontNeck = curveFrontNeck(FNP, SNPf, nw, SPf);
-    var backArm   = splineSegs([SPb, [bPitchX, BL * 0.55], Ub],
-                      endTan(V.norm(V.sub([bPitchX, BL * 0.55], SPb)), CAL.backArm.k0),
-                      endTan([1, 0], CAL.backArm.k1));
-    var frontArm  = splineSegs([SPf, [fPitchX, (K.frontSpDrop + BL) / 2], Uf],
-                      endTan(V.norm(V.sub([fPitchX, (K.frontSpDrop + BL) / 2], SPf)), CAL.frontArm.k0),
-                      endTan([1, 0], CAL.frontArm.k1));
+    var backArm   = armCurve(SPb, bPitchX, K.bArmTopY, Ub, BL, CAL.backArm);
+    var frontArm  = armCurve(SPf, fPitchX, SPf[1],      Uf, BL, CAL.frontArm);
     /* 옆선 — BL → 허리 → 밑단 (허리에서 들어갔다 밑단에서 다시 나온다) */
     var backSide  = sideCurve(Ub, bWaistSide, bHemSide);
     /* 앞 옆선은 BL 아래 6.2 에서 가슴다트로 끊긴다 — 위 조각 · 다트 · 아래 조각 */
@@ -474,6 +483,21 @@
     var sd = V.norm(V.sub(SP, SNP));
     return splineSegs([FNP, P, SNP],
       endTan(rotv([1, 0], C.a0), C.k0), endTan(rotv([sd[1], -sd[0]], C.a1), C.k1));
+  }
+  /** 암홀 — 어깨점 → **품선 접점**(수직 접선) → 오목점 → 겨드랑(수평 도착).
+   *  접점에서 끊어 두 조각으로 그린다 (숙녀복 기본원형 III 과 같은 구성). */
+  function armCurve(SP, pitchX, pitchTop, U, BL, C) {
+    /* 숙녀복 기본원형 III 과 같은 작도다:
+       · 품선 위끝(뒤 = 상단선 0 · 앞 = 어깨점 y) ~ BL 을 **2등분**한 자리에서 품선에 접한다
+         [실측 뒤 10.585 (식 10.95) · 앞 12.717 (식 12.95)]
+       · 오목점 = 품선×BL 모서리에서 [2등분점 → 겨드랑] 현에 내린 **수선의 중점** */
+    var A  = [pitchX, (pitchTop + BL) / 2];
+    var d  = V.norm(V.sub(U, A));
+    var Cn = [pitchX, BL];
+    var F  = V.add(A, V.mul(d, (Cn[0] - A[0]) * d[0] + (Cn[1] - A[1]) * d[1]));
+    var H  = _lerp(Cn, F, 0.5);
+    return splineSegs([SP, A], endTan(V.norm(V.sub(A, SP)), C.k0), endTan([0, 1], C.kA))
+      .concat(splineSegs([A, H, U], endTan([0, 1], C.kB), endTan([1, 0], C.k1)));
   }
   /** 옆선 — 겨드랑 → 허리(들임) → 밑단. 허리에서 잘록하고 밑단에서 다시 나간다 */
   function sideCurve(U, waist, hem) {
