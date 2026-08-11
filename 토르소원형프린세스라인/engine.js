@@ -467,7 +467,7 @@
       /* ★ 밑단 모서리는 **다트를 돌린 뒤의 옆선 끝**이다. 안 돌린 자리(fHemSide)를 쓰면
          외곽선이 그만큼 벌어진다 — 다트를 접었을 때 맞도록 옆선을 따라 연장하는 제도법.
          (숙녀복 기본원형2 소맷부리를 다트분만큼 연장한 것과 같은 원리) */
-      fHemSideCut: wedge.hem,
+      fSideFull: fSideFull, fHemSideCut: wedge.hem,
       fSideTop: wedge.top, fSideBot: wedge.bot, wedgeTop: wedge.pTop, wedgeBot: wedge.pBot,
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
@@ -1012,16 +1012,19 @@
     pieces.push(mk('frontSide', '앞옆면', [
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
       { name: '앞 암홀',  role: 'armhole',  segs: g.frontArm },
-      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop },
-      { name: '가슴다트', role: 'dart',     segs: lineSegs(g.wedgeTop, g.BP, g.wedgeBot) },
-      { name: '옆선 (아래)', role: 'side',  segs: g.fSideBot },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSideCut, g.fPhA) },
+      /* ★ 가슴다트는 **닫은 상태**로 그린다 — 재단선은 이어진 옆선 한 줄이고 다트는
+         내부선으로만 표시한다 (교재 앞옆면 조각의 「자연스럽게 곡선처리」).
+         다트를 외곽선에 넣으면 꼭짓점이 BP(프린세스 절개선 위)라 조각이 두 쪽으로 갈린다. */
+      { name: '옆선',     role: 'side',     segs: g.fSideFull },
+      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSide, g.fPhA) },
       { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
        { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
        { p: cp(g.wedgeBot), angle: 180, label: '가슴다트' },
-       { p: cp(g.fPwA), angle: 270, label: '허리' }]));
+       { p: cp(g.fPwA), angle: 270, label: '허리' }],
+      [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP), cp(g.wedgeBot)], '가슴다트 (닫아 그림)'),
+       L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
 
     /* ④ 앞면 — 앞중심 골선 */
     pieces.push(mk('front', '앞면', [
@@ -1036,11 +1039,11 @@
        { p: cp(g.fPwB), angle: 270, label: '허리' }]));
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
-    function L(s) { return sLen(s); }
+    function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
     var pairs = [
-      ['뒤 절개선', L(g.bPrinIn), L(g.bPrinOut)],
-      ['앞 절개선', L(g.fPrinIn), L(g.fPrinOut)],
-      ['옆선',     L(g.backSide), L(g.fSideTop) + L(g.fSideBot)],
+      ['뒤 절개선', SL(g.bPrinIn), SL(g.bPrinOut)],
+      ['앞 절개선', SL(g.fPrinIn), SL(g.fPrinOut)],
+      ['옆선',     SL(g.backSide), SL(g.fSideFull)],
       ['어깨 (안)', V.dist(g.SNPb, g.bPrinB), V.dist(g.SNPf, g.fPrinB)],
       ['어깨 (밖)', V.dist(g.bPrinA, g.SPb), V.dist(g.fPrinA, g.SPf)]
     ];
