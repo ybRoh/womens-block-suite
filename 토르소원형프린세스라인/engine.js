@@ -884,12 +884,22 @@
    *  양쪽 같은 비율 자리에 찍는다. 그래야 봉제할 때 어긋나지 않는다.
    *  @param fracs 시작(=어깨/겨드랑)에서 잰 비율들
    *  @returns {a:[], b:[]} 각 변의 너치 목록 */
-  function pairNotches(segsA, segsB, fracs, insideA, insideB, tag) {
+  function pairNotches(segsA, segsB, fracs, insideA, insideB, tag, refPt) {
     var LA = polyLen(sampleSegs(segsA, 0.02)), LB = polyLen(sampleSegs(segsB, 0.02));
     var Lmin = Math.min(LA, LB), a = [], b = [];
+    /* ★ 두 변의 **진행 방향이 반대일 수 있다** — 조각마다 고리를 도는 방향이 달라
+       한쪽이 revSegs 로 들어온다. 그대로 같은 비율을 재면 한쪽은 어깨에서, 다른 쪽은
+       밑단에서 재게 되어 **최대 38cm 어긋난다** (2026-08-11 실제로 그랬다).
+       `refPt`(짝의 공통 기준점, 보통 어깨 절개점)에 가까운 끝에서부터 재도록 맞춘다. */
+    function fromRef(segs) {
+      if (!refPt) return false;
+      var p = sampleSegs(segs, 0.05);
+      return V.dist(p[0], refPt) > V.dist(p[p.length - 1], refPt);   // true = 끝에서부터
+    }
+    var revA = fromRef(segsA), revB = fromRef(segsB);
     fracs.forEach(function (f, i) {
       var nm = tag + ' ' + (i + 1);
-      var ha = _ptAtLen(segsA, Lmin * f, false), hb = _ptAtLen(segsB, Lmin * f, false);
+      var ha = _ptAtLen(segsA, Lmin * f, revA), hb = _ptAtLen(segsB, Lmin * f, revB);
       a.push({ p: cp(ha.p), angle: _inward(ha.tan, ha.p, insideA), label: nm });
       b.push({ p: cp(hb.p), angle: _inward(hb.tan, hb.p, insideB), label: nm });
     });
@@ -941,11 +951,11 @@
     var dc = g.dartClose;
     var fPrinOutC = rotSegsBelow(revSegs(g.fPrinOut), g.BP, dc);   // 앞옆면 절개선 (회전 후)
     var nBack  = pairNotches(g.bPrinIn, revSegs(g.bPrinOut), [0.35, 0.62, 0.82],
-                   [0, g.WLb], [g.bSideBL, g.WLb], '절개');
+                   [0, g.WLb], [g.bSideBL, g.WLb], '절개', g.bPrinB);     // 기준 = 어깨 절개점
     var nFront = pairNotches(g.fPrinIn, fPrinOutC, [0.35, 0.62, 0.82],
-                   [0, g.WLf], [g.sideX, g.WLf], '절개');
+                   [0, g.WLf], [g.sideX, g.WLf], '절개', g.fPrinB);       // 기준 = 어깨 절개점
     var nSide  = pairNotches(g.backSide, g.fSideTop.concat(rotSegsBelow(g.fSideBot, g.BP, dc)),
-                   [0.45, 0.75], [0, g.WLb], [0, g.WLf], '옆선');
+                   [0.45, 0.75], [0, g.WLb], [0, g.WLf], '옆선', g.Ub);   // 기준 = 겨드랑
 
     /* ① 뒷면 — 뒤중심 골선 */
     pieces.push(mk('back', '뒷면', [
