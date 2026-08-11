@@ -6,7 +6,7 @@
 <title>숙녀복 기본원형 II · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-12 07:36 -->
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-12 07:42 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -819,7 +819,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 07:36'; window.ND_APP = '숙녀복기본원형2';</script>
+<script>window.ND_BUILD = '2026-08-12 07:42'; window.ND_APP = '숙녀복기본원형2';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -841,6 +841,58 @@ td.n.n-fail{color:var(--red)}
   else if (root) root.Bodice2Engine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
+
+  /** ★ 너치 틱이 조각 **밖**을 향하면 안쪽으로 돌린다 (SPEC §8.1).
+   *  판정은 **틱 끝점의 point-in-polygon** — 그리는 것과 같은 방식이어야 한다.
+   *  ⚠ 무게중심 방향으로 재면 **오목한 변(암홀·다트 입)에서 샌다** — 판정은 통과하는데
+   *  실제 0.5cm 틱은 조각 밖이었다 (2026-08-12 QA 가 5개 모듈에서 찾았다).
+   *  뒤집어도 안 되는 자리(목옆점 같은 모서리)는 5° 씩 돌려 가장 가까운 안쪽 방향을 쓴다. */
+  function fixNotchDirs(pieces) {
+    function inPoly(pt, poly) {
+      var c = false;
+      for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        var a = poly[i], b = poly[j];
+        if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+            pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+      }
+      return c;
+    }
+    var TICK = 0.5;
+    /* ★ ① 너치를 **외곽선 위로 스냅**한다. 제도점과 실제 재단선이 조금 어긋나는 자리가
+       있다(앞 밑단이 옆으로 처지면 허리다트 다리가 밑단선보다 0.2~0.3 위에 뜬다).
+       너치는 재단선 위에 있어야 가위가 지나간다. 0.5 넘게 떨어진 것은 **점 자체가
+       틀린 것**이므로 스냅하지 않고 검증기(suite-verify)가 잡도록 남긴다. */
+    function snap(pt, o) {
+      var best = null, bd = Infinity;
+      for (var i = 1; i < o.length; i++) {
+        var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+        var t = L2 ? ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / L2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        var q = [a[0] + t * dx, a[1] + t * dy], e = Math.hypot(pt[0] - q[0], pt[1] - q[1]);
+        if (e < bd) { bd = e; best = q; }
+      }
+      return bd <= 0.5 ? best : pt;
+    }
+    (pieces || []).forEach(function (p) {
+      var o = p && p.outline;
+      if (!o || o.length < 4) return;
+      (p.notches || []).forEach(function (n) {
+        if (!n || !n.p || typeof n.angle !== 'number' || !isFinite(n.angle)) return;
+        function ok(deg) {
+          var r = deg * Math.PI / 180;
+          return inPoly([n.p[0] + Math.cos(r) * TICK, n.p[1] + Math.sin(r) * TICK], o);
+        }
+        n.p = snap(n.p, o);
+        if (ok(n.angle)) return;
+        for (var s = 5; s <= 180; s += 5) {
+          if (ok(n.angle + s)) { n.angle = ((n.angle + s) % 360 + 360) % 360; return; }
+          if (ok(n.angle - s)) { n.angle = ((n.angle - s) % 360 + 360) % 360; return; }
+        }
+      });
+    });
+    return pieces;
+  }
+
   /* ══════════════════════════════════════════════════════════════════
    * 0. 벡터 / 베지어 유틸  (draft-bunka-fs.js 에서 이식 — 새로 만들지 않음)
    * ════════════════════════════════════════════════════════════════ */
@@ -1418,7 +1470,7 @@ td.n.n-fail{color:var(--red)}
     if (twoPieces) pieces = pieces.concat(twoPieces);
 
     return {
-      pieces: pieces, warnings: warnings, notes: notes,
+      pieces: fixNotchDirs(pieces), warnings: warnings, notes: notes,
       measures: {
         shoulderBack: r4(g.shLenBack), shoulderFront: r4(g.shLenFront), shoulderEase: r4(g.shEase),
         shoulderBackSeam: r4(g.shLenBack), shoulderFrontSeam: r4(g.shLenFront),
