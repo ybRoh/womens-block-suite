@@ -484,6 +484,11 @@
        *
        *  `openBelow()` 로 제도(열린 상태)를 만들고, 조각은 `closeBelow()` 로 닫는다.
        *  둘은 서로 역이라 조각의 순 기하는 닫힌 상태와 같다 — 그게 재단선이다.       */
+      /* 다트를 **붙이는** 회전각 — 아래 다리(wedgeBot)를 BP 축으로 돌려 위 다리(wedgeTop)에
+         포갠다. 회전이라 옆선 길이(6.213 + 30.619 = 36.83)는 그대로 유지된다.
+         BP 아래(옆선 하부 · 밑단 · 절개선 BP~밑단)가 한 덩어리로 같이 돈다. */
+      dartClose: Math.atan2(wedge.pTop[1] - BP[1], wedge.pTop[0] - BP[0]) -
+                 Math.atan2(wedge.pBot[1] - BP[1], wedge.pBot[0] - BP[0]),
       dartAng: dartAng,
       openBelow: function (segs) { return rotSegsBelow(segs, BP, dartAng); },
       closeBelow: function (segs) { return rotSegsBelow(segs, BP, -dartAng); },
@@ -1049,11 +1054,16 @@
       /* ★ 가슴다트는 **닫은 상태**로 그린다 — 재단선은 이어진 옆선 한 줄이고 다트는
          내부선으로만 표시한다 (교재 앞옆면 조각의 「자연스럽게 곡선처리」).
          다트를 외곽선에 넣으면 꼭짓점이 BP(프린세스 절개선 위)라 조각이 두 쪽으로 갈린다. */
-      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop },
-      { name: '가슴다트', role: 'dart',     segs: lineSegs(g.wedgeTop, g.BP, g.wedgeBot) },
-      { name: '옆선 (아래)', role: 'side',   segs: g.fSideBot },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSide, g.fPhA) },
-      { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
+      /* ★ 다트를 **붙인다** — 아래 다리를 BP 축으로 돌려 위 다리에 포갠다.
+         BP 아래 전체(옆선 하부 · 밑단 · 절개선 BP~밑단)가 같이 돈다.
+         꼭짓점이 BP 이고 BP 가 절개선 위라, 안 붙이면 조각이 두 쪽으로 갈린다. */
+      /* 다리 길이가 BP 에서 13.457 / 13.567 로 0.11 다르다(도면도 0.14 다르다).
+         돌려 붙여도 그만큼 남으므로 **긴 쪽까지 이어** 준다 — 접으면 맞는다. */
+      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop.concat(
+                              lineSegs(g.wedgeTop, rotAbout(g.wedgeBot, g.BP, g.dartClose))) },
+      { name: '옆선 (아래)', role: 'side',   segs: rotSegsBelow(g.fSideBot, g.BP, g.dartClose) },
+      { name: '밑단',     role: 'hem',      segs: rotSegsBelow(lineSegs(g.fHemSide, g.fPhA), g.BP, g.dartClose) },
+      { name: '절개선',   role: 'princess', segs: rotSegsBelow(revSegs(g.fPrinOut), g.BP, g.dartClose) }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
        { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
