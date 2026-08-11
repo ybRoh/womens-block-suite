@@ -156,7 +156,25 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
         if (dd > 0.10) bad.push(w[0] + ' ' + (i + 1) + ' 어긋남 ' + dd.toFixed(3));
       });
     });
-    d.pieces.forEach(function (p) { if (!p.notches.length) bad.push(p.name + ' 너치 0개'); });
+    d.pieces.forEach(function (p) {
+      if (!p.notches.length) bad.push(p.name + ' 너치 0개');
+      /* 너치 각이 **조각 안쪽**을 향해야 한다 — 바깥이면 재단할 때 반대로 판다.
+         조각마다 손으로 넣은 inside 점이 틀려 8개가 뒤집힌 채 통과했었다 (2026-08-12). */
+      var cx = 0, cy = 0;
+      p.outline.forEach(function (q) { cx += q[0]; cy += q[1]; });
+      cx /= p.outline.length; cy /= p.outline.length;
+      p.notches.forEach(function (n) {
+        var a = n.angle * Math.PI / 180;
+        if (Math.cos(a) * (cx - n.p[0]) + Math.sin(a) * (cy - n.p[1]) < 0)
+          bad.push(p.name + ' 「' + n.label + '」 너치가 바깥을 향한다');
+        /* 너치는 외곽선 위에 있어야 한다 */
+        var b = Infinity;
+        for (var i = 0; i < p.outline.length; i++) {
+          var e = V.dist(n.p, p.outline[i]); if (e < b) b = e;
+        }
+        if (b > 0.06) bad.push(p.name + ' 「' + n.label + '」 너치가 외곽선 밖 ' + b.toFixed(3));
+      });
+    });
     if (bad.length) fails++;
     console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
       '너치 ' + d.pieces.map(function (p) { return p.name + ' ' + p.notches.length; }).join(' · ') +

@@ -935,6 +935,18 @@
 
     function mk(id, name, edges, grain, notches, internal) {
       var loop = edgesToLoop(edges), sm = buildSeamline(loop, seam);
+      /* ★ 너치 각은 **조각이 만들어진 뒤 무게중심 기준으로 일괄 보정**한다.
+         조각마다 `inside` 점을 손으로 넣으면 틀린다 — 옆면 조각(x 11~26)에 중심선
+         [0, WL] 을 줘서 옆선 너치 방향이 뒤집혔다 (2026-08-12). 무게중심은 조각에서
+         자동으로 나오므로 사람이 틀릴 여지가 없다. */
+      var cx = 0, cy = 0;
+      loop.pts.forEach(function (q) { cx += q[0]; cy += q[1]; });
+      cx /= loop.pts.length; cy /= loop.pts.length;
+      (notches || []).forEach(function (n) {
+        var a = n.angle * Math.PI / 180;
+        if (Math.cos(a) * (cx - n.p[0]) + Math.sin(a) * (cy - n.p[1]) < 0)
+          n.angle = angDeg([-Math.cos(a), -Math.sin(a)]);
+      });
       return { id: id, name: name, cutCount: (id === 'back' || id === 'front') ? 1 : 2,
         kind: 'bodice', grainline: grain,
         outline: loop.pts, seamline: sm.seamline, foldEdges: sm.foldEdges,
@@ -981,7 +993,20 @@
         .concat(armNotches(g.backArm, g.Ub, [g.bPwA[0], g.BL + 6], '뒤 암홀'))
         .concat(nBack.b).concat(nSide.a)));
 
-    /* ③ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
+    /* ③ 앞면 — 앞중심 골선. **앞옆면보다 먼저 낸다** — 뒷면·뒷옆면과 같은 차례라야
+       인쇄물에서 맞물리는 변(앞면 절개선 ↔ 앞옆면 절개선)이 이웃해 대조하기 쉽다. */
+    pieces.push(mk('front', '앞면', [
+      { name: '앞목둘레', role: 'neck',     segs: g.frontNeck },
+      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.fPrinB) },
+      { name: '절개선',   role: 'princess', segs: g.fPrinIn },
+      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, [0, g.fHemY]) },
+      { name: '앞중심',   role: 'fold',     segs: lineSegs([0, g.fHemY], g.FNP) }
+    ], [[2.0, g.FNP[1] + 3.0], [2.0, g.fHemY - 4.0]],
+      [{ p: cp(g.SNPf), angle: 90, label: '목옆점' },
+       { p: cp(g.BP), angle: 0, label: 'BP' },
+       { p: cp(g.fPwB), angle: 270, label: '허리' }].concat(nFront.a)));
+
+    /* ④ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
     var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);       // 아래 다리 입을 위 다리 쪽으로
     pieces.push(mk('frontSide', '앞옆면', [
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
@@ -1004,17 +1029,6 @@
       [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP)], '가슴다트 접음선'),
        L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
 
-    /* ④ 앞면 — 앞중심 골선 */
-    pieces.push(mk('front', '앞면', [
-      { name: '앞목둘레', role: 'neck',     segs: g.frontNeck },
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.fPrinB) },
-      { name: '절개선',   role: 'princess', segs: g.fPrinIn },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, [0, hemY]) },
-      { name: '앞중심',   role: 'fold',     segs: lineSegs([0, hemY], g.FNP) }
-    ], [[2.0, g.FNP[1] + 3.0], [2.0, hemY - 4.0]],
-      [{ p: cp(g.SNPf), angle: 90, label: '목옆점' },
-       { p: cp(g.BP), angle: 0, label: 'BP' },
-       { p: cp(g.fPwB), angle: 270, label: '허리' }].concat(nFront.a)));
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
     function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
