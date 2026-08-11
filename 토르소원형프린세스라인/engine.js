@@ -475,16 +475,17 @@
          외곽선이 그만큼 벌어진다 — 다트를 접었을 때 맞도록 옆선을 따라 연장하는 제도법.
          (숙녀복 기본원형2 소맷부리를 다트분만큼 연장한 것과 같은 원리) */
       /* ── 가슴다트 회전 ────────────────────────────────────────────────
-       *  제도(회전 전)는 다트가 **열려** 있다 — 옆선 위 6.2 · 간격 1.5 · 옆선 아래.
+       *  제도(geom 의 프레임)는 다트가 **열려** 있다 — 옆선 위 6.2 · 간격 1.5 · 옆선 아래.
        *  다트를 접으면 **BP 를 축으로 BP 아래 전체**가 돈다 (옆선 하부 · 밑단 ·
        *  절개선 BP~밑단). DXF 대역 A 의 「다트회전」 도면 두 벌로 확인했다:
        *      회전 전 : 옆선위 끝 (1626.39,1444.99) · 옆선아래 시작 (1626.25,1443.50) 간격 1.497
        *      회전 후 : 둘 다 (1653.53,1444.97) — 이어진다
-       *  회전각 = 다트분 / 다트 다리 = 1.5 / 13.400 = 6.414° (도면 실측 6.402~6.439°)
-       *
-       *  `openBelow()` 로 제도(열린 상태)를 만들고, 조각은 `closeBelow()` 로 닫는다.
-       *  둘은 서로 역이라 조각의 순 기하는 닫힌 상태와 같다 — 그게 재단선이다.       */
+       *  회전각은 상수가 아니라 **두 다리의 실제 각도차**로 잰다 (아래 dartClose).
+       *  계산식 다트분/다리 = 6.414° 와 도면 실측 6.402~6.439° 가 이를 검증한다.  */
       dartAng: dartAng,
+      /* 닫는 회전각 — ∠(BP→위 다리) − ∠(BP→아래 다리). 음수(반시계쪽) −6.25° 쯤 */
+      dartClose: Math.atan2(wedge.pTop[1] - BP[1], wedge.pTop[0] - BP[0]) -
+                 Math.atan2(wedge.pBot[1] - BP[1], wedge.pBot[0] - BP[0]),
       openBelow: function (segs) { return rotSegsBelow(segs, BP, dartAng); },
       closeBelow: function (segs) { return rotSegsBelow(segs, BP, -dartAng); },
       fSideFull: fSideFull, fHemSideCut: wedge.hem,
@@ -555,11 +556,17 @@
     return splineSegs(pts, endTan(V.norm(V.sub(bp || waist, shoulder)), C.k0),
       endTan([0, 1], C.k1));
   }
-  /** c 를 축으로 **c 보다 아래(y 큰) 구간만** a(rad) 돌린다. 다트를 열거나 닫는 데 쓴다. */
+  /** c 를 축으로 **c 보다 아래(y 큰) 구간만** a(rad) 돌린다. 다트를 닫는 데 쓴다.
+   *  ⚠ 판정은 「두 끝점이 **모두** c 아래(또는 c 위)일 때만 회전」이다.
+   *    반대로 「둘 다 위가 아니면 회전」으로 하면 c 를 걸친 세그먼트(어깨→BP)가
+   *    통째로 돌아 폐곡선이 2.72 깨졌다 (2026-08-11 되돌린 커밋의 원인).
+   *    프린세스 곡선은 BP 가 스플라인 **앵커**라 세그먼트 경계가 정확히 BP 에 있다 —
+   *    그래서 걸친 세그먼트를 자를 필요 없이 이 판정으로 충분하다. */
   function rotSegsBelow(segs, c, a) {
     if (!a) return segs;
     return segs.map(function (g) {
-      if (g.p0[1] < c[1] - 1e-6 && g.p1[1] < c[1] - 1e-6) return g;
+      var below = g.p0[1] >= c[1] - 1e-4 && g.p1[1] >= c[1] - 1e-4;
+      if (!below) return g;
       return { p0: rotAbout(g.p0, c, a), c1: rotAbout(g.c1, c, a),
                c2: rotAbout(g.c2, c, a), p1: rotAbout(g.p1, c, a) };
     });
@@ -1042,24 +1049,26 @@
       [{ p: cp(g.Ub), angle: 180, label: '겨드랑' },
        { p: cp(g.bPwA), angle: 270, label: '허리' }]));
 
-    /* ③ 앞옆면 — 옆선에 가슴다트가 남는다 */
+    /* ③ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
+    var dc = g.dartClose;
+    var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);       // 아래 다리 입을 위 다리 쪽으로
     pieces.push(mk('frontSide', '앞옆면', [
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
       { name: '앞 암홀',  role: 'armhole',  segs: g.frontArm },
-      /* ★ 가슴다트는 **닫은 상태**로 그린다 — 재단선은 이어진 옆선 한 줄이고 다트는
-         내부선으로만 표시한다 (교재 앞옆면 조각의 「자연스럽게 곡선처리」).
-         다트를 외곽선에 넣으면 꼭짓점이 BP(프린세스 절개선 위)라 조각이 두 쪽으로 갈린다. */
-      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop },
-      { name: '가슴다트', role: 'dart',     segs: lineSegs(g.wedgeTop, g.BP, g.wedgeBot) },
-      { name: '옆선 (아래)', role: 'side',   segs: g.fSideBot },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fHemSide, g.fPhA) },
-      { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
+      /* ★ 다트를 붙인다 — 아래 다리를 BP 축으로 돌려 위 다리에 포갠다. BP 아래 전체
+         (옆선 하부 · 밑단 · 절개선 BP~밑단)가 같이 돈다. 다리 길이가 13.457/13.567 로
+         0.11 달라(도면도 0.14 다르다) 위 다리 끝 → 돌린 아래 다리 입을 짧게 이어 준다
+         — 접으면 맞는 연장이다 (소맷부리 연장과 같은 처리). */
+      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop.concat(lineSegs(g.wedgeTop, wedgeBotC)) },
+      { name: '옆선 (아래)', role: 'side',   segs: rotSegsBelow(g.fSideBot, g.BP, dc) },
+      { name: '밑단',     role: 'hem',      segs: rotSegsBelow(lineSegs(g.fHemSide, g.fPhA), g.BP, dc) },
+      /* 절개선은 BP 아래 구간만 돈다 — BP 가 스플라인 앵커라 rotSegsBelow 판정으로 안전 */
+      { name: '절개선',   role: 'princess', segs: rotSegsBelow(revSegs(g.fPrinOut), g.BP, dc) }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
-       { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
-       { p: cp(g.wedgeBot), angle: 180, label: '가슴다트' },
-       { p: cp(g.fPwA), angle: 270, label: '허리' }],
-      [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP), cp(g.wedgeBot)], '가슴다트 (닫아 그림)'),
+       { p: cp(g.wedgeTop), angle: 180, label: '가슴다트 자리' },
+       { p: cp(rotAbout(g.fPwA, g.BP, dc)), angle: 270, label: '허리' }],
+      [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP)], '가슴다트 접음선'),
        L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
 
     /* ④ 앞면 — 앞중심 골선 */
