@@ -450,6 +450,8 @@
     var fSideFull = sideCurve(Uf, fWaistSide, fHemSide);
     var wedge = wedgeOn(fSideFull, BP, num(opt.bustDartAt, K.fBustDartAt),
                         num(opt.bustDartAmt, K.fBustDartAmt));
+    /* 다트 회전각 = 다트분 / 다트 다리 (BP → 다트 입). 도면 실측 6.402~6.439° */
+    var dartAng = num(opt.bustDartAmt, K.fBustDartAmt) / Math.max(V.dist(BP, wedge.pTop), 0.01);
 
     return {
       m: m, opt: { B: B, W: W, H: H }, B: B, W: W, H: H, scale: s,
@@ -467,6 +469,19 @@
       /* ★ 밑단 모서리는 **다트를 돌린 뒤의 옆선 끝**이다. 안 돌린 자리(fHemSide)를 쓰면
          외곽선이 그만큼 벌어진다 — 다트를 접었을 때 맞도록 옆선을 따라 연장하는 제도법.
          (숙녀복 기본원형2 소맷부리를 다트분만큼 연장한 것과 같은 원리) */
+      /* ── 가슴다트 회전 ────────────────────────────────────────────────
+       *  제도(회전 전)는 다트가 **열려** 있다 — 옆선 위 6.2 · 간격 1.5 · 옆선 아래.
+       *  다트를 접으면 **BP 를 축으로 BP 아래 전체**가 돈다 (옆선 하부 · 밑단 ·
+       *  절개선 BP~밑단). DXF 대역 A 의 「다트회전」 도면 두 벌로 확인했다:
+       *      회전 전 : 옆선위 끝 (1626.39,1444.99) · 옆선아래 시작 (1626.25,1443.50) 간격 1.497
+       *      회전 후 : 둘 다 (1653.53,1444.97) — 이어진다
+       *  회전각 = 다트분 / 다트 다리 = 1.5 / 13.400 = 6.414° (도면 실측 6.402~6.439°)
+       *
+       *  `openBelow()` 로 제도(열린 상태)를 만들고, 조각은 `closeBelow()` 로 닫는다.
+       *  둘은 서로 역이라 조각의 순 기하는 닫힌 상태와 같다 — 그게 재단선이다.       */
+      dartAng: dartAng,
+      openBelow: function (segs) { return rotSegsBelow(segs, BP, dartAng); },
+      closeBelow: function (segs) { return rotSegsBelow(segs, BP, -dartAng); },
       fSideFull: fSideFull, fHemSideCut: wedge.hem,
       fSideTop: wedge.top, fSideBot: wedge.bot, wedgeTop: wedge.pTop, wedgeBot: wedge.pBot,
       wedgeAmt: wedge.amt,
@@ -534,6 +549,15 @@
                  : [shoulder].concat(mids || [], [waist], lows || [], [hem]);
     return splineSegs(pts, endTan(V.norm(V.sub(bp || waist, shoulder)), C.k0),
       endTan([0, 1], C.k1));
+  }
+  /** c 를 축으로 **c 보다 아래(y 큰) 구간만** a(rad) 돌린다. 다트를 열거나 닫는 데 쓴다. */
+  function rotSegsBelow(segs, c, a) {
+    if (!a) return segs;
+    return segs.map(function (g) {
+      if (g.p0[1] < c[1] - 1e-6 && g.p1[1] < c[1] - 1e-6) return g;
+      return { p0: rotAbout(g.p0, c, a), c1: rotAbout(g.c1, c, a),
+               c2: rotAbout(g.c2, c, a), p1: rotAbout(g.p1, c, a) };
+    });
   }
   /** 앞 옆선 가슴다트 — 겨드랑에서 `at` 내려간 자리에서 `amt` 만큼 벌린다 (꼭짓점 BP) */
   function wedgeOn(sideSegs, BP, at, amt) {
