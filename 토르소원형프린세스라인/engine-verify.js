@@ -108,6 +108,51 @@ E.SIZES.forEach(function (sz) {
 });
 
 console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3.5 맞춤 너치 — 짝이 되는 두 변의 **같은 자리**에 있는가 (하드 검사)');
+console.log('════════════════════════════════════════════════════════════');
+console.log('   너치가 어긋나면 봉제할 때 조각이 밀린다. 자리를 변 시작에서 잰 거리로 비교한다.');
+(function () {
+  function distOn(q, pt) {
+    var acc = 0, b = Infinity, at = 0;
+    for (var i = 1; i < q.length; i++) {
+      acc += V.dist(q[i - 1], q[i]);
+      var e = V.dist(q[i], pt); if (e < b) { b = e; at = acc; }
+    }
+    return at;
+  }
+  E.SIZES.forEach(function (sz) {
+    var d = E.draftTorso(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), P = {};
+    d.pieces.forEach(function (p) { P[p.id] = p; });
+    function edge(id, n) {
+      var p = P[id], e = (p.edges || []).filter(function (x) { return x.name === n; })[0];
+      return e ? p.outline.slice(e.start, e.end + 1) : null;
+    }
+    function nt(id, pre) {
+      return P[id].notches.filter(function (n) { return n.label.indexOf(pre) === 0; });
+    }
+    var bad = [], worst = 0;
+    [['뒤 절개', 'back', '절개선', 'backSide', '절개선', '절개'],
+     ['앞 절개', 'front', '절개선', 'frontSide', '절개선', '절개']].forEach(function (w) {
+      var A = edge(w[1], w[2]), B = edge(w[3], w[4]);
+      var na = nt(w[1], w[5]), nb = nt(w[3], w[5]);
+      if (!A || !B || !na.length || na.length !== nb.length) { bad.push(w[0] + ' 너치 없음/짝 불일치'); return; }
+      na.forEach(function (n, i) {
+        var dd = Math.abs(distOn(A, n.p) - distOn(B, nb[i].p));
+        if (dd > worst) worst = dd;
+        if (dd > 0.10) bad.push(w[0] + ' ' + (i + 1) + ' 어긋남 ' + dd.toFixed(3));
+      });
+    });
+    d.pieces.forEach(function (p) {
+      if (!p.notches.length) bad.push(p.name + ' 너치 0개');
+    });
+    if (bad.length) fails++;
+    console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+      '너치 ' + d.pieces.map(function (p) { return p.name + ' ' + p.notches.length; }).join(' · ') +
+      ' · 최대 어긋남 ' + f(worst, 6) + (bad.length ? '\n      → ' + bad.join(' · ') : ''));
+  });
+})();
+
+console.log('\n════════════════════════════════════════════════════════════');
 console.log(' 4. 조각 품질 · 인쇄 배치');
 console.log('════════════════════════════════════════════════════════════');
 E.SIZES.forEach(function (sz) {

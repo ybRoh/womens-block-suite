@@ -879,6 +879,22 @@
     }
     return out;
   }
+  /** 맞물리는 두 변에 **같은 자리** 너치를 찍는다 — 프린세스 4조각의 핵심이다.
+   *  변마다 길이가 조금 다르므로(이세) **짧은 쪽 길이**를 기준으로 비율을 잡아
+   *  양쪽 같은 비율 자리에 찍는다. 그래야 봉제할 때 어긋나지 않는다.
+   *  @param fracs 시작(=어깨/겨드랑)에서 잰 비율들
+   *  @returns {a:[], b:[]} 각 변의 너치 목록 */
+  function pairNotches(segsA, segsB, fracs, insideA, insideB, tag) {
+    var LA = polyLen(sampleSegs(segsA, 0.02)), LB = polyLen(sampleSegs(segsB, 0.02));
+    var Lmin = Math.min(LA, LB), a = [], b = [];
+    fracs.forEach(function (f, i) {
+      var nm = tag + ' ' + (i + 1);
+      var ha = _ptAtLen(segsA, Lmin * f, false), hb = _ptAtLen(segsB, Lmin * f, false);
+      a.push({ p: cp(ha.p), angle: _inward(ha.tan, ha.p, insideA), label: nm });
+      b.push({ p: cp(hb.p), angle: _inward(hb.tan, hb.p, insideB), label: nm });
+    });
+    return { a: a, b: b, ease: r4(LB - LA) };
+  }
   function cp(p) { return [p[0], p[1]]; }
   function r4(v) { return Math.round(v * 1e4) / 1e4; }
   function angDeg(v) { return Math.round(Math.atan2(v[1], v[0]) * 180 / Math.PI * 1e3) / 1e3; }
@@ -918,6 +934,19 @@
     }
     var hemY = g.hemY, WLb = g.WLb;
 
+    /* ── 맞춤 너치 ────────────────────────────────────────────────────
+     *  프린세스 4조각은 **절개선 두 짝**과 **옆선**이 맞물려야 옷이 된다.
+     *  변마다 길이가 조금 다르므로 짧은 쪽 기준 비율로 양쪽 같은 자리에 찍는다.
+     *  뒤 절개선은 짝 차가 0.16 쯤이라 그 여유가 허리 위쪽에서 이세로 들어간다.       */
+    var dc = g.dartClose;
+    var fPrinOutC = rotSegsBelow(revSegs(g.fPrinOut), g.BP, dc);   // 앞옆면 절개선 (회전 후)
+    var nBack  = pairNotches(g.bPrinIn, revSegs(g.bPrinOut), [0.35, 0.62, 0.82],
+                   [0, g.WLb], [g.bSideBL, g.WLb], '절개');
+    var nFront = pairNotches(g.fPrinIn, fPrinOutC, [0.35, 0.62, 0.82],
+                   [0, g.WLf], [g.sideX, g.WLf], '절개');
+    var nSide  = pairNotches(g.backSide, g.fSideTop.concat(rotSegsBelow(g.fSideBot, g.BP, dc)),
+                   [0.45, 0.75], [0, g.WLb], [0, g.WLf], '옆선');
+
     /* ① 뒷면 — 뒤중심 골선 */
     pieces.push(mk('back', '뒷면', [
       { name: '뒷목둘레', role: 'neck',     segs: revSegs(g.backNeck) },
@@ -927,7 +956,7 @@
       { name: '뒤중심',   role: 'fold',     segs: revSegs(lineSegs.apply(null, g.bCenter)) }
     ], [[2.0, 4.0], [2.0, hemY - 4.0]],
       [{ p: cp(g.SNPb), angle: 90, label: '목옆점' },
-       { p: cp(g.bPwB), angle: 270, label: '허리' }]));
+       { p: cp(g.bPwB), angle: 270, label: '허리' }].concat(nBack.a)));
 
     /* ② 뒷옆면 */
     pieces.push(mk('backSide', '뒷옆면', [
@@ -938,10 +967,11 @@
       { name: '절개선',   role: 'princess', segs: revSegs(g.bPrinOut) }
     ], [[g.bPwA[0] + 4.0, g.BL + 2.0], [g.bPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Ub), angle: 180, label: '겨드랑' },
-       { p: cp(g.bPwA), angle: 270, label: '허리' }]));
+       { p: cp(g.bPwA), angle: 270, label: '허리' }]
+        .concat(armNotches(g.backArm, g.Ub, [g.bPwA[0], g.BL + 6], '뒤 암홀'))
+        .concat(nBack.b).concat(nSide.a)));
 
     /* ③ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
-    var dc = g.dartClose;
     var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);       // 아래 다리 입을 위 다리 쪽으로
     pieces.push(mk('frontSide', '앞옆면', [
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
@@ -954,11 +984,13 @@
       { name: '옆선 (아래)', role: 'side',   segs: rotSegsBelow(g.fSideBot, g.BP, dc) },
       { name: '밑단',     role: 'hem',      segs: rotSegsBelow(lineSegs(g.fHemSide, g.fPhA), g.BP, dc) },
       /* 절개선은 BP 아래 구간만 돈다 — BP 가 스플라인 앵커라 rotSegsBelow 판정으로 안전 */
-      { name: '절개선',   role: 'princess', segs: rotSegsBelow(revSegs(g.fPrinOut), g.BP, dc) }
+      { name: '절개선',   role: 'princess', segs: fPrinOutC }
     ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
-       { p: cp(g.wedgeTop), angle: 180, label: '가슴다트 자리' },
-       { p: cp(rotAbout(g.fPwA, g.BP, dc)), angle: 270, label: '허리' }],
+       { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
+       { p: cp(wedgeBotC), angle: 180, label: '가슴다트' }]
+        .concat(armNotches(g.frontArm, g.Uf, [g.fPwA[0], g.BL + 6], '앞 암홀'))
+        .concat(nFront.b).concat(nSide.b),
       [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP)], '가슴다트 접음선'),
        L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
 
@@ -972,7 +1004,7 @@
     ], [[2.0, g.FNP[1] + 3.0], [2.0, hemY - 4.0]],
       [{ p: cp(g.SNPf), angle: 90, label: '목옆점' },
        { p: cp(g.BP), angle: 0, label: 'BP' },
-       { p: cp(g.fPwB), angle: 270, label: '허리' }]));
+       { p: cp(g.fPwB), angle: 270, label: '허리' }].concat(nFront.a)));
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
     function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
