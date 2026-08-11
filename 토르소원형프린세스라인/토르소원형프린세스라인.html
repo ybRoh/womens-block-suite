@@ -6,7 +6,7 @@
 <title>토르소 원형 프린세스라인 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형프린세스라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-11 18:10 -->
+     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-11 18:12 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -816,7 +816,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-11 18:10'; window.ND_APP = '토르소원형프린세스라인';</script>
+<script>window.ND_BUILD = '2026-08-11 18:12'; window.ND_APP = '토르소원형프린세스라인';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1101,8 +1101,13 @@ td.n.n-fail{color:var(--red)}
     frontSpOut   : 1.015,   // 앞 어깨점 x = 앞품/2 + 1.015 [18.165]
                             //   ※ 원형 II(+1.0)·III(+1.25) 와 같은 구조. 도면엔 표기가 없다
     frontSpDrop  : 4.00,    // 앞 어깨점 y [4.0005]
-    backSpX      : 20.2993, // 뒤 어깨점 x [실측 — 식 미상]
-    backSpY      : 1.4167,  // 뒤 어깨점 y [실측]
+    /* ★ 뒤 어깨점은 **식으로 나온다** — 실측 상수가 아니다.
+         x = 어깨너비/2 + 다트분  [19.0 + 1.3 = 20.3 · 실측 20.2993]  (도면 「어깨너비/2 + 다트분 1.3」)
+         길이 = 앞 어깨선 + (뒤 다트분 − 앞 다트분)  [11.9603 + 0.7 = 12.6603 · 실측 12.6666]
+                → 다트를 접으면 앞뒤가 같아진다는 봉제 제약 그 자체다
+         y 는 그 길이에서 유도한다.
+       ⚠ 예전에는 x·y 를 실측 상수로 박고 폭 배율만 곱해서 **66호에서만 맞았다**
+         (봉제 어깨 차 44호 −1.17 · 88호 +1.20). */
     /* 프린세스 — 앞뒤 모두 **어깨선을 정확히 2등분**한 자리에서 출발한다 (도면 ✳ 표시) */
     princessAt   : 0.5,
     frontDartSh  : 0.60,    // 앞 어깨 벌림 [0.600]
@@ -1171,18 +1176,13 @@ td.n.n-fail{color:var(--red)}
     /* ───────── 뒤판 ───────── */
     var BNP  = [0, -K.bnpRise];
     var SNPb = [nw + K.backNeckAdd, -K.backSnpRise];
-    var SPb  = [K.backSpX * s, K.backSpY];
+    var SPb = null;   // 앞 어깨선을 먼저 낸 뒤 아래에서 정한다
     var bPitchX = backW / 2;
     var Ub   = [K.bSideBL * s, BL];
     var bWaistSide = [K.bSideWaist * s, WLb];
     var bHemSide   = [K.bSideHem * s, hemY];
-    var shLenBack  = V.dist(SNPb, SPb);
-    var shDirB     = V.norm(V.sub(SPb, SNPb));
-    /* 프린세스 시작 — 어깨선 2등분 자리에서 다트분만큼 벌린다 */
-    var bMid   = V.add(SNPb, V.mul(shDirB, shLenBack * K.princessAt));
-    var half   = num(opt.backDartSh, K.backDartSh) / 2;
-    var bPrinA = V.add(bMid, V.mul(shDirB,  half));       // 옆쪽 다리
-    var bPrinB = V.add(bMid, V.mul(shDirB, -half));       // 중심쪽 다리
+    var shLenBack = 0, shDirB = null;   // 아래 ③ 에서 채운다
+    var bMid, half, bPrinA, bPrinB;   // 뒤 어깨점이 정해진 뒤 아래 ④ 에서 채운다
     var bPwA = [K.bPrinWaistOut * s, WLb], bPwB = [K.bPrinWaistIn * s, WLb];
     var bPhA = [K.bPrinHemIn * s, hemY],   bPhB = [K.bPrinHemOut * s, hemY];
 
@@ -1197,6 +1197,17 @@ td.n.n-fail{color:var(--red)}
     var BP   = [bpSpan / 2, K.bpDrop];
     var shLenFront = V.dist(SNPf, SPf);
     var shDirF     = V.norm(V.sub(SPf, SNPf));
+    /* ③ 뒤 어깨점 — 앞 어깨선 길이가 정해진 뒤라야 낼 수 있다 */
+    shLenBack = shLenFront + (num(opt.backDartSh, K.backDartSh) - num(opt.frontDartSh, K.frontDartSh));
+    var bSpX  = num(opt.shoulderW, m.shoulderW) / 2 + num(opt.backDartSh, K.backDartSh);
+    var bSpDx = bSpX - SNPb[0];
+    SPb = [bSpX, SNPb[1] + Math.sqrt(Math.max(shLenBack * shLenBack - bSpDx * bSpDx, 0.01))];
+    shDirB = V.norm(V.sub(SPb, SNPb));
+    /* ④ 뒤 프린세스 시작 — 어깨선 2등분 자리에서 다트분만큼 벌린다 */
+    bMid   = V.add(SNPb, V.mul(shDirB, shLenBack * K.princessAt));
+    half   = num(opt.backDartSh, K.backDartSh) / 2;
+    bPrinA = V.add(bMid, V.mul(shDirB,  half));           // 옆쪽 다리
+    bPrinB = V.add(bMid, V.mul(shDirB, -half));           // 중심쪽 다리
     var fMid   = V.add(SNPf, V.mul(shDirF, shLenFront * K.princessAt));
     var halfF  = num(opt.frontDartSh, K.frontDartSh) / 2;
     var fPrinA = V.add(fMid, V.mul(shDirF,  halfF));      // 옆쪽 다리 (앞옆면)
