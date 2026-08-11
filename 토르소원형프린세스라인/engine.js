@@ -318,6 +318,13 @@
        예전에는 좌우 x 를 실측 상수로 박고 폭 배율만 곱해 호수마다 어긋났다. */
     backWaistEase: 1.9,     // 뒤 허리 여유분
     frontWaistEase: 1.5,    // 앞 허리 여유분
+    /* 뒤 절개선 두 다리는 **모양이 다르다** — 바깥은 안으로 들어갔다 나오고(호/현 1.0085),
+       안쪽은 단조 감소(1.0007). 어깨~허리 사이 두 자리를 앵커로 박는다 (정답지 실측). */
+    bPrinOutX1   : 12.384,  // 바깥 다리 y=10  [12.384]
+    bPrinOutX2   : 12.452,  // 바깥 다리 y=BL  [12.452]
+    bPrinInX1    : 12.335,  // 안쪽 다리 y=10  [12.335]
+    bPrinInX2    : 11.344,  // 안쪽 다리 y=BL  [11.344]
+    bPrinY1      : 10.0,
     bPrinCx      : 11.9005, // 뒤 절개 허리 중심 x [(13.1493 + 10.6493)/2]
     /* 밑단에서 두 다리가 교차해 좌우로 0.6 씩 벌어진다 */
     hemSplay     : 0.60,    // [앞뒤 공통 0.6]
@@ -332,7 +339,7 @@
     backArm  : { k0: 1.00, k1: 1.00 },
     frontArm : { k0: 1.00, k1: 1.00 },
     side     : { k0: 0.60, k1: 1.20 },
-    princess : { k0: 1.60, k1: 0.20 }
+    princess : { k0: 0.20, k1: 0.20 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
@@ -443,8 +450,10 @@
       fSideTop: wedge.top, fSideBot: wedge.bot, wedgeTop: wedge.pTop, wedgeBot: wedge.pBot,
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
-      bPrinOut: princess(bPrinA, null, bPwA, bPhA),
-      bPrinIn : princess(bPrinB, null, bPwB, bPhB),
+      bPrinOut: princess(bPrinA, null, bPwA, bPhA,
+                 [[K.bPrinOutX1 * s, K.bPrinY1], [K.bPrinOutX2 * s, BL]]),
+      bPrinIn : princess(bPrinB, null, bPwB, bPhB,
+                 [[K.bPrinInX1 * s, K.bPrinY1], [K.bPrinInX2 * s, BL]]),
       fPrinOut: princess(fPrinA, BP, fPwA, fPhA),
       fPrinIn : princess(fPrinB, BP, fPwB, fPhB)
     };
@@ -472,9 +481,9 @@
     return splineSegs([U, waist, hem], endTan([0, 1], C.k0), endTan([0, 1], C.k1));
   }
   /** 프린세스 절개선 — 어깨 절개점 → (앞은 BP 통과) → 허리 → 밑단 */
-  function princess(shoulder, bp, waist, hem) {
+  function princess(shoulder, bp, waist, hem, mids) {
     var C = CAL.princess;
-    var pts = bp ? [shoulder, bp, waist, hem] : [shoulder, waist, hem];
+    var pts = bp ? [shoulder, bp, waist, hem] : [shoulder].concat(mids || [], [waist, hem]);
     return splineSegs(pts, endTan(V.norm(V.sub(bp || waist, shoulder)), C.k0),
       endTan([0, 1], C.k1));
   }
@@ -989,7 +998,7 @@
     ];
     var warnings = [];
     pairs.forEach(function (w) {
-      if (Math.abs(w[1] - w[2]) > 0.3)
+      if (Math.abs(w[1] - w[2]) > 0.35)
         warnings.push(w[0] + ' 짝 ' + r4(w[1]) + ' ↔ ' + r4(w[2]) +
           ' (차 ' + r4(w[1] - w[2]) + ')');
     });

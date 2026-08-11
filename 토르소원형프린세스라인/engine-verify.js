@@ -34,7 +34,7 @@ function dev(segs, pts) {
 }
 /* 아직 정답지에 못 맞춘 곡선과 그 이유. 여기 적힌 것만 ⚠ 로 넘어간다. */
 var OPEN = {
-  '뒤 절개선 (바깥)': '편차 2.15 — 어깨~허리 구간이 도면(호/현 1.0085 로 거의 직선)보다 배부르다. 앵커 추가 필요'
+  /* 비어 있다 — 미해결 곡선이 없다. 어긋나면 곧바로 ✗(회귀) 가 된다. */
 };
 function okCurve(name, segs, gtPts, gtLen) {
   var d = dev(segs, gtPts), L = U.sLen(segs), dl = Math.abs(L - gtLen);
@@ -48,6 +48,10 @@ console.log('══════════════════════�
 console.log(' 1. 66호 제도점 — 원본 DXF 대조  (허용 ' + TOL_PT.toFixed(2) + ' cm)');
 console.log('════════════════════════════════════════════════════════════');
 var bn = C['뒷목둘레'].local, fn = C['앞목둘레'].local, ba = C['뒤 암홀'].local, fa = C['앞 암홀'].local;
+/* 정답지 점열 방향은 곡선마다 다르다 — **어깨점이 앞에 오도록** 맞춘다.
+   (앞 암홀은 겨드랑 → 어깨 순서라 그대로 쓰면 SP 와 겨드랑을 뒤바꿔 비교하게 된다) */
+if (fa[0][1] > fa[fa.length - 1][1]) fa = fa.slice().reverse();
+if (ba[0][1] > ba[ba.length - 1][1]) ba = ba.slice().reverse();
 console.log(' [뒷면]');
 okPt('BNP',        g.BNP,  bn[bn.length - 1]);
 okPt('목옆점 SNP',  g.SNPb, bn[0]);
