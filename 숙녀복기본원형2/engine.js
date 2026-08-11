@@ -315,6 +315,9 @@
     twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 (도면 17.019 / 25.479 = 0.6680)
     twoSeamBulge   : 0.661,    // 절개선 앵커 1 — 가장 부푼 자리 (실측 10.335−9.674)
     twoSeamBulge2  : 0.404,    // 절개선 앵커 2 — 팔꿈치 아래 (실측 10.078−9.674)
+    twoSeamBulge3  : -0.878,   // 절개선 앵커 3 — 트임어깨 자리 (실측 8.796−9.674, 부호 반전)
+    twoSeamBulgeU3 : -0.398,   // 작은소매 앵커 3 (실측 10.872−10.474)
+    twoSeamY3      : 51.273,   // 앵커 3 의 y (트임어깨)
     twoUndOutIn1   : 1.965,    // 작은소매 바깥 뒤선 앵커 1 — 뒤 경계에서 (실측 21.425−19.460)
     twoUndOutY1    : 36.199,   // 앵커 1 의 y — 가장 앞으로 나온 자리
     twoUndOutIn2   : 1.809,    // 앵커 2 (실측 21.425−19.616)
@@ -357,7 +360,7 @@
     /* 2장소매 소매산 — 패드점 수선 + 4점 스플라인 구성에 맞춰 앞뒤 따로 적합 (2장소매 DXF) */
     capBack  : { k0: 1.10, k1: 1.50 },
     capFront : { k0: 1.40, k1: 1.60 },
-    twoSeam  : { k0: 0.10, k1: 2.00 },   // 완만한 C자 — 절개점 수직 출발, 앵커 두 점 → 밑단
+    twoSeam  : { k0: 0.10, k1: 0.10 },   // 완만한 C자 — 절개점 수직 출발, 앵커 두 점 → 밑단
     twoFront : { k0: 1.00 },
     twoUndOuter: { k0: 0.10, k1: 1.60 },   // 앵커 두 점 — 편차 0.217
     twoUnderCap: { k0: 1.00 },   // 작은소매 소매산 — 0.8 수평 뒤 출발접선 장력
@@ -1008,8 +1011,12 @@
       var sg = (outSign || -1), un = (sg > 0);
       var b1 = [st[0] + sg * num(opt.twoSeamBulge, un ? K.twoSeamBulgeU : K.twoSeamBulge), K.twoInsetY];
       var b2 = [st[0] + sg * (un ? K.twoSeamBulgeU2 : K.twoSeamBulge2), K.twoSeamY2];
-      return splineSegs([st, b1, b2, endPt],
-        endTan([0, 1], cs.k0), endTan(V.sub(endPt, b2), cs.k1));
+      /* 앵커 3 — **트임어깨 자리**(y 51.27). 여기가 비어 있으면 아래쪽이 끝접선만으로
+         흘러가 트임어깨가 큰 0.193 · 작은 0.110 어긋난다. 이 자리에서 곡선은 자기
+         절개점 수직선을 이미 **넘어가 있다**(큰 +0.878 · 작은 −0.398) — 그래서 부호가 음수다. */
+      var b3 = [st[0] + sg * (un ? K.twoSeamBulgeU3 : K.twoSeamBulge3), K.twoSeamY3];
+      return splineSegs([st, b1, b2, b3, endPt],
+        endTan([0, 1], cs.k0), endTan(V.sub(endPt, b3), cs.k1));
     };
     var bigBack = mkSeam(bigHemB);
     /* 작은소매 절개선은 **자기 절개점(splitU)** 에서 출발한다 — 큰소매보다 0.8 뒤.
