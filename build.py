@@ -50,6 +50,10 @@ def build_apps():
 
 
 def render(shell, apps, portable):
+    # ★ iframe src 에 빌드시각을 붙인다 — 안 붙이면 셸만 새로 받고 **모듈은 캐시된 옛것**이
+    #   계속 뜬다. 실제로 셸 06:12 인데 안쪽 모듈이 21:14 로 남아 「수정이 반영 안 됐다」로
+    #   보였다 (2026-08-12). 강제 새로고침(⌘⇧R)으로도 iframe 은 잘 안 비워진다.
+    bust = datetime.datetime.now().strftime('%Y%m%d%H%M')
     tabs, frames = [], []
     for i, (folder, label, ready, src) in enumerate(apps):
         tabs.append(
@@ -58,7 +62,7 @@ def render(shell, apps, portable):
             f'aria-selected="{"true" if i == 0 else "false"}">{label}</button>'
         )
         attr = (f'srcdoc="{html.escape(src, quote=True)}"' if portable
-                else f'src="{folder}/{folder}.html"')
+                else f'src="{folder}/{folder}.html?v={bust}"')
         frames.append(
             f'<iframe class="suiteframe" data-app="{folder}" title="{label}" '
             f'{attr}{"" if i == 0 else " hidden"}></iframe>'
