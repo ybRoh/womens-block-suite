@@ -24,6 +24,15 @@ while i<len(ents):
         out.append({'t':'LWPOLY','c':g1(e,'62','?'),'p':[[a,b] for a,b in zip(xs,ys)]});i+=1
     elif t=='LINE':
         out.append({'t':'LINE','c':g1(e,'62','?'),'p':[[float(g1(e,'10',0)),float(g1(e,'20',0))],[float(g1(e,'11',0)),float(g1(e,'21',0))]]});i+=1
+    elif t=='ARC':
+        out.append({'t':'ARC','c':g1(e,'62','?'),'p':[[float(g1(e,'10',0)),float(g1(e,'20',0))]],
+                    'r':float(g1(e,'40',0)),'a0':float(g1(e,'50',0)),'a1':float(g1(e,'51',0))});i+=1
+    elif t=='CIRCLE':
+        out.append({'t':'CIRCLE','c':g1(e,'62','?'),'p':[[float(g1(e,'10',0)),float(g1(e,'20',0))]],
+                    'r':float(g1(e,'40',0))});i+=1
+    elif t=='TEXT':
+        out.append({'t':'TEXT','c':g1(e,'62','?'),'p':[[float(g1(e,'10',0)),float(g1(e,'20',0))]],
+                    's':g1(e,'1','')});i+=1
     elif t=='POINT':
         out.append({'t':'POINT','c':g1(e,'62','?'),'p':[[float(g1(e,'10',0)),float(g1(e,'20',0))]]});i+=1
     elif t=='MTEXT':
