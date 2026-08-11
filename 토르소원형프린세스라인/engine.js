@@ -238,13 +238,13 @@
   /* ══════════════════════════════════════════════════════════════════
    * 1. 치수와 그레이딩 (66호 = 원본 `토르소원형프린세스라인.dxf` 실측)
    * ════════════════════════════════════════════════════════════════ */
-  var BASE  = { B: 87.6, H: 97.04, backLen: 37.5, coatLen: 58.5,
+  var BASE  = { B: 87.6, W: 73.6, H: 97.04, backLen: 37.5, coatLen: 58.5,
                 shoulderW: 38.0, backW: 36.8, frontW: 34.3, bpSpan: 19.0, hipLen: 19.0 };
-  var GRADE = { B: 6.0,  H: 6.0,  backLen: 0.5,  coatLen: 0.8,
+  var GRADE = { B: 6.0,  W: 6.0,  H: 6.0,  backLen: 0.5,  coatLen: 0.8,
                 shoulderW: 0.8, backW: 1.2, frontW: 1.2, bpSpan: 0.5, hipLen: 0.3 };
   var SIZE_STEP = { '44호': -2, '55호': -1, '66호': 0, '77호': 1, '88호': 2 };
-  var MEAS_KEYS = ['B', 'H', 'backLen', 'coatLen', 'shoulderW', 'backW', 'frontW', 'bpSpan', 'hipLen'];
-  var MEAS_LABEL = { B: '가슴둘레', H: '엉덩이둘레', backLen: '등길이', coatLen: '옷길이',
+  var MEAS_KEYS = ['B', 'W', 'H', 'backLen', 'coatLen', 'shoulderW', 'backW', 'frontW', 'bpSpan', 'hipLen'];
+  var MEAS_LABEL = { B: '가슴둘레', W: '허리둘레', H: '엉덩이둘레', backLen: '등길이', coatLen: '옷길이',
                      shoulderW: '어깨너비', backW: '등품', frontW: '앞품',
                      bpSpan: '유폭', hipLen: '엉덩이길이' };
 
@@ -310,8 +310,15 @@
     /* 프린세스 허리 위치 */
     fPrinWaistIn : 8.60,    // 앞 절개 허리 앞쪽 다리 x [유추 — BP 기준]
     fPrinWaistOut: 10.60,
-    bPrinWaistIn : 10.649,  // 뒤 절개 허리 중심쪽 [10.6493]
-    bPrinWaistOut: 13.152,  // 뒤 절개 허리 옆쪽 [13.1493] → 다트분 2.503
+    /* ★ 허리 다트는 상수가 아니라 **남는 양**이다 (도면의 `○` `c` 배분 표시).
+         뒤 다트분 = (뒤 옆선허리 − 뒤중심허리) − (W/4 + 여유분 1.9)
+                   = (24.041 − 1.244) − (18.4 + 1.9) = 22.797 − 20.3 = 2.497  [실측 2.503]
+         앞 다트분 = (앞 옆선허리 − 0) − (W/4 + 여유분 1.5)
+                   = 22.100 − 19.9 = 2.200
+       예전에는 좌우 x 를 실측 상수로 박고 폭 배율만 곱해 호수마다 어긋났다. */
+    backWaistEase: 1.9,     // 뒤 허리 여유분
+    frontWaistEase: 1.5,    // 앞 허리 여유분
+    bPrinCx      : 11.9005, // 뒤 절개 허리 중심 x [(13.1493 + 10.6493)/2]
     /* 밑단에서 두 다리가 교차해 좌우로 0.6 씩 벌어진다 */
     hemSplay     : 0.60,    // [앞뒤 공통 0.6]
     bPrinHemIn   : 11.299,  // [11.2993]
@@ -341,7 +348,7 @@
 
   function geom(m, opt) {
     opt = opt || {};
-    var B = num(opt.B, m.B), H = num(opt.H, m.H);
+    var B = num(opt.B, m.B), W = num(opt.W, m.W), H = num(opt.H, m.H);
     var step = (B - BASE.B) / GRADE.B;                    // 실측 상수를 태울 그레이딩 배율
     var s = 1 + step * 0.06;                              // 폭 방향 근사 배율 [유추]
     var BL     = B / 4;                                   // 진동깊이 [21.9]
@@ -362,7 +369,10 @@
     var bHemSide   = [K.bSideHem * s, hemY];
     var shLenBack = 0, shDirB = null;   // 아래 ③ 에서 채운다
     var bMid, half, bPrinA, bPrinB;   // 뒤 어깨점이 정해진 뒤 아래 ④ 에서 채운다
-    var bPwA = [K.bPrinWaistOut * s, WLb], bPwB = [K.bPrinWaistIn * s, WLb];
+    var bWaistW = K.bSideWaist * s - K.bCenterWaist * s;          // 뒤 허리 총폭
+    var bDart = Math.max(0.2, bWaistW - (W / 4 + K.backWaistEase)); // 남는 양이 다트분
+    var bCx = K.bPrinCx * s;
+    var bPwA = [bCx + bDart / 2, WLb], bPwB = [bCx - bDart / 2, WLb];
     var bPhA = [K.bPrinHemIn * s, hemY],   bPhB = [K.bPrinHemOut * s, hemY];
 
     /* ───────── 앞판 ───────── */
@@ -391,7 +401,10 @@
     var halfF  = num(opt.frontDartSh, K.frontDartSh) / 2;
     var fPrinA = V.add(fMid, V.mul(shDirF,  halfF));      // 옆쪽 다리 (앞옆면)
     var fPrinB = V.add(fMid, V.mul(shDirF, -halfF));      // 중심쪽 다리 (앞면)
-    var fPwA = [K.fPrinWaistOut * s, WLb], fPwB = [K.fPrinWaistIn * s, WLb];
+    var fWaistW = K.fSideWaist * s;                                // 앞 허리 총폭 (앞중심 0 부터)
+    var fDart = Math.max(0.2, fWaistW - (W / 4 + K.frontWaistEase));
+    var fCx = BP[0];                                               // 앞 다트 중심 = BP 수직
+    var fPwA = [fCx + fDart / 2, WLb], fPwB = [fCx - fDart / 2, WLb];
     var fPhA = [K.fPrinHemIn * s, hemY],   fPhB = [K.fPrinHemOut * s, hemY];
 
     /* ───────── 곡선 ───────── */
@@ -411,7 +424,8 @@
                         num(opt.bustDartAmt, K.fBustDartAmt));
 
     return {
-      m: m, opt: { B: B, H: H }, B: B, H: H, scale: s,
+      m: m, opt: { B: B, W: W, H: H }, B: B, W: W, H: H, scale: s,
+      bDart: bDart, fDart: fDart,
       BL: BL, WLb: WLb, hipY: hipY, hemY: hemY,
       BNP: BNP, SNPb: SNPb, SPb: SPb, Ub: Ub, bWaistSide: bWaistSide, bHemSide: bHemSide,
       bPitchX: bPitchX, shLenBack: shLenBack,
