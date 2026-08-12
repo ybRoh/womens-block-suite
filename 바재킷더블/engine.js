@@ -384,7 +384,7 @@
     bPrinOutX1   : 12.384,  // 바깥 다리 y=10  [12.384]
     bPrinOutX2   : 12.452,  // 바깥 다리 y=BL  [12.452]
     bPrinInX1    : 12.335,  // 안쪽 다리 y=10  [12.335]
-    bPrinInX2    : 11.344,  // 안쪽 다리 y=BL  [11.344]
+    bPrinInX2    : 13.45,  // 안쪽 다리 y=BL  [11.344]
     bPrinY1      : 10.0,
     bPrinCx      : 11.9005, // 뒤 절개 허리 중심 x [(13.1493 + 10.6493)/2]
     /* 밑단에서 두 다리가 교차해 좌우로 0.6 씩 벌어진다 */
@@ -547,12 +547,14 @@
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
       /* 옆판 ↔ 뒤판 — **암홀에서** 출발한다 (뒤판이 암홀 위쪽을 갖는다) */
+      /* ★ y=10 앵커를 빼야 한다 — 절개선이 **암홀(y≈17)에서** 출발하는데 그보다 위에
+         앵커가 있으면 스플라인이 솟았다 내려온다. 옆판이 55.9 로 부풀고 뒤판에 없는
+         V 가 생긴 원인이었다 (2026-08-12 사용자 지적 · 암홀라인에서도 같은 걸 잡았다). */
       bPrinOut: princess(bSideCut.p, null, bPwA, bPhA,
-                 [[K.bPrinOutX1 * s, K.bPrinY1], [K.bPrinOutX2 * s, BL],
-                  [K.bPrinOutX3 * s, K.bPrinOutY3]]),
+                 [[K.bPrinOutX2 * s, BL], [K.bPrinOutX3 * s, K.bPrinOutY3]]),
       /* 짝이므로 **같은 자리**에서 출발해야 한다 */
       bPrinIn : princess(bSideCut.p, null, bPwB, bPhB,
-                 [[K.bPrinInX1 * s, K.bPrinY1], [K.bPrinInX2 * s, BL]]),
+                 [[K.bPrinInX2 * s, BL]]),
                  /* 밑단 쪽(y 54.5)에 앵커를 더해 봤으나 0.312 → 0.415 로 나빠져 뺐다 */
       /* ── 재킷 옆판 재료 ─────────────────────────────────────────────
          암홀 두 도막: Low = 겨드랑쪽(옆판) · Up = 어깨쪽(앞옆판/뒤판) */
@@ -976,14 +978,14 @@
    *  붙인 뒤** 새 절개선을 긋는다. 옆선 짝이 0.02 밖에 차이가 안 나 이음매가 정확하다.
    *  앞뒤는 몸의 반대편이므로 **x 를 뒤집고** 겨드랑·밑단 두 점으로 회전·평행이동을 정한다. */
   function backToFrontTf(Ub, bHemSide, Uf, fHemSide) {
-    var A = [-Ub[0], Ub[1]], B = [-bHemSide[0], bHemSide[1]];
-    var a = V.sub(B, A), b = V.sub(fHemSide, Uf);
-    var ang = Math.atan2(b[1], b[0]) - Math.atan2(a[1], a[0]);
-    var co = Math.cos(ang), si = Math.sin(ang);
-    return function (p) {
-      var qx = -p[0] - A[0], qy = p[1] - A[1];
-      return [Uf[0] + qx * co - qy * si, Uf[1] + qx * si + qy * co];
-    };
+    /* ★ 회전을 넣지 마라. 앞·뒤는 **같은 상단 기준선**에서 제도하므로 y 는 그대로 두고
+       x 만 옆선(겨드랑)에서 접어 붙이면 된다.
+       처음엔 겨드랑·밑단 두 점으로 회전각까지 맞췄는데, 앞뒤 밑단 높이가 1.46 다르고
+       폭도 달라 **각도가 생겨 뒤판이 통째로 기울었다** — 옆판이 도면 12.5×47.1 인데
+       20.1×56.4 로 부풀고 뒤판에 없는 V 가 생겼다 (2026-08-12 사용자 지적).
+         x' = 겨드랑(앞) + (겨드랑(뒤) − x)   ← 옆선에서 반전, 뒤로 갈수록 바깥
+         y' = y                                ← 높이는 그대로 */
+    return function (p) { return [Uf[0] + (Ub[0] - p[0]), p[1]]; };
   }
   /** 세그먼트 전체에 점 변환 적용 (제어점까지) */
   function mapSegs(segs, f) {
