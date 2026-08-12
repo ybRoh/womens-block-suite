@@ -28,7 +28,8 @@ var MODULES = [
     opt: { sleeveType: 'two' },
     pairs: [['2장소매 절개선', '큰소매', '뒤 절개선', '작은소매', '절개선', 0.15]] },
   { dir: '숙녀복기본원형3',        draft: 'draftBodice3' },
-  { dir: '토르소원형프린세스라인',   draft: 'draftTorso' }
+  { dir: '토르소원형프린세스라인',   draft: 'draftTorso' },
+  { dir: '토르소원형암홀라인',      draft: 'draftTorso' }
 ];
 
 /* 시접 0 이 **의도된** 자리 — 그 외에 0 이 나오면 재단해도 못 꿰맨다.
