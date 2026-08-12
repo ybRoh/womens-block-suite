@@ -1,0 +1,272 @@
+<!-- ═══════════════════════════════════════════════════════════════
+     바 재킷 (더블) — 화면 마크업
+     · <body> 안에 그대로 삽입되는 조각. DOCTYPE/html/head/body 없음.
+     · 스타일은 ui.css, 동작은 ui.js(window.NoDartUI) 가 담당.
+     · 루트가 2개입니다: .app 과 #ndp-print-area.
+       #ndp-print-area 는 print.css 의 `body > *:not(#ndp-print-area)` 규칙 때문에
+       반드시 body 직속이어야 합니다 (SPEC §8.1). .app 안으로 옮기지 마세요.
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="app" id="ndApp">
+
+  <!-- ───────── 상단 바 : 제목 + 호수 탭 ───────── -->
+  <header class="topbar">
+    <div class="brand">
+      <h1>바 재킷 (더블)</h1>
+      <p class="sub">교재 「바 재킷 (더블)」 제도 1·2 · 앞면(가슴다트) · 뒷면 2조각</p>
+    </div>
+
+    <div class="sizetabs" id="ndSizeTabs" role="tablist" aria-label="호수 선택">
+      <button type="button" class="sizetab" role="tab" data-size="55호" aria-selected="false">55호</button>
+      <button type="button" class="sizetab is-on" role="tab" data-size="66호" aria-selected="true">66호</button>
+      <button type="button" class="sizetab" role="tab" data-size="77호" aria-selected="false">77호</button>
+    </div>
+
+    <div class="topmeta">
+      <span class="badge" id="ndStateBadge" data-state="std">표준 치수</span>
+      <span class="badge badge-quiet badge-ver" id="ndVerBadge" title="앱 버전 · 빌드 시각 — 소스를 고쳐 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">v—</span>
+      <span class="badge badge-quiet" id="ndEngineBadge" title="제도 엔진 연결 상태">엔진 확인 중</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+
+    <!-- ───────── 좌측 패널 : 치수 · 시접 · 출력 ───────── -->
+    <aside class="panel panel-left" id="ndLeft">
+
+      <section class="block">
+        <h2>치수 편집 <span class="h2note">cm</span></h2>
+        <div class="fields" id="ndFields"><!-- ui.js 가 엔진 치수 키로 생성 --></div>
+        <button type="button" class="btn btn-ghost btn-wide" id="ndResetBtn">
+          표준값 복원 <span class="btn-sub" id="ndResetSize">66호</span>
+        </button>
+        <p class="hint">앞길이와 등길이를 모두 입력합니다 — 그 차이가 <b>앞 등길이 차이치수</b>(도면 4)입니다.
+          암홀(AH·뒤AH·앞AH)과 목둘레는 제도에서 자동 산출되므로 입력란이 없습니다.</p>
+      </section>
+
+      <section class="block">
+        <h2>스타일 <span class="h2note">cm</span></h2>
+        <!-- 소매 종류 선택 없음 — 교재 p.51 에 소매 도면이 없어 몸판 2조각만 낸다 -->
+        <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
+        <button type="button" class="btn btn-ghost btn-wide" id="ndStyleReset">기본값 복원</button>
+        <p class="hint">원본 도면이 범위로 준 값을 여기서 고릅니다.
+          <b>기본값은 66호 원본 도면과 같습니다.</b></p>
+      </section>
+
+      <section class="block">
+        <h2>시접 <span class="h2note">부위별 · cm</span></h2>
+        <div class="seg" id="ndSeamPreset" role="group" aria-label="시접 프리셋">
+          <button type="button" class="seg-btn" data-preset="none">시접 없음</button>
+          <button type="button" class="seg-btn is-on" data-preset="standard">표준</button>
+          <button type="button" class="seg-btn" data-preset="uniform">균일 1.0</button>
+        </div>
+        <div class="roles" id="ndSeamRoles"><!-- ui.js 가 role 별 입력을 생성 --></div>
+        <p class="hint">골선(뒤중심·앞중심)은 <b>항상 0</b>으로 고정되어 입력란이 없습니다.</p>
+        <p class="hint">완성선 <span class="swatch sw-fin"></span>실선 · 시접선 <span class="swatch sw-sa"></span>파선
+          · 골선 <span class="swatch sw-fold"></span></p>
+        <div class="applied" id="ndSeamApplied" hidden>
+          <div class="applied-h">엔진 적용값 <span id="ndSeamAppliedSrc"></span></div>
+          <div class="applied-body" id="ndSeamAppliedBody"></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>출력</h2>
+        <div class="field">
+          <label for="ndPrintMode">모드</label>
+          <select id="ndPrintMode">
+            <option value="a4">A4 타일 (잘라 붙이기)</option>
+            <option value="roll">A1 롤지 (길이 초과 시 자동 분할)</option>
+          </select>
+        </div>
+        <div class="field" id="ndRollRow" hidden>
+          <label for="ndRollWidth">용지 폭</label>
+          <select id="ndRollWidth">
+            <option value="594">A1 · 롤 594 mm</option>
+          </select>
+        </div>
+        <div class="field" id="ndRollMaxRow" hidden>
+          <label for="ndRollMax">한 장 최대 길이</label>
+          <select id="ndRollMax">
+            <option value="841">841 mm (A1 세로)</option>
+            <option value="1189">1189 mm (A0 세로)</option>
+            <option value="0" selected>제한 없음 (연속 롤)</option>
+          </select>
+        </div>
+        <p class="hint" id="ndRollHint" hidden>
+          용지는 <b>패턴 크기 그대로</b>입니다 — 인쇄 대화상자에서 <b>사용자 지정 용지</b>로 두고
+          머리말에 적힌 <b>용지 ○○ × ○○ mm</b> 를 그대로 넣으세요. 「용지에 맞춤」은 반드시 해제.
+          길이가 최대치를 넘으면 <b>조각을 자르지 않고</b> 여러 장으로 나눕니다.
+        </p>
+        <div class="field" id="ndOverlapRow">
+          <label for="ndOverlap">겹침 여백</label>
+          <span class="numwrap"><input type="number" id="ndOverlap" value="10" min="0" max="30" step="1"><span class="unit">mm</span></span>
+        </label>
+        <label class="field"><span class="field-l">조각 간격</span>
+          <span class="numwrap"><input type="number" id="ndGap" value="6" min="0" max="30" step="1"><span class="unit">mm</span></span>
+        </div>
+        <div class="field">
+          <label for="ndCalib">인쇄 보정 <span class="sublab">직전 인쇄물의 5cm 눈금 실측</span></label>
+          <span class="numwrap"><input type="number" id="ndCalib" value="50" min="30" max="70" step="0.5"><span class="unit">mm</span></span>
+        </div>
+
+        <div class="pickbox" id="ndPickBox">
+          <div class="pickhead">
+            <span class="picklab">인쇄할 조각 <span class="picknum" id="ndPickCount">—</span></span>
+            <span class="pickbtns">
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickAll">전체</button>
+              <button type="button" class="btn btn-ghost btn-mini" id="ndPickNone">해제</button>
+            </span>
+          </div>
+          <div class="chips" id="ndPickList"><!-- ui.js 가 제도 결과의 조각으로 생성 --></div>
+          <p class="hint">체크한 조각만 인쇄·PDF 에 나갑니다. 화면 도면과 DXF 는 늘 전체입니다.
+            <span class="picksaved" id="ndPickSaved"></span></p>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-wide" id="ndPdfBtn">PDF 저장 · 배율 고정 1:1</button>
+        <p class="hint">PDF 는 좌표를 <b>1 cm = 28.3465 pt</b> 로 직접 찍습니다.
+          인쇄 대화상자의 배율 설정에 영향을 받지 않으므로 <b>이쪽을 권장</b>합니다.
+          PDF 뷰어에서 인쇄할 때만 “실제 크기 / 100%”로 두세요.</p>
+
+        <button type="button" class="btn btn-ghost btn-wide" id="ndPrintBtn">브라우저로 바로 인쇄</button>
+
+        <div class="warn" role="note">
+          <b>브라우저 인쇄는 배율 100% 필수.</b> 인쇄 대화상자의 “페이지에 맞춤 / 배율 맞춤”이 켜져 있으면 1:1이 깨집니다.
+          <span class="warn-sub">여백 없음 · 배율 100%(실제 크기)로 두고, 첫 장의 5cm 눈금을 자로 확인하세요.</span>
+        </div>
+      </section>
+
+      <section class="block" id="ndDxfBlock">
+        <h2>DXF 내보내기 <span class="sublab">CAD · 플로터 전달용</span></h2>
+        <div class="field">
+          <label for="ndDxfUnit">단위</label>
+          <select id="ndDxfUnit">
+            <option value="cm">cm (1 유닛 = 1 cm)</option>
+            <option value="mm">mm (1 유닛 = 1 mm)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ndDxfLayout">배치</label>
+          <select id="ndDxfLayout">
+            <option value="row">가로 나열 (간격 5 cm)</option>
+            <option value="origin">원점 기준 (좌표 확인용)</option>
+          </select>
+        </div>
+        <div class="dxf-checks">
+          <label class="dxf-chk"><input type="checkbox" id="ndDxfSeam" checked> 시접선</label>
+          <label class="dxf-chk"><input type="checkbox" id="ndDxfInternal" checked> 기준선</label>
+          <label class="dxf-chk"><input type="checkbox" id="ndDxfText" checked> 문자</label>
+        </div>
+        <p class="hint">완성선 · 골선 · 너치 · 식서는 항상 포함됩니다. 레이어 7개로 분리되어 CAD에서 개별로 켜고 끌 수 있습니다.</p>
+
+        <button type="button" class="btn btn-wide" id="ndDxfBtn">DXF 내보내기</button>
+
+        <div class="applied" id="ndDxfResult" hidden>
+          <div class="applied-h">내보내기 결과</div>
+          <div class="applied-body" id="ndDxfResultBody"></div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ───────── 중앙 : SVG 미리보기 ───────── -->
+    <main class="stage">
+      <div class="stage-bar">
+        <div class="zoomgroup" role="group" aria-label="확대 축소">
+          <button type="button" class="icobtn" id="ndZoomOut" title="축소 (−)">−</button>
+          <button type="button" class="zoomval" id="ndZoomVal" title="화면 맞춤으로 되돌리기">100%</button>
+          <button type="button" class="icobtn" id="ndZoomIn" title="확대 (+)">+</button>
+        </div>
+        <button type="button" class="btn btn-mini" id="ndFitBtn" title="전체가 보이도록 맞춤 (F)">화면 맞춤</button>
+        <button type="button" class="btn btn-mini" id="ndActualBtn" title="화면에서 대략 실물 크기 (모니터에 따라 오차)">화면 1:1</button>
+
+        <span class="bar-sep"></span>
+
+        <div class="chips" id="ndChips">
+          <label class="chip"><input type="checkbox" id="ndTglDim" checked><span>치수선</span></label>
+          <label class="chip"><input type="checkbox" id="ndTglFormula"><span>계산식 주석</span></label>
+          <label class="chip"><input type="checkbox" id="ndTglSeam" checked><span>시접선</span></label>
+          <label class="chip"><input type="checkbox" id="ndTglNotch" checked><span>너치</span></label>
+          <label class="chip"><input type="checkbox" id="ndTglInner" checked><span>기준선</span></label>
+          <label class="chip"><input type="checkbox" id="ndTglGrid" checked><span>모눈 1cm</span></label>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" id="ndCanvasWrap">
+        <svg id="ndSvg" xmlns="http://www.w3.org/2000/svg" aria-label="패턴 미리보기"></svg>
+        <div class="canvas-hint" id="ndCanvasHint">드래그 이동 · 휠 확대축소 · 더블클릭 화면맞춤</div>
+        <div class="canvas-empty" id="ndCanvasEmpty" hidden>
+          <b>제도 엔진이 없습니다</b>
+          <span>engine.js (window.BarJacketEngine.draftNoDart) 를 ui.js 보다 먼저 로드하세요.</span>
+        </div>
+      </div>
+
+      <div class="stage-foot" id="ndStageFoot">
+        <span id="ndFootSize">66호</span>
+        <span class="dot"></span>
+        <span id="ndFootMeas">—</span>
+        <span class="dot"></span>
+        <span id="ndFootSeam">시접 1.0cm</span>
+        <span class="dot"></span>
+        <span id="ndFootBox">—</span>
+      </div>
+    </main>
+
+    <!-- ───────── 우측 패널 : 계산 결과 요약 ───────── -->
+    <aside class="panel panel-right" id="ndRight">
+      <section class="block">
+        <h2>계산 결과 요약 <span class="h2note">cm</span></h2>
+        <table class="sum" id="ndSummary">
+          <tbody>
+            <tr class="grp"><th colspan="3">어깨선</th></tr>
+            <tr><td class="k">뒤</td><td class="v" id="sumShB">—</td><td class="n"></td></tr>
+            <tr><td class="k">앞</td><td class="v" id="sumShF">—</td><td class="n"></td></tr>
+            <tr class="sub"><td class="k">이세분 (뒤−앞)</td><td class="v" id="sumShE">—</td><td class="n" id="sumShEok"></td></tr>
+            <tr class="sub"><td class="k">실제 솔기 뒤 / 앞</td><td class="v" id="sumShSeam">—</td><td class="n" id="sumShSeamok"></td></tr>
+
+            <tr class="grp"><th colspan="3">암홀 둘레</th></tr>
+            <tr><td class="k">뒤</td><td class="v" id="sumAhB">—</td><td class="n"></td></tr>
+            <tr><td class="k">앞</td><td class="v" id="sumAhF">—</td><td class="n"></td></tr>
+            <tr class="sub"><td class="k">합계 AH</td><td class="v" id="sumAhT">—</td><td class="n"></td></tr>
+
+            <tr class="grp"><th colspan="3">목둘레</th></tr>
+            <tr><td class="k">뒤</td><td class="v" id="sumNkB">—</td><td class="n"></td></tr>
+            <tr><td class="k">앞</td><td class="v" id="sumNkF">—</td><td class="n"></td></tr>
+            <tr class="sub"><td class="k">합계</td><td class="v" id="sumNkT">—</td><td class="n"></td></tr>
+
+            <tr class="grp"><th colspan="3">옆선 길이</th></tr>
+            <tr><td class="k">뒤</td><td class="v" id="sumSdB">—</td><td class="n" id="sumSdBok"></td></tr>
+            <tr><td class="k">앞</td><td class="v" id="sumSdF">—</td><td class="n" id="sumSdFok"></td></tr>
+
+          </tbody>
+        </table>
+
+        <!-- SPEC §9-5 : 옆선 < 14.5cm 경고 -->
+        <div class="warn warn-bad" id="ndSideWarn" hidden>
+          <b>진동이 깊습니다</b> — 등길이 치수를 확인하세요.
+          <span class="warn-sub" id="ndSideWarnDetail"></span>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>봉제 정합성</h2>
+        <ul class="checks" id="ndChecks"><li class="ck ck-wait">계산 대기</li></ul>
+      </section>
+
+      <section class="block" id="ndPiecesBlock">
+        <h2>조각</h2>
+        <div class="pieces" id="ndPieces"></div>
+      </section>
+
+      <section class="block" id="ndNotesBlock" hidden>
+        <h2>계산식 주석</h2>
+        <ul class="notes" id="ndNotes"></ul>
+      </section>
+    </aside>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="toast" id="ndToast" role="status" aria-live="polite"></div>
+</div>
+
+<!-- ★ body 직속 유지 필수 (print.css `body > *:not(#ndp-print-area)`).
+     print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
+<div id="ndp-print-area" aria-hidden="true"></div>
