@@ -35,19 +35,30 @@
        (값을 바꿔도 outline 해시가 안 변한다 — 2026-08-12 QA). 화면에 있는 입력란이
        아무것도 안 하면 그건 거짓말이다. 키를 늘리려면 엔진에 `num(opt.…)` 을 먼저 넣어라. */
   var STYLE_KEYS = [
-    { k: 'bustDartAmt', label: '가슴 다트분',  min: 0, max: 5,  step: 0.1, hint: '옆선에서 벌리는 양 · 원본 도면 1.5' },
-    { k: 'bustDartAt',  label: '가슴다트 위치', min: 2, max: 14, step: 0.1, hint: 'BL 에서 아래로 · 원본 도면 6.2' },
+    /* ⚠ 재킷은 가슴다트가 **조각 안 닫힌 다트**라 옆선 웨지 옵션(bustDartAt)이 없다.
+       엔진이 안 읽는 키를 두면 입력란이 거짓말을 한다. */
+    { k: 'bustDartW',   label: '가슴 다트분',  min: 0, max: 4,  step: 0.1, hint: '앞옆판 안 다트 폭 · 도면 1.5' },
+    { k: 'bustDartLen', label: '가슴다트 길이', min: 8, max: 30, step: 0.5, hint: '다트 전체 길이 · 도면 20' },
+    { k: 'jacketEase',  label: '재킷 여유분',   min: 0, max: 4,  step: 0.1, hint: '반폭에 더한다 · 완성 가슴 = B + 약 12' },
+    { k: 'jacketLenAdd',label: '재킷 길이 추가', min: 0, max: 20, step: 0.5, hint: '원형 옷길이에 더한다 · 도면 뒤판 64.4' },
+    { k: 'overlap',     label: '여밈 겹침',     min: 3, max: 12, step: 0.1, hint: '앞중심 → 여밈 끝 (더블) · 도면 7.9' },
+    { k: 'collarH',     label: '칼라 높이',     min: 5, max: 12, step: 0.1, hint: '칼라 총 높이 · 도면 8.5' },
     { k: 'backDartSh',  label: '뒤 어깨 다트분', min: 0, max: 3, step: 0.1, hint: '어깨너비/2 + 다트분 · 원본 도면 1.3' },
     { k: 'frontDartSh', label: '앞 어깨 벌림',  min: 0, max: 3, step: 0.1, hint: '앞 어깨 절개 벌림 · 원본 도면 0.6' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
+  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {
     var K = (ENG() && ENG().K) || {};
     return {
-      bustDartAmt: (K.fBustDartAmt === undefined) ? 1.5 : K.fBustDartAmt,
-      bustDartAt:  (K.fBustDartAt  === undefined) ? 6.2 : K.fBustDartAt,
-      backDartSh:  (K.backDartSh   === undefined) ? 1.3 : K.backDartSh,
-      frontDartSh: (K.frontDartSh  === undefined) ? 0.6 : K.frontDartSh
+      bustDartW:    (K.bustDartW    === undefined) ? 1.5  : K.bustDartW,
+      bustDartLen:  (K.bustDartLen  === undefined) ? 20   : K.bustDartLen,
+      jacketEase:   (K.jacketEase   === undefined) ? 0.65 : K.jacketEase,
+      jacketLenAdd: (K.jacketLenAdd === undefined) ? 6.7  : K.jacketLenAdd,
+      overlap:      (K.overlap      === undefined) ? 7.89 : K.overlap,
+      collarH:      (K.collarH      === undefined) ? 8.5  : K.collarH,
+      backDartSh:   (K.backDartSh   === undefined) ? 1.3  : K.backDartSh,
+      frontDartSh:  (K.frontDartSh  === undefined) ? 0.6  : K.frontDartSh
     };
   }
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */

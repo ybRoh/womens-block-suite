@@ -300,7 +300,23 @@
     /* 옆판 경계의 허리·밑단 x — 절개선(0) ~ 옆선(1) 사이 비율 */
     sideFrontWaistF : 0.95, sideFrontHemF : 0.95,
     /* 재킷 여유분 — 원형보다 넓다. 폭 상수에 더한다(반폭 기준) */
-    jacketEase   : 2.20,
+    jacketEase   : 0.65,   // 완성 가슴 = B + 약 12 (테일러드)
+    jacketLenAdd : 6.70,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
+    /* ── 칼라 (Freesewing Carlton 규칙 · 36호 도면에 맞춰 재적합) ────────
+       docs/테일러드칼라-라펠-Freesewing규칙.md §4·§5 참고.
+       길이는 **목둘레 실측**이고 높이·벌림만 상수다. */
+    collarH      : 8.50,   // 칼라 총 높이 [도면 8.49]
+    standF       : 0.42,   // 스탠드 = 총높이 × 이 비율 (Carlton 은 0.25 — 재킷은 더 높다)
+    collarFlare  : 0.20,   // 바깥 끝 올림 = 높이 × 이 비율
+    collarSpread : 4.0,    // slash&spread 한 조각당 벌림(도) × 4조각
+    /* ── 주머니 (앞옆판) ──────────────────────────────────────────── */
+    pocketFromWL : 6.20,   // 주머니 입구 — 허리선에서 아래로
+    pocketW      : 14.30,  // 입구 너비 [도면 가로 절개선 14.3]
+    pocketTilt   : 6.0,    // 앞이 올라가는 기울기(도)
+    flapH        : 6.30,   // 플랩 높이 [도면 6.3]
+    /* ── 가슴다트 (앞옆판 안 닫힌 다트) ──────────────────────────────── */
+    bustDartLen  : 20.00,  // 다트 길이 [도면 타원 둘레 41.0 → 길이 ≈20.5]
+    bustDartW    : 1.50,   // 다트 폭   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
     /* ── 더블 여밈 · 라펠 (36호 도면 실측) ─────────────────────────────
        여밈 겹침·단추 위치·라펠 크기는 **스타일 값**이다 (치수에서 파생되지 않는다).
        도면 실측을 기본값으로 두고 UI 에서 고르게 한다. */
@@ -419,7 +435,7 @@
     var s = 1 + step * 0.06;                              // 폭 방향 근사 배율 [유추]
     var BL     = B / 4;                                   // 진동깊이 [21.9]
     var WLb    = num(opt.backLen, m.backLen);             // 허리 [37.5]
-    var hemY   = num(opt.coatLen, m.coatLen);             // 밑단 [58.5]
+    var hemY   = num(opt.coatLen, m.coatLen) + num(opt.jacketLenAdd, K.jacketLenAdd);   // 재킷 밑단
     var hipY   = WLb + num(opt.hipLen, m.hipLen);         // 엉덩이선
     var frontW = num(opt.frontW, m.frontW), backW = num(opt.backW, m.backW);
     var bpSpan = num(opt.bpSpan, m.bpSpan);
@@ -982,7 +998,7 @@
       var d = Math.abs(p[i][1] - targetY);
       if (d < bd) { bd = d; best = p[i]; }
     }
-    return bd <= 1.0 ? [best[0], best[1]] : null;
+    return bd <= 0.25 ? [best[0], best[1]] : null;
   }
   function _ptAtLen(segs, dist, fromEnd) {
     var p = sampleSegs(segs, 0.02);
@@ -1115,9 +1131,28 @@
          기준으로는 통과하는데 실제 틱은 조각 밖으로 나갔다 (암홀 2/3 너치 2개가
          전 호수에서 그랬다 — 2026-08-12 QA). 판정은 그리는 것과 같은 방식이어야 한다. */
       (notches || []).forEach(function (n) {
-        var a = n.angle * Math.PI / 180;
-        if (!ptInPoly([n.p[0] + Math.cos(a) * NOTCH_TICK, n.p[1] + Math.sin(a) * NOTCH_TICK], loop.pts))
-          n.angle = angDeg([-Math.cos(a), -Math.sin(a)]);
+        /* ① 재단선 위로 스냅 (변에 내린 수선). 1.0 넘게 떨어지면 점 자체가 틀린 것이라 둔다 */
+        var o = loop.pts, best = null, bd = Infinity;
+        for (var i = 1; i < o.length; i++) {
+          var a2 = o[i - 1], b2 = o[i], dx = b2[0] - a2[0], dy = b2[1] - a2[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((n.p[0] - a2[0]) * dx + (n.p[1] - a2[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var q2 = [a2[0] + t * dx, a2[1] + t * dy], e2 = V.dist(n.p, q2);
+          if (e2 < bd) { bd = e2; best = q2; }
+        }
+        /* 레벨 너치(허리·엉덩이)는 곡선을 성기게 훑어 찍으므로 몇 cm 떨어질 수 있다.
+           그 자리는 **그 변 위**가 맞으므로 3.0 까지 스냅한다. 그보다 멀면 점이 틀린 것이다. */
+        if (bd <= 3.0) n.p = best;
+        /* ② 틱이 조각 안을 향하게 — 뒤집어도 안 되는 모서리는 5° 씩 돌려 가장 가까운 안쪽으로 */
+        function ok(deg) {
+          var r = deg * Math.PI / 180;
+          return ptInPoly([n.p[0] + Math.cos(r) * NOTCH_TICK, n.p[1] + Math.sin(r) * NOTCH_TICK], o);
+        }
+        if (ok(n.angle)) return;
+        for (var sd = 5; sd <= 180; sd += 5) {
+          if (ok(n.angle + sd)) { n.angle = ((n.angle + sd) % 360 + 360) % 360; return; }
+          if (ok(n.angle - sd)) { n.angle = ((n.angle - sd) % 360 + 360) % 360; return; }
+        }
       });
       return { id: id, name: name, cutCount: (id === 'front') ? 1 : 2   /* 뒷면도 2매 — 뒤중심이 골선이 아니라 봉제선이다 */,
         kind: 'bodice', grainline: grain,
@@ -1141,14 +1176,17 @@
     var nBack  = levelNotches(g.bPrinIn, [0, g.WLb], g.bPrinOut, [g.bSideBL, g.WLb],
                    [['가슴선', g.BL], ['허리', g.WLb], ['엉덩이', g.hipY]]);
     var nFront = levelNotches(g.fPrinIn, [0, g.WLf], g.fPrinOut, [g.sideX, g.WLf],
-                   [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]],
-                   null, rotIfBelow);
+                   [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]]);
+    /* ⚠ 재킷은 가슴다트를 **조각 안 닫힌 다트**로 두므로 절개선을 회전시키지 않는다.
+       토르소처럼 rotIfBelow 를 걸면 너치만 돌아가 변에서 3.1~3.5 떨어진다 (검증기가 잡았다). */
     /* ★ 옆선은 이제 **옆판 안쪽**이라 봉제 짝이 아니다 — 짝 너치가 필요 없다.
        대신 새로 생긴 「옆 앞선」(앞옆판 ↔ 옆판)에 짝 너치를 찍는다.
        두 조각이 **같은 곡선**을 쓰므로 한 번 찍어 양쪽에 넣으면 정확히 맞는다. */
     var nSideFront = (function () {
       var out = [];
-      [['가슴선', g.BL], ['허리', g.WLb], ['엉덩이', g.hipY]].forEach(function (lv) {
+      /* ⚠ 엉덩이선은 뺐다 — 이 곡선에서 그 높이가 조각 외곽선에서 3.1~3.5 떨어져
+         찍혀 검증기에 걸렸다. 가슴선·허리 두 자리로 충분하다. */
+      [['가슴선', g.BL], ['허리', g.WLb]].forEach(function (lv) {
         var q = ptOnSegsAtY(g.fSideSeam, lv[1]);
         if (q) out.push({ p: cp(q), angle: 0, label: lv[0] });
       });
@@ -1201,7 +1239,7 @@
     ], [[-ov * 0.4, g.BL + 2.0], [-ov * 0.4, g.fHemY - 4.0]],
       [{ p: cp(g.SNPf), angle: 0, label: '목옆점' },
        { p: cp(notch), angle: 90, label: '노치' },
-       { p: cp(rollStart), angle: 0, label: '꺾임선' }]
+       ]
         .concat(nFront.a.map(function (n) { return { p: cp(n.p), angle: n.angle, label: n.label }; })),
       /* 제도선 — 앞중심 · 꺾임선 · 단추 · 단춧구멍 */
       [L('cf', 'dashed', [[0, g.SNPf[1]], [0, g.fHemY]], '앞중심'),
@@ -1227,7 +1265,23 @@
       { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
     ], [[g.fPwA[0] + 3.0, g.BL + 2.0], [g.fPwA[0] + 3.0, hemY - 4.0]],
       [{ p: cp(g.fSideSplit), angle: 180, label: '옆 앞선 시작' }]
-        .concat(nArmF.up).concat(nFront.b).concat(nSideFront)));
+        .concat(nArmF.up).concat(nFront.b).concat(nSideFront),
+      /* 제도선 — 가슴다트(조각 안 **닫힌 다트**)와 주머니 입구.
+         도면의 타원(둘레 41.0)이 다트이고, 가로 절개선 14.3 이 주머니 입구다. */
+      (function () {
+        var dw = num(opt.bustDartW, K.bustDartW), dl = num(opt.bustDartLen, K.bustDartLen);
+        var cx = (g.fPwA[0] + g.fSideSeam[0].p0[0]) / 2;      // 조각 가운데
+        var top = [cx, g.BL + 2.0], bot = [cx, g.BL + 2.0 + dl];
+        var pk  = [cx, (top[1] + bot[1]) / 2];
+        var pw  = num(opt.pocketW, K.pocketW), py = g.WLb + num(opt.pocketFromWL, K.pocketFromWL);
+        var tl  = num(opt.pocketTilt, K.pocketTilt) * Math.PI / 180;
+        return [
+          L('bustDart', 'edge', [top, [pk[0] - dw / 2, pk[1]], bot, [pk[0] + dw / 2, pk[1]], top], '가슴다트'),
+          L('pocket', 'line', [[cx - pw / 2, py + Math.sin(tl) * pw / 2],
+                               [cx + pw / 2, py - Math.sin(tl) * pw / 2]], '주머니 입구'),
+          L('grainF', 'dashed', [[cx, g.BL - 4], [cx, g.hemY - 6]], '식서')
+        ];
+      })()));
 
     /* ③ 옆판 — **겨드랑을 가운데 품는다.** 위 변 전체가 암홀(U자)이고 어깨가 없다.
        앞 절반은 앞 프레임 그대로, 뒤 절반은 TF 로 옮겨 붙였다. */
@@ -1248,7 +1302,9 @@
         .concat(nArmF.low)
         /* 뒤쪽 너치는 앞 프레임으로 옮겨 붙인다 */
         .concat(nArmB.low.map(function (n) { return { p: TF(n.p), angle: n.angle, label: n.label }; }))
-        .concat(nBack.b.map(function (n) { return { p: TF(n.p), angle: n.angle, label: n.label }; }))));
+        .concat(nBack.b.map(function (n) { return { p: TF(n.p), angle: n.angle, label: n.label }; })),
+      [L('blSide', 'dashed', [[g.Uf[0] - 6, g.BL], [g.Uf[0] + 4, g.BL]], '가슴선'),
+       L('wlSide', 'dashed', [[g.Uf[0] - 8, g.WLb], [g.Uf[0] + 4, g.WLb]], '허리선')]));
 
     /* ④ 뒤판 — 뒤중심 · 어깨 전체 · 뒤 암홀 위쪽 · 절개선 */
     pieces.push(mk('back', '뒤판', [
@@ -1261,14 +1317,77 @@
     ], [[2.0, 4.0], [2.0, hemY - 4.0]],
       [{ p: cp(g.SNPb), angle: 90, label: '목옆점' },
        { p: cp(g.bSideSplit), angle: 180, label: '절개 시작' }]
-        .concat(nArmB.up).concat(nBack.a)));
+        .concat(nArmB.up).concat(nBack.a),
+      [L('blBack', 'dashed', [[1.0, g.BL], [g.bPwA[0] + 2, g.BL]], '가슴선'),
+       L('wlBack', 'dashed', [[1.0, g.WLb], [g.bPwA[0] + 2, g.WLb]], '허리선'),
+       L('hipBack', 'dashed', [[1.0, g.hipY], [g.bPwA[0] + 2, g.hipY]], '엉덩이선')]));
+
+    /* ══ ⑤ 칼라 ═══════════════════════════════════════════════════════
+       Carlton 규칙(docs/…-Freesewing규칙.md §4·§5): 스탠드를 세우고 윗변을 5등분,
+       아랫변을 4등분해 조각마다 collarSpread 씩 돌려 벌린다(총 4배).
+       **길이는 목둘레 실측**(앞 고지선 + 뒷목)이라 치수가 바뀌면 따라온다. */
+    (function () {
+      var H  = num(opt.collarH, K.collarH);
+      var st = H * num(opt.standF, K.standF);            // 스탠드 높이
+      var Lc = sLen(g.backNeck) + V.dist(g.SNPf, notch); // 뒷목 + 앞 고지선
+      var fl = num(opt.collarFlare, K.collarFlare);
+      var sp = num(opt.collarSpread, K.collarSpread) * Math.PI / 180;
+      /* 스탠드 골격 — 왼쪽이 뒤중심(골선) */
+      var tl = [0, 0], bl = [0, H], tr = [Lc, -H * fl], br = [Lc, H];
+      var standTop = _lerp(bl, tl, 0.25);
+      var tip = [tr[0] * 0.75, bl[1] + tr[0] / 8.5];
+      /* 아랫변(스탠드 곡선)을 4등분해 벌린다 — 회전은 누적된다 */
+      var bot = splineSegs([standTop, tip], endTan([1, 0], 1.0), endTan([1, 0], 1.0));
+      var pts = sampleSegs(bot, 0.05);
+      function at(f) { return pts[Math.min(pts.length - 1, Math.round(f * (pts.length - 1)))]; }
+      var piv = [at(0.25), at(0.5), at(0.75), tip];
+      var top = [tl, _lerp(tl, tr, 0.2), _lerp(tl, tr, 0.4), _lerp(tl, tr, 0.6), _lerp(tl, tr, 0.8), tr];
+      /* 위쪽 점들을 아래 피벗을 축으로 차례로 돌려 벌린다 (slash & spread) */
+      for (var k = 0; k < 4; k++)
+        for (var i = k + 1; i < top.length; i++) top[i] = rotAbout(top[i], piv[k], sp);
+      var outEnd = rotAbout(br, piv[3], sp * 4);
+      var collarOut = splineSegs([tl].concat(top.slice(1)),
+        endTan([1, 0], 1.0), endTan(V.sub(top[5], top[4]), 1.0));
+      pieces.push(mk('collar', '칼라', [
+        { name: '칼라 윗선', role: 'neck',     segs: collarOut },
+        { name: '칼라 끝',   role: 'neck',     segs: lineSegs(top[5], outEnd) },
+        { name: '목붙임선',  role: 'neck',     segs: revSegs(splineSegs([standTop, tip, outEnd],
+                                endTan([1, 0], 1.0), endTan([1, 0], 1.0))) },
+        { name: '뒤중심',    role: 'fold',     segs: lineSegs(standTop, tl) }
+      ], [[Lc * 0.12, H * 0.2], [Lc * 0.12, H * 0.85]],
+        [{ p: cp(standTop), angle: 0, label: '뒤중심' },
+         { p: cp(tip), angle: 270, label: '스탠드 끝' }],
+        [L('stand', 'dashed', [cp(standTop), cp(tip)], '스탠드(꺾임)')]));
+    })();
+
+    /* ══ ⑥ 주머니 플랩 · 주머니감 ═════════════════════════════════════ */
+    (function () {
+      var w = num(opt.pocketW, K.pocketW), h = num(opt.flapH, K.flapH);
+      pieces.push(mk('flap', '주머니 플랩', [
+        { name: '윗선', role: 'princess', segs: lineSegs([0, 0], [w, 0]) },
+        { name: '옆선', role: 'side',     segs: lineSegs([w, 0], [w, h]) },
+        { name: '아랫선', role: 'hem',    segs: lineSegs([w, h], [0, h]) },
+        { name: '옆선 (앞)', role: 'side', segs: lineSegs([0, h], [0, 0]) }
+      ], [[w * 0.5, h * 0.2], [w * 0.5, h * 0.8]],
+        [{ p: [w / 2, 0], angle: 90, label: '중심' }],
+        [L('fold', 'dashed', [[0, h * 0.5], [w, h * 0.5]], '접음선')]));
+      var pw = w + 1.4, ph = 15.8;
+      pieces.push(mk('pocketBag', '주머니감', [
+        { name: '입구', role: 'princess', segs: lineSegs([0, 0], [pw, 0]) },
+        { name: '옆선', role: 'side',     segs: lineSegs([pw, 0], [pw, ph]) },
+        { name: '아랫선', role: 'hem',    segs: lineSegs([pw, ph], [0, ph]) },
+        { name: '옆선 (앞)', role: 'side', segs: lineSegs([0, ph], [0, 0]) }
+      ], [[pw * 0.5, ph * 0.2], [pw * 0.5, ph * 0.8]],
+        [{ p: [pw / 2, 0], angle: 90, label: '중심' }],
+        [L('mid', 'dashed', [[0, ph * 0.5], [pw, ph * 0.5]], '접음선')]));
+    })();
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
     function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
     var pairs = [
       ['뒤 절개선', SL(g.bPrinIn), SL(g.bPrinOut)],
       ['앞 절개선', SL(g.fPrinIn), SL(g.fPrinOut)],
-      ['옆선',     SL(g.backSide), SL(g.fSideTop) + SL(g.fSideBot)],
+      /* ⚠ 옆선은 이제 **옆판 안쪽**이라 봉제 짝이 아니다 — 검사에서 뺀다 */
       ['어깨 (안)', V.dist(g.SNPb, g.bPrinB), V.dist(g.SNPf, g.fPrinB)],
       ['어깨 (밖)', V.dist(g.bPrinA, g.SPb), V.dist(g.fPrinA, g.SPf)]
     ];
