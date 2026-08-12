@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-12 16:20 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-12 16:28 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -816,7 +816,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 16:20'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-12 16:28'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1997,8 +1997,9 @@ td.n.n-fail{color:var(--red)}
     var nBack  = levelNotches(g.bPrinIn, [0, g.WLb], g.bPrinOut, [g.bSideBL, g.WLb],
                    [['가슴선', g.BL], ['허리', g.WLb], ['엉덩이', g.hipY]]);
     var nFront = levelNotches(g.fPrinIn, [0, g.WLf], g.fPrinOut, [g.sideX, g.WLf],
-                   [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]],
-                   null, rotIfBelow);
+                   [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]]);
+    /* ⚠ 재킷은 가슴다트를 **조각 안 닫힌 다트**로 두므로 절개선을 회전시키지 않는다.
+       토르소처럼 rotIfBelow 를 걸면 너치만 돌아가 변에서 3.1~3.5 떨어진다 (검증기가 잡았다). */
     /* ★ 옆선은 이제 **옆판 안쪽**이라 봉제 짝이 아니다 — 짝 너치가 필요 없다.
        대신 새로 생긴 「옆 앞선」(앞옆판 ↔ 옆판)에 짝 너치를 찍는다.
        두 조각이 **같은 곡선**을 쓰므로 한 번 찍어 양쪽에 넣으면 정확히 맞는다. */
@@ -5328,19 +5329,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
        (값을 바꿔도 outline 해시가 안 변한다 — 2026-08-12 QA). 화면에 있는 입력란이
        아무것도 안 하면 그건 거짓말이다. 키를 늘리려면 엔진에 `num(opt.…)` 을 먼저 넣어라. */
   var STYLE_KEYS = [
-    { k: 'bustDartAmt', label: '가슴 다트분',  min: 0, max: 5,  step: 0.1, hint: '옆선에서 벌리는 양 · 원본 도면 1.5' },
-    { k: 'bustDartAt',  label: '가슴다트 위치', min: 2, max: 14, step: 0.1, hint: 'BL 에서 아래로 · 원본 도면 6.2' },
+    /* ⚠ 재킷은 가슴다트가 **조각 안 닫힌 다트**라 옆선 웨지 옵션(bustDartAt)이 없다.
+       엔진이 안 읽는 키를 두면 입력란이 거짓말을 한다. */
+    { k: 'bustDartW',   label: '가슴 다트분',  min: 0, max: 4,  step: 0.1, hint: '앞옆판 안 다트 폭 · 도면 1.5' },
+    { k: 'bustDartLen', label: '가슴다트 길이', min: 8, max: 30, step: 0.5, hint: '다트 전체 길이 · 도면 20' },
+    { k: 'jacketEase',  label: '재킷 여유분',   min: 0, max: 4,  step: 0.1, hint: '반폭에 더한다 · 완성 가슴 = B + 약 12' },
+    { k: 'jacketLenAdd',label: '재킷 길이 추가', min: 0, max: 20, step: 0.5, hint: '원형 옷길이에 더한다 · 도면 뒤판 64.4' },
+    { k: 'overlap',     label: '여밈 겹침',     min: 3, max: 12, step: 0.1, hint: '앞중심 → 여밈 끝 (더블) · 도면 7.9' },
+    { k: 'collarH',     label: '칼라 높이',     min: 5, max: 12, step: 0.1, hint: '칼라 총 높이 · 도면 8.5' },
     { k: 'backDartSh',  label: '뒤 어깨 다트분', min: 0, max: 3, step: 0.1, hint: '어깨너비/2 + 다트분 · 원본 도면 1.3' },
     { k: 'frontDartSh', label: '앞 어깨 벌림',  min: 0, max: 3, step: 0.1, hint: '앞 어깨 절개 벌림 · 원본 도면 0.6' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
+  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {
     var K = (ENG() && ENG().K) || {};
     return {
-      bustDartAmt: (K.fBustDartAmt === undefined) ? 1.5 : K.fBustDartAmt,
-      bustDartAt:  (K.fBustDartAt  === undefined) ? 6.2 : K.fBustDartAt,
-      backDartSh:  (K.backDartSh   === undefined) ? 1.3 : K.backDartSh,
-      frontDartSh: (K.frontDartSh  === undefined) ? 0.6 : K.frontDartSh
+      bustDartW:    (K.bustDartW    === undefined) ? 1.5  : K.bustDartW,
+      bustDartLen:  (K.bustDartLen  === undefined) ? 20   : K.bustDartLen,
+      jacketEase:   (K.jacketEase   === undefined) ? 0.65 : K.jacketEase,
+      jacketLenAdd: (K.jacketLenAdd === undefined) ? 6.7  : K.jacketLenAdd,
+      overlap:      (K.overlap      === undefined) ? 7.89 : K.overlap,
+      collarH:      (K.collarH      === undefined) ? 8.5  : K.collarH,
+      backDartSh:   (K.backDartSh   === undefined) ? 1.3  : K.backDartSh,
+      frontDartSh:  (K.frontDartSh  === undefined) ? 0.6  : K.frontDartSh
     };
   }
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
@@ -6412,32 +6424,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
            (okS ? ' (뒤를 이세로 먹인다)' : ' — 어긋남') });
     } else { put('sumShSeam', '—'); mark('sumShSeamok', null); }
 
-    /* 옆선 — SPEC §5-2 일치 + §9-5 진동깊이 경고 */
+    /* ★ 재킷은 **옆선이 옆판 안쪽**이라 봉제 짝이 아니다 — 앞뒤 옆선을 비교하면
+       늘 어긋난 것처럼 보인다(원형에서 물려받은 검사였다). 값만 표시한다. */
     var sb = num(M.sideBack), sf = num(M.sideFront);
-    var sideWarnOn = false, minSide = null;
-    if (sb !== null && sf !== null) {
-      /* 앞 옆선은 **다트분만큼 길게 재단**하고 접으면 뒤와 같아진다 (앞 등길이 차이치수 = 다트분) */
-      var sfSewn = num(M.sideFrontSewn !== undefined ? M.sideFrontSewn : M.sideFront);
-      var diff = Math.abs(sb - (sfSewn === null ? sf : sfSewn)), okSide = diff <= 0.05;
-      checks.push({ k: okSide ? 'ok' : 'bad',
-        t: okSide ? ('앞뒤 옆선 일치 — 앞 재단 ' + f2(sf) + ' 에서 다트분을 접으면 ' + f2(sfSewn) + ' = 뒤 ' + f2(sb))
-                  : ('다트를 접은 뒤 앞뒤 옆선 차이 ' + f2(diff) + ' cm') });
-      minSide = Math.min(sb, sfSewn === null ? sf : sfSewn);
-      sideWarnOn = minSide < SIDE_WARN_CM;
-      mark('sumSdBok', sb < SIDE_WARN_CM ? 'fail' : (okSide ? 'pass' : 'fail'));
-      mark('sumSdFok', okSide ? 'pass' : 'fail');
-      put('sumSdB', sb, sb < SIDE_WARN_CM ? 'fail' : null);
-      put('sumSdF', sf);
-    } else { mark('sumSdBok', null); mark('sumSdFok', null); }
-
-    els.sideWarn.hidden = !sideWarnOn;
-    if (sideWarnOn) {
-      els.sideWarnDetail.textContent =
-        '옆선 ' + f2(minSide) + ' cm (기준 ' + f1(SIDE_WARN_CM) + ' cm 미만). ' +
-        '가슴선 B/4 는 호수당 +1.5 로 커지는데 등길이는 +0.5 라서 큰 호수일수록 옆선이 짧아집니다. ' +
-        '등길이를 늘리면 옆선이 회복됩니다.';
-      checks.push({ k: 'bad', t: '진동이 깊습니다 — 옆선 ' + f2(minSide) + ' cm < ' + f1(SIDE_WARN_CM) });
-    }
+    put('sumSdB', sb); put('sumSdF', sf);
+    mark('sumSdBok', null); mark('sumSdFok', null);
+    els.sideWarn.hidden = true;
 
     /* ── 소매는 이 앱에서 제외되었습니다 (2026-08-07 사용자 결정) ──
        제공된 반소매 도면이 '숙녀복기본원형1 반소매 47P' 로 이 몸판(무다트 원형)과

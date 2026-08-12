@@ -1130,32 +1130,12 @@
            (okS ? ' (뒤를 이세로 먹인다)' : ' — 어긋남') });
     } else { put('sumShSeam', '—'); mark('sumShSeamok', null); }
 
-    /* 옆선 — SPEC §5-2 일치 + §9-5 진동깊이 경고 */
+    /* ★ 재킷은 **옆선이 옆판 안쪽**이라 봉제 짝이 아니다 — 앞뒤 옆선을 비교하면
+       늘 어긋난 것처럼 보인다(원형에서 물려받은 검사였다). 값만 표시한다. */
     var sb = num(M.sideBack), sf = num(M.sideFront);
-    var sideWarnOn = false, minSide = null;
-    if (sb !== null && sf !== null) {
-      /* 앞 옆선은 **다트분만큼 길게 재단**하고 접으면 뒤와 같아진다 (앞 등길이 차이치수 = 다트분) */
-      var sfSewn = num(M.sideFrontSewn !== undefined ? M.sideFrontSewn : M.sideFront);
-      var diff = Math.abs(sb - (sfSewn === null ? sf : sfSewn)), okSide = diff <= 0.05;
-      checks.push({ k: okSide ? 'ok' : 'bad',
-        t: okSide ? ('앞뒤 옆선 일치 — 앞 재단 ' + f2(sf) + ' 에서 다트분을 접으면 ' + f2(sfSewn) + ' = 뒤 ' + f2(sb))
-                  : ('다트를 접은 뒤 앞뒤 옆선 차이 ' + f2(diff) + ' cm') });
-      minSide = Math.min(sb, sfSewn === null ? sf : sfSewn);
-      sideWarnOn = minSide < SIDE_WARN_CM;
-      mark('sumSdBok', sb < SIDE_WARN_CM ? 'fail' : (okSide ? 'pass' : 'fail'));
-      mark('sumSdFok', okSide ? 'pass' : 'fail');
-      put('sumSdB', sb, sb < SIDE_WARN_CM ? 'fail' : null);
-      put('sumSdF', sf);
-    } else { mark('sumSdBok', null); mark('sumSdFok', null); }
-
-    els.sideWarn.hidden = !sideWarnOn;
-    if (sideWarnOn) {
-      els.sideWarnDetail.textContent =
-        '옆선 ' + f2(minSide) + ' cm (기준 ' + f1(SIDE_WARN_CM) + ' cm 미만). ' +
-        '가슴선 B/4 는 호수당 +1.5 로 커지는데 등길이는 +0.5 라서 큰 호수일수록 옆선이 짧아집니다. ' +
-        '등길이를 늘리면 옆선이 회복됩니다.';
-      checks.push({ k: 'bad', t: '진동이 깊습니다 — 옆선 ' + f2(minSide) + ' cm < ' + f1(SIDE_WARN_CM) });
-    }
+    put('sumSdB', sb); put('sumSdF', sf);
+    mark('sumSdBok', null); mark('sumSdFok', null);
+    els.sideWarn.hidden = true;
 
     /* ── 소매는 이 앱에서 제외되었습니다 (2026-08-07 사용자 결정) ──
        제공된 반소매 도면이 '숙녀복기본원형1 반소매 47P' 로 이 몸판(무다트 원형)과
