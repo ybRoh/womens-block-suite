@@ -100,6 +100,21 @@ function checkPiece(p, bad) {
   (p.edges || []).forEach(function (e) {
     if (SEAM_ZERO_OK.indexOf(e.role) < 0 && !(e.seam > 0))
       bad.push(nm + ' 「' + e.name + '」(' + e.role + ') 시접 0');
+    /* ★ 골선(fold)은 **접는 자리**라 반드시 직선이어야 한다. 굽은 선을 fold 로 두면
+       시접이 0 으로 나가 재단해도 못 꿰맨다 — 토르소 뒤중심선이 허리에서 1.24
+       들어오는 굽은 선인데 골선으로 되어 있었다 (2026-08-12 사용자 지적).
+       「접을 수 있는가」를 코드가 직접 물어야지, 이름만 보면 안 잡힌다. */
+    if (e.role === 'fold') {
+      var a = o[e.start], b = o[e.end], L = dist(a, b), off = 0;
+      for (var i = e.start; i <= e.end; i++) {
+        var q = o[i], t = L > 1e-9 ? ((q[0]-a[0])*(b[0]-a[0]) + (q[1]-a[1])*(b[1]-a[1])) / (L*L) : 0;
+        var d2 = dist(q, [a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t]);
+        if (d2 > off) off = d2;
+      }
+      if (off > 0.05)
+        bad.push(nm + ' 「' + e.name + '」 이 골선인데 직선이 아니다 (직선에서 ' +
+                 off.toFixed(3) + ' 벗어남) — 접을 수 없으면 봉제선이다');
+    }
   });
 
   /* ⑤ 너치 — 없으면 봉제할 때 맞출 데가 없다. 빈 배열은 「검사할 게 없다」가 아니다. */

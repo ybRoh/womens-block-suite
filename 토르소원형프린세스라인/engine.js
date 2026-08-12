@@ -656,8 +656,13 @@
   /* ★ `princess`(프린세스 절개선)를 반드시 넣는다 — 없으면 `normSeam` 이 모르는 role 로
      보고 **시접 0** 을 준다(골선과 같아진다). 절개선 4곳이 전부 시접 없이 나갔다
      (2026-08-12). 옆선과 같은 1.5 를 준다 — 곡선이라 시접이 크면 뒤집을 때 겹친다. */
+  /* ★ `center`(뒤중심) 는 **골선이 아니라 봉제선**이다. 뒤중심선이 허리에서 1.24
+     들어왔다 다시 나가는 **굽은 선**이라(0 → 0.533@BL → 1.244@허리 → 0.999@밑단)
+     접을 수가 없다 — 좌우 두 장을 꿰매는 자리다. role 을 fold 로 두면 시접이 0 으로
+     나가 재단해도 못 꿰맨다 (2026-08-12 사용자 지적).
+     앞중심은 x=0 수직 직선이라 그대로 fold 다. */
   var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
-                       hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0 };
+                       center: 1.5, hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0 };
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);
 
   /** opt.seam 정규화 — 숫자면 전 부위 균일, 객체면 role 별. fold 는 항상 0 강제. */
@@ -1013,7 +1018,7 @@
         if (!ptInPoly([n.p[0] + Math.cos(a) * NOTCH_TICK, n.p[1] + Math.sin(a) * NOTCH_TICK], loop.pts))
           n.angle = angDeg([-Math.cos(a), -Math.sin(a)]);
       });
-      return { id: id, name: name, cutCount: (id === 'back' || id === 'front') ? 1 : 2,
+      return { id: id, name: name, cutCount: (id === 'front') ? 1 : 2   /* 뒷면도 2매 — 뒤중심이 골선이 아니라 봉제선이다 */,
         kind: 'bodice', grainline: grain,
         outline: loop.pts, seamline: sm.seamline, foldEdges: sm.foldEdges,
         seamEdges: sm.seamEdges, seamFoldEdges: sm.seamFoldEdges, seamByRole: sm.seamByRole,
@@ -1046,7 +1051,7 @@
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPb, g.bPrinB) },
       { name: '절개선',   role: 'princess', segs: g.bPrinIn },
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.bPhB, [g.bCenter[3][0], hemY]) },
-      { name: '뒤중심',   role: 'fold',     segs: revSegs(lineSegs.apply(null, g.bCenter)) }
+      { name: '뒤중심',   role: 'center',   segs: revSegs(lineSegs.apply(null, g.bCenter)) }
     ], [[2.0, 4.0], [2.0, hemY - 4.0]],
       /* 허리·가슴선·엉덩이 너치는 nBack 이 절개선 위에 짝으로 찍는다 — 여기서 또
          찍으면 같은 자리에 두 개가 겹친다 */
