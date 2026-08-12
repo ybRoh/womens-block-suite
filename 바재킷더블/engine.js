@@ -386,6 +386,13 @@
     ventW          : 2.0, ventWBig : 2.174, ventLen : 9.0, ventMitre : 2.0,
     sleeveLenAdd   : 0,        // 소매길이 가감 (기본 = 호수별 60 + 1.0/호수)
     cuffAdd        : 0,        // 소맷부리 둘레 가감
+    /* ── 안단 (원문 「안단선」 절) ─────────────────────────────────
+       앞판 안단 : 어깨쪽 4~5 · 밑단쪽 6~7 · 안단선은 **앞 절개선 위쪽을 지나
+       어깨로 올라간다**. 뒤판 안단도 같은 방식. */
+    facingSh     : 4.5,    // 앞 안단 — 목옆점에서 어깨선을 따라 (4~5)
+    facingHem    : 6.5,    // 앞 안단 — 밑단에서 여밈 끝으로부터 (6~7)
+    facingRoll   : 2.5,    // 가슴선 높이에서 **꺾임선 안쪽**으로 — 라펠을 덮어야 한다
+    facingBack   : 5.0,    // 뒤 안단 폭 — 뒷목선에서 안쪽으로
     /* ── 주머니 (교재 밖 · Barjacke 도면 실측) ───────────────────── */
     pocketFromWL : 6.20,   // 주머니 입구 — 허리선에서 아래로
     pocketW      : 14.30,  // 입구 너비
@@ -1271,7 +1278,7 @@
             o2.push(L('bh' + i, 'line', [[-bo, y], [-bo - bl, y]], '단춧구멍'));
           }
           return o2;
-        })()), 1));
+        })()), 2));   /* 앞중심이 골선이 아니다 — 좌우 한 쌍이라 2매 */
 
     /* ══ ② 앞패널2 — 앞 암홀 아래쪽 · 옆선 · 가슴다트 ══════════════════ */
     pieces.push(mk('frontSide', '앞옆판', [
@@ -1408,7 +1415,69 @@
         [L('mid', 'dashed', [[0, ph * 0.5], [pw, ph * 0.5]], '접음선')]));
     })();
 
-    /* ══ ⑦ 2장소매 ═══════════════════════════════════════════════════
+    /* ══ ⑦ 안단 — 앞 안단 · 뒤 안단 (원문 「안단선」 절) ═══════════════
+       ★ 안단은 **몸판에서 떠낸 조각**이다. 바깥 변(고지선·라펠·여밈선·밑단 일부)은
+         앞판과 **같은 선**을 써야 겹쳐 놓았을 때 어긋나지 않는다.
+       ★ 안단선은 라펠을 **덮어야** 한다 — 가슴선 높이에서 꺾임선보다 안쪽으로
+         `facingRoll` 만큼 들어간 자리를 지난다. 안 그러면 뒤집었을 때 겉감이 보인다. */
+    var facingWarn = [];
+    if (num(opt.includeFacing, 1)) {
+      var fSh = num(opt.facingSh, K.facingSh), fHm = num(opt.facingHem, K.facingHem);
+      var shU2 = V.norm(V.sub(g.SPf, g.SNPf));
+      var fcA = V.add(g.SNPf, V.mul(shU2, fSh));                 // 어깨선 위 안단 끝
+      var fcH = [edgeX + fHm, g.fHemAt(edgeX + fHm)];            // 밑단 위 안단 끝
+      /* 가슴선 높이에서 꺾임선이 있는 x — 그보다 facingRoll 안쪽을 지난다 */
+      var tBL = (g.BL - g.breakPt[1]) / (g.rollDir[1] || -1e-9);
+      var rollAtBL = g.breakPt[0] + g.rollDir[0] * tBL;
+      var fcM = [rollAtBL + num(opt.facingRoll, K.facingRoll), g.BL];
+      var fcLine = splineSegs([fcH, fcM, fcA],
+        endTan([0, -1], 1.0), endTan(V.sub(fcA, fcM), 1.0));
+      /* 안단선이 앞판 **안**에 있어야 한다 — 절개선을 넘어가면 안단이 조각 밖으로 나간다 */
+      (function () {
+        var fp = pieces.filter(function (x) { return x.id === 'front'; })[0];
+        var sp = sampleSegs(fcLine, 0.5);
+        for (var i = 1; i < sp.length - 1; i++)
+          if (!ptInPoly(sp[i], fp.outline)) { facingWarn.push('앞 안단선이 앞판 밖으로 나간다'); return; }
+      })();
+      pieces.push(mk('frontFacing', '앞 안단', [
+        { name: '어깨선',    role: 'shoulder', segs: lineSegs(fcA, g.SNPf) },
+        { name: '고지선',    role: 'neck',     segs: lineSegs(g.SNPf, g.gorgeEnd) },
+        { name: '라펠 윗변', role: 'center',   segs: lineSegs(g.gorgeEnd, g.lapelPt) },
+        { name: '라펠선',    role: 'center',   segs: lineSegs(g.lapelPt, g.breakPt) },
+        { name: '여밈선',    role: 'center',   segs: lineSegs(g.breakPt, hemEdgeF) },
+        { name: '밑단',      role: 'hem',      segs: lineSegs(hemEdgeF, fcH) },
+        { name: '안단선',    role: 'side',     segs: fcLine }
+      ], [[edgeX * 0.3, g.BL + 2.0], [edgeX * 0.3, g.hemYf - 6.0]],
+        [{ p: cp(g.SNPf), angle: 0, label: '목옆점' },
+         { p: cp(g.gorgeEnd), angle: 0, label: '노치(카라 끝)' },
+         { p: cp(g.lapelPt), angle: 0, label: '라펠 꼭짓점' },
+         { p: cp(g.breakPt), angle: 0, label: '꺾임점' }],
+        [L('roll', 'dashed', [cp(g.breakPt), cp(g.rollOn)], '꺾임선'),
+         L('cf', 'dashed', [[0, g.SNPf[1] + 1.0], [0, g.fHemAt(0)]], '앞중심')], 2));
+
+      /* 뒤 안단 — 뒷목선을 안쪽으로 facingBack 민 띠 */
+      var fBk = num(opt.facingBack, K.facingBack);
+      var shUb2 = V.norm(V.sub(g.SPb, g.SNPb));
+      var fbA = V.add(g.SNPb, V.mul(shUb2, fSh));                // 어깨선 위 안단 끝
+      var bnPts = sampleSegs(g.backNeck, 0.05);
+      var bnMid = bnPts[Math.floor(bnPts.length / 2)];
+      var fbM = [bnMid[0], bnMid[1] + fBk];                      // 뒷목선 중간을 안쪽으로
+      var fbCy = g.BNP[1] + fBk;
+      var cbPts = sampleSegs(g.bCenter, 0.05).filter(function (q) { return q[1] <= fbCy; });
+      var fbC = cbPts.length > 1 ? cbPts[cbPts.length - 1] : [0, fbCy];
+      pieces.push(mk('backFacing', '뒤 안단', [
+        { name: '뒷목둘레', role: 'neck',     segs: g.backNeck },
+        { name: '뒤중심',   role: 'center',   segs: lineSegs.apply(null, cbPts) },
+        { name: '안단선',   role: 'side',     segs: splineSegs([fbC, fbM, fbA],
+                              endTan([1, 0], 1.0), endTan(V.sub(fbA, fbM), 1.0)) },
+        { name: '어깨선',   role: 'shoulder', segs: lineSegs(fbA, g.SNPb) }
+      ], [[g.SNPb[0] * 0.35, g.BNP[1] + 0.6], [g.SNPb[0] * 0.35, fbCy - 0.6]],
+        [{ p: cp(g.SNPb), angle: 0, label: '목옆점' },
+         { p: cp(g.BNP), angle: 0, label: '뒤중심' }],
+        [L('fw', 'dashed', [cp(fbA), cp(fbM)], '안단 폭 ' + f1(fBk))], 2));
+    }
+
+    /* ══ ⑧ 2장소매 ═══════════════════════════════════════════════════
        ★ 소매는 **우리 암홀 길이**로 제도한다 — 소매산 대각선이 곧 암홀 길이다.
          재킷 암홀이 계산식으로 나오므로 소매도 전 호수가 따라온다.
        소매길이·부리는 호수별 기본값에 가감만 준다 (그레이딩을 덮어쓰지 않는다). */
@@ -1454,6 +1523,7 @@
     /* [40] 75번은 W 선 위로 2.5 이상 — 그보다 낮으면 배꼽이 보인다 */
     if (g.WLf - g.btnTopY < 2.5)
       warnings.push('꺾임 시작(75번)이 허리에서 ' + r4(g.WLf - g.btnTopY) + ' 위 — 2.5 이상이라야 한다 [40]');
+    facingWarn.forEach(function (w) { warnings.push(w); });
     /* 소매 — 소매산 이세는 앞뒤 **각각** 봐야 한다. 총합만 보면 배분이 틀려도 안 드러난다
        (앞 이세가 음수인데 총 이세는 넉넉해 통과한 적이 있다 — 원형2 QA). */
     if (sleeve) {

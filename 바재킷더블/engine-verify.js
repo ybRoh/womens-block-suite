@@ -56,7 +56,14 @@ var PAIRS = [
   ['옆선',     'frontSide', ['옆선 (위)', '옆선 (아래)'], 'backSide', '옆선', 0.40],
   /* 2장소매 두 절개선은 서로 꿰매는 짝이다. 원형2 에서 몫을 이분법으로 풀어
      전 호수 0.000 으로 맞춘 판을 가져왔으므로 허용을 좁게 건다. */
-  ['소매 절개선', 'sleeveBig', '뒤 절개선', 'sleeveUnder', '절개선', 0.15]
+  ['소매 절개선', 'sleeveBig', '뒤 절개선', 'sleeveUnder', '절개선', 0.15],
+  /* 안단은 몸판에서 떠낸 조각이다 — 바깥 변이 몸판과 **같은 선**이라야 겹친다.
+     ⚠ 허용 0.06 은 폴리라인 눈금(FLATTEN 0.04) 때문이다 — 변 구간이 공유 모서리
+       점을 앞 변에 넘기므로 실측이 한 칸만큼 짧게 나올 수 있다. */
+  ['안단 고지선',  'front', '고지선', 'frontFacing', '고지선', 0.06],
+  ['안단 라펠선',  'front', '라펠선', 'frontFacing', '라펠선', 0.06],
+  ['안단 라펠 윗변', 'front', '라펠 윗변', 'frontFacing', '라펠 윗변', 0.06],
+  ['뒤 안단 뒷목', 'back',  '뒷목둘레', 'backFacing', '뒷목둘레', 0.06]
 ];
 E.SIZES.forEach(function (sz) {
   var d = E.draftJacket(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), bad = [], row = [];
@@ -66,7 +73,7 @@ E.SIZES.forEach(function (sz) {
     row.push(w[0] + ' ' + f(a, 6) + '/' + f(b, 6));
     if (Math.abs(a - b) > w[5]) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
   });
-  if (d.pieces.length !== 9) bad.push('조각 ' + d.pieces.length + '장 (9 이라야 한다)');
+  if (d.pieces.length !== 11) bad.push('조각 ' + d.pieces.length + '장 (11 이라야 한다)');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
   if (bad.length) fails++;
   console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) + row.join(' · ') +
@@ -229,7 +236,7 @@ console.log('══════════════════════�
   ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
   ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
   var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
-  ok('조각 구성', d.pieces.length === 9, '9장 — ' + names);
+  ok('조각 구성', d.pieces.length === 11, '11장 — ' + names);
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');
