@@ -1,18 +1,25 @@
 /* ============================================================================
  * engine-verify.js — 바 재킷(더블) 검산
  *
- *   ⚠ 다른 모듈과 달리 **DXF 정답지가 없다.** 원본은 sisterMAG 56 의 PDF 이고
- *   **Größe 36 한 호수뿐**이라, 좌표를 그대로 대조하면 그 호수만 맞는 엔진이 된다.
- *   그래서 여기서는 두 가지만 본다:
- *     ① 봉제로 성립하는가 — 맞물리는 변 짝 · 조각 구성 (전 호수)
- *     ② 36호 **주요 치수**가 도면과 맞는가 (좌표가 아니라 치수)
- *   조각 품질(폐곡선·너치·시접·제도선)은 루트의 `suite-verify.js` 가 전 모듈에 건다.
+ *   제도법: 백영례 「테일러 자켓 패턴」 번호점 제도법
+ *           (docs/테일러드재킷-제도법-백영례.md)
+ *
+ *   ★ 이 모듈에는 **DXF 정답지가 없다.** 참고자료인 sisterMAG Barjacke 도면은
+ *     Größe 36 **한 호수뿐**이라, 좌표를 대조하면 그 호수만 맞는 엔진이 된다.
+ *     실제로 예전 판이 그 함정에 빠져 절개선 곡률 부호를 끝내 못 잡았다.
+ *
+ *   그래서 여기서 보는 것은 **제도법 자신이 시키는 확인 절차**다.
+ *   교재는 「잘라 둔 뒤판을 대고 확인하라」([23]) 처럼 곳곳에서 확인을 시킨다 —
+ *   그 확인이 곧 검사다. 도면은 §4 에서 **참고(soft)** 로만 본다.
+ *
+ *   조각 품질(폐곡선·점 간격·너치·시접·제도선·전 호수 단조성)은 루트의
+ *   `suite-verify.js` 가 전 모듈에 건다. 여기서 겹쳐 검사하지 않는다.
  *
  *   실행: node engine-verify.js     (실패가 있으면 종료코드 1)
  * ==========================================================================*/
 'use strict';
 var fs = require('fs'), path = require('path');
-var E = require('./engine.js'), U = E.util, V = U.V;
+var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
 var GT = JSON.parse(fs.readFileSync(path.join(__dirname, 'barjacke-36-groundtruth.json'), 'utf8'));
 
 var fails = 0, warns = 0;
@@ -20,17 +27,21 @@ function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
 function f(v, w, d) { var s = (+v).toFixed(d === undefined ? 2 : d); while (s.length < w) s = ' ' + s; return s; }
 function ok(name, pass, detail, soft) {
   if (!pass) { if (soft) warns++; else fails++; }
-  console.log('  ' + (pass ? '✓ ' : soft ? '⚠ ' : '✗ ') + pad(name, 26) + detail);
+  console.log('  ' + (pass ? '✓ ' : soft ? '⚠ ' : '✗ ') + pad(name, 24) + detail);
 }
 /** 조각의 변 하나를 outline 에서 **실측**한다 (제도식 값을 믿지 않는다) */
-function edgeLen(d, id, name) {
+function edgeLen(d, id, names) {
   var p = d.pieces.filter(function (x) { return x.id === id; })[0];
   if (!p) return null;
-  var e = (p.edges || []).filter(function (x) { return x.name === name; })[0];
-  if (!e) return null;
-  var t = 0;
-  for (var i = e.start + 1; i <= e.end; i++) t += V.dist(p.outline[i - 1], p.outline[i]);
-  return t;
+  names = Array.isArray(names) ? names : [names];
+  var tot = 0, hit = 0;
+  names.forEach(function (nm) {
+    var e = (p.edges || []).filter(function (x) { return x.name === nm; })[0];
+    if (!e) return;
+    hit++;
+    for (var i = e.start + 1; i <= e.end; i++) tot += V.dist(p.outline[i - 1], p.outline[i]);
+  });
+  return hit === names.length ? tot : null;
 }
 
 /* ══ 1. 봉제 짝 — 전 호수 ═════════════════════════════════════════════ */
@@ -38,10 +49,11 @@ console.log('══════════════════════�
 console.log(' 1. 봉제 짝 — 맞물리는 변이 같은 길이인가 (전 호수)');
 console.log('════════════════════════════════════════════════════════════');
 console.log('   짝이 안 맞으면 옷이 안 된다. 정답지가 없어도 이건 검사할 수 있다.');
+console.log('   앞 옆선은 가슴다트 입(별도 변)을 빼고 위·아래 도막만 잰다.');
 var PAIRS = [
-  ['앞 절개선', 'front', '절개선', 'frontSide', '절개선'],
-  ['옆 앞선',  'frontSide', '옆 앞선', 'side', '옆 앞선'],
-  ['뒤 절개선', 'back', '절개선', 'side', '절개선']
+  ['앞 절개선', 'front', '절개선', 'frontSide', '절개선', 0.30],
+  ['뒤 절개선', 'back',  '절개선', 'backSide',  '절개선', 0.30],
+  ['옆선',     'frontSide', ['옆선 (위)', '옆선 (아래)'], 'backSide', '옆선', 0.40]
 ];
 E.SIZES.forEach(function (sz) {
   var d = E.draftJacket(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), bad = [], row = [];
@@ -49,7 +61,7 @@ E.SIZES.forEach(function (sz) {
     var a = edgeLen(d, w[1], w[2]), b = edgeLen(d, w[3], w[4]);
     if (a === null || b === null) { bad.push(w[0] + ' 변 없음'); return; }
     row.push(w[0] + ' ' + f(a, 6) + '/' + f(b, 6));
-    if (Math.abs(a - b) > 0.30) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
+    if (Math.abs(a - b) > w[5]) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
   });
   if (d.pieces.length !== 7) bad.push('조각 ' + d.pieces.length + '장 (7 이라야 한다)');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
@@ -58,67 +70,77 @@ E.SIZES.forEach(function (sz) {
     (bad.length ? '\n      → ' + bad.join(' · ') : ''));
 });
 
-/* ══ 2. 36호 주요 치수 — 도면 대조 ════════════════════════════════════ */
+/* ══ 2. 제도법이 시키는 확인 — 전 호수 ═══════════════════════════════
+   교재의 「확인하라」를 그대로 옮긴 것이다. 번호는 원문 단계.               */
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 2. 36호 주요 치수 — 원본 도면(sisterMAG 56) 대조');
+console.log(' 2. 제도법 확인 절차 — 교재가 시키는 확인을 그대로 (전 호수)');
 console.log('════════════════════════════════════════════════════════════');
-console.log('   ⚠ **좌표가 아니라 치수**를 본다. 한 호수뿐인 정답지에 좌표를 맞추면');
-console.log('     그 호수만 맞는 엔진이 된다 (다른 모듈에서 여러 번 겪었다).');
-(function () {
-  var m = E.measuresForSize('55호');           // DE 36 ≈ 한국 55호
-  var g = E.geom(m), d = E.draftJacket(m, { seam: E.SEAM_DEFAULT });
-  var P = {}; d.pieces.forEach(function (p) { P[p.id] = p; });
-  var G = GT.pieces;
-  /* 옷길이 — 도면 뒤판 높이 */
-  ok('옷길이(뒤)', Math.abs(g.hemY - G.back.h) <= 1.5,
-     f(g.hemY, 6) + '  도면 ' + f(G.back.h, 6) + ' · 차 ' + f(g.hemY - G.back.h, 6));
-  /* 앞판 높이 — 라펠 끝까지 */
-  ok('앞판 높이', Math.abs(P.front.bbox.h - G.front.h) <= 2.0,
-     f(P.front.bbox.h, 6) + '  도면 ' + f(G.front.h, 6) + ' · 차 ' + f(P.front.bbox.h - G.front.h, 6));
-  /* 완성 가슴둘레 — 재킷은 B + 10~14 가 정상 */
-  var chest = 2 * (g.Uf[0] + g.Ub[0]), ease = chest - m.B;
-  ok('완성 가슴 여유', ease >= 10 && ease <= 14,
-     f(chest, 6) + ' (B ' + f(m.B, 5) + ' + ' + f(ease, 5) + ')');
-  /* 여밈 겹침 · 단추 */
-  ok('여밈 겹침', Math.abs(E.K.overlap - 7.89) <= 0.2,
-     f(E.K.overlap, 6) + '  도면 7.89');
-  ok('단추 세로 간격', Math.abs(E.K.btnGapY - 9.80) <= 0.2,
-     f(E.K.btnGapY, 6) + '  도면 9.80');
-  /* 앞 절개선 짝 — 도면 앞판 ≈65.0 ↔ 앞옆판 64.97 */
-  var pr = edgeLen(d, 'front', '절개선');
-  ok('앞 절개선 길이', Math.abs(pr - 65.0) <= 6.0,
-     f(pr, 6) + '  도면 ≈65.0 (호수·여유가 다르면 벌어진다)', true);
-  /* 조각 구성 */
-  var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
-  ok('조각 구성', d.pieces.length === 7, '7장 — ' + names);
-})();
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz);
+  var g = E.geom(m), d = E.draftJacket(m, { seam: E.SEAM_DEFAULT }), M = d.measures, bad = [];
+  function chk(cond, msg) { if (!cond) bad.push(msg); }
+  var dif = g.bustDiff;
+  /* [2] 진동깊이 = B/4 + 1.5 */
+  chk(Math.abs(g.BL - (m.B / 4 + K.armDepthAdd)) < 1e-6, '[2] 진동깊이 ≠ B/4 + 1.5');
+  /* [7] 등품점 = 4~7 2등분 + 등품/2 · 겨드랑 = + 유B/4 + 1.5~2 */
+  chk(Math.abs(g.bPitchX - (K.cbIn / 2 + m.backW / 2)) < 1e-6, '[7] 11번(등품점) 식이 안 맞는다');
+  chk(Math.abs(g.Ub[0] - (K.cbIn / 2 + m.bustB / 4 + K.underarmAdd)) < 1e-6, '[7] 13번(겨드랑) 식이 안 맞는다');
+  /* [9] 18~19 = W 다트분 — 남는 양이 다트다. 0 이거나 6 을 넘으면 배분이 깨진 것 */
+  chk(g.bDart > 0.8 && g.bDart < 6.0, '[9] 뒤 다트분 ' + g.bDart.toFixed(2) + ' 이 범위 밖');
+  chk(g.fDart > 0.8 && g.fDart < 6.0, '[27] 앞 다트분 ' + g.fDart.toFixed(2) + ' 이 범위 밖');
+  /* [11] 뒤 목너비 = B/12 · 목옆점은 유차만큼 올라간다 · [18] 옆목 1.5 파기 */
+  chk(Math.abs(g.SNPb[0] - (m.B / 12 + K.neckOut)) < 1e-6, '[11][18] 뒤 목옆점 x 식이 안 맞는다');
+  chk(Math.abs(g.SNPb[1] + dif) < 1e-6, '[11] 뒤 목옆점이 유차만큼 안 올라갔다');
+  /* [12] 2~21 = 어깨/2 + 다트분 */
+  chk(Math.abs(g.SPb[0] - (m.shoulderW / 2 + g.shExtra)) < 1e-6, '[12] 21번(어깨점 x) 식이 안 맞는다');
+  /* [23] 잘라 둔 뒤판을 대고 — 다트분을 뺀 어깨 길이가 앞뒤 같아야 한다 */
+  chk(Math.abs((g.shLenBack - g.shExtra) - g.shLenFront) < 0.02,
+      '[23] 어깨 짝 ' + (g.shLenBack - g.shExtra).toFixed(3) + ' ↔ ' + g.shLenFront.toFixed(3));
+  /* [23] 52번 — 앞 어깨점이 어깨너비/2 자리 부근에 와야 한다 */
+  chk(Math.abs(g.SPf[0] - m.shoulderW / 2) <= 1.5,
+      '[23] 52번 앞 어깨점 x ' + g.SPf[0].toFixed(2) + ' vs 어깨/2 ' + (m.shoulderW / 2).toFixed(2));
+  /* [20] 유차 — 앞 옆선이 뒤보다 정확히 유차만큼 길게 제도된다 (다트 닫기 전) */
+  var rawFront = U.sLen(g.fSideFull), rawBack = U.sLen(g.backSide);
+  chk(Math.abs((rawFront - rawBack) - dif) < 0.35,
+      '[20] 앞 옆선 − 뒤 옆선 = ' + (rawFront - rawBack).toFixed(2) + ' (유차 ' + dif + ' 라야 한다)');
+  /* [27b] 가슴다트분 = 유차 — 접으면 앞뒤 옆선이 같아진다 */
+  chk(Math.abs(M.bustDart - dif) < 0.25,
+      '[27b] 가슴다트 ' + M.bustDart.toFixed(2) + ' ≠ 유차 ' + dif);
+  /* [26] BP — 앞중심에서 유폭/2 · 옆목점(51번)에서 유장 */
+  chk(Math.abs(g.BP[0] - m.bpSpan / 2) < 1e-6, '[26] BP x ≠ 유폭/2');
+  chk(Math.abs(V.dist(g.SNPf0, g.BP) - m.bpLen) < 0.02, '[26] 옆목점 → BP 가 유장이 아니다');
+  /* [16] 뒤 절개는 26번 위로 · [28] 앞 절개는 69번 위로 올라가면 안 된다 */
+  chk(g.bCutP[1] >= g.bArmTan[1] - 0.05, '[16] 뒤 절개 시작이 26번보다 위');
+  chk(g.fCutP[1] >= g.p69[1] - 0.05, '[28] 앞 절개 시작이 69번보다 위');
+  /* [40] 꺾임 시작(75번)은 W 선 위로 2.5 이상 */
+  chk(g.WLf - g.btnTopY >= 2.5, '[40] 꺾임 시작이 허리에서 ' + (g.WLf - g.btnTopY).toFixed(2) + ' 위');
+  /* [42] 위카라(80번)가 꺾임선 안으로 들어가면 안 된다 = 카라넓이 > 스탠드 */
+  chk(K.collarW - K.collarStand >= 1.0, '[42] 카라넓이 − 스탠드 < 1.0');
+  /* 완성 치수 — 테일러드 재킷의 적정 여유 */
+  chk(M.chestEase >= 10 && M.chestEase <= 14, '완성 가슴 여유 ' + M.chestEase + ' (10~14)');
+  chk(M.waistEase >= 4 && M.waistEase <= 11, '완성 허리 여유 ' + M.waistEase + ' (4~11)');
+  chk(M.hipEase >= 3 && M.hipEase <= 11, '완성 엉덩이 여유 ' + M.hipEase + ' (3~11)');
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+    '유차 ' + f(dif, 4) + ' · 다트 뒤/앞 ' + f(g.bDart, 5) + '/' + f(g.fDart, 5) +
+    ' · 어깨 ' + f(g.shLenBack - g.shExtra, 6) + ' · 여유 가슴 ' + f(M.chestEase, 5) +
+    ' 허리 ' + f(M.waistEase, 5) + ' 엉덩이 ' + f(M.hipEase, 5) +
+    (bad.length ? '\n      → ' + bad.join('\n      → ') : ''));
+});
 
-/* ══ 3. **도면 대조** — 조각 형태가 원본과 얼마나 다른가 ═══════════════════
-   ⚠ QA 를 코드만 돌려 놓고 **도면과 출력물을 안 맞춰 봤다.** 그래서 형태 오류
-   (뒤판 V · 옆판 부풀음 · 옆 앞선이 반대로 휨 · 자기교차)를 매번 사람이 눈으로
-   잡았다. 대조를 **검사로** 만든다 — 조각 크기와 절개선 곡률을 수치로 본다. */
+/* ══ 3. 조각 형태 — 절개선이 반대로 휘지 않았나 · 자기교차 ══════════════
+   ⚠ 예전에는 QA 를 코드만 돌려 놓고 도면과 출력물을 안 맞춰 봐서 형태 오류를
+   매번 사람이 눈으로 잡았다. 눈으로 보던 것을 수치로 만든다.               */
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 3. 도면 대조 — 조각 크기 · 절개선 곡률 (사람 눈 대신 수치로)');
+console.log(' 3. 조각 형태 — 절개선 곡률 부호 · 자기교차 (사람 눈 대신 수치로)');
 console.log('════════════════════════════════════════════════════════════');
 (function () {
-  var m = E.measuresForSize('55호');
-  var d = E.draftJacket(m, { seam: E.SEAM_DEFAULT }), g = E.geom(m);
-  var P = {}; d.pieces.forEach(function (p) { P[p.id] = p; });
-  var G = GT.pieces;
-  /* ① 조각 크기 — 도면과 3cm 넘게 다르면 형태가 다른 것이다 */
-  [['front', '앞판'], ['frontSide', '앞옆판'], ['side', '옆판'], ['back', '뒤판']].forEach(function (w) {
-    var e = P[w[0]].bbox, t = G[w[0]];
-    var dw = e.w - t.w, dh = e.h - t.h;
-    ok('크기 ' + w[1], Math.abs(dw) <= 3.0 && Math.abs(dh) <= 3.0,
-       f(e.w, 6) + '×' + f(e.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
-       ' · 차 ' + f(dw, 6) + ' / ' + f(dh, 6), Math.abs(dw) <= 7.0 && Math.abs(dh) <= 3.0);
-  });
-  /* ② 절개선 곡률 — 「현에서 벗어난 양」 프로파일. 부호가 반대면 반대로 휜 것이다 */
+  /** 현에서 벗어난 양의 프로파일 (위 → 아래 방향, 8구간) */
   function prof(segs) {
     var p = U.sampleSegs(segs, 0.05);
     if (p[0][1] > p[p.length - 1][1]) p = p.slice().reverse();
     var a = p[0], b = p[p.length - 1], ux = b[0] - a[0], uy = b[1] - a[1];
-    var ch = Math.hypot(ux, uy); ux /= ch; uy /= ch;
+    var ch = Math.hypot(ux, uy) || 1; ux /= ch; uy /= ch;
     var tot = U.polyLen(p), acc = 0, k = 0, res = [];
     for (var i = 1; i < p.length; i++) {
       acc += V.dist(p[i - 1], p[i]);
@@ -129,32 +151,78 @@ console.log('══════════════════════�
     while (res.length < 9) res.push(0);
     return res;
   }
-  [['앞 절개선', g.fPrinOut, [0.21, 3.28, 4.18, 5.16, 2.81, 2.81, 0, 0, 0]],
-   ['옆 앞선',  g.fSideSeam, [0.03, 0.28, 1.09, 2.25, 1.81, 0.67, 0.05, -0.13, 0]]].forEach(function (w) {
-    var p = prof(w[1]), t = w[2], mx = 0, flip = 0;
-    for (var i = 1; i < 8; i++) {
-      if (Math.abs(p[i] - t[i]) > mx) mx = Math.abs(p[i] - t[i]);
-      if (p[i] * t[i] < -0.3) flip++;          // 부호 반대
-    }
-    ok('곡률 ' + w[0], !flip && mx <= 2.5,
-       '최대 차 ' + f(mx, 5) + (flip ? ' · **부호 반대 ' + flip + '곳**' : '') +
-       '  [' + p.map(function (v) { return v.toFixed(1); }).join(',') + ']', !flip && mx <= 3.5);
-  });
-  /* ③ 자기교차 — 재단선이 꼬이면 아예 못 쓴다 */
-  var tangled = d.pieces.filter(function (pc) {
-    var o = pc.outline;
-    for (var i = 0; i < o.length - 3; i += 3)
-      for (var j = i + 6; j < o.length - 1; j += 3) {
-        var a = o[i], b = o[i + 1], c = o[j], e = o[j + 1];
-        var dn = (b[0] - a[0]) * (e[1] - c[1]) - (b[1] - a[1]) * (e[0] - c[0]);
-        if (Math.abs(dn) < 1e-9) continue;
-        var t2 = ((c[0] - a[0]) * (e[1] - c[1]) - (c[1] - a[1]) * (e[0] - c[0])) / dn;
-        var u2 = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / dn;
-        if (t2 > 0.001 && t2 < 0.999 && u2 > 0.001 && u2 < 0.999) return true;
+  E.SIZES.forEach(function (sz) {
+    var m = E.measuresForSize(sz);
+    var d = E.draftJacket(m, { seam: E.SEAM_DEFAULT }), g = E.geom(m), bad = [];
+    /* ① 곡률 **뒤집힘 횟수**. 한 번은 정상이다 — 절개선은 가슴선에서 안으로
+         들어갔다가 허리에서 다트분만큼 벌어지고, 밑단에서 다시 교차한다(29번).
+         옆선도 허리에서 잘록했다 밑단에서 나간다. **두 번 이상** 뒤집히면
+         스플라인이 뱀처럼 휜 것이다 (6차에서 앵커를 늘리다 65 → 79cm 가 됐다). */
+    [['앞 절개선', g.fPrinOut], ['뒤 절개선', g.bPrinOut],
+     ['앞 옆선', g.fSideFull], ['뒤 옆선', g.backSide]].forEach(function (w) {
+      var p = prof(w[1]), sign = 0, flips = 0;
+      for (var i = 1; i < 8; i++) {
+        var sg = p[i] > 0.25 ? 1 : p[i] < -0.25 ? -1 : 0;
+        if (sg && sign && sg !== sign) flips++;
+        if (sg) sign = sg;
       }
-    return false;
-  }).map(function (pc) { return pc.name; });
-  ok('자기교차', !tangled.length, tangled.length ? tangled.join(' · ') + ' 가 꼬였다' : '없음');
+      if (flips >= 2) bad.push(w[0] + ' 곡률이 ' + flips + '번 뒤집힌다 [' +
+        p.map(function (v) { return v.toFixed(1); }).join(',') + ']');
+    });
+    /* ② 호/현 비 — 곡선이 늘어졌는지는 이것이 제일 정직하다. 잘 그은 절개선은 1.05 이하 */
+    [['앞 절개선', g.fPrinOut], ['뒤 절개선', g.bPrinOut],
+     ['앞 옆선', g.fSideFull], ['뒤 옆선', g.backSide]].forEach(function (w) {
+      var pp = U.sampleSegs(w[1], 0.05);
+      var arc = U.polyLen(pp), ch = V.dist(pp[0], pp[pp.length - 1]);
+      if (ch > 1 && arc / ch > 1.10)
+        bad.push(w[0] + ' 호/현 ' + (arc / ch).toFixed(3) + ' — 곡선이 늘어졌다 (' +
+                 arc.toFixed(1) + ' / ' + ch.toFixed(1) + ')');
+    });
+    /* ③ 자기교차 — 재단선이 꼬이면 아예 못 쓴다 */
+    d.pieces.forEach(function (pc) {
+      var o = pc.outline;
+      for (var i = 0; i < o.length - 3; i += 3)
+        for (var j = i + 6; j < o.length - 1; j += 3) {
+          var a = o[i], b = o[i + 1], c = o[j], e = o[j + 1];
+          var dn = (b[0] - a[0]) * (e[1] - c[1]) - (b[1] - a[1]) * (e[0] - c[0]);
+          if (Math.abs(dn) < 1e-9) continue;
+          var t2 = ((c[0] - a[0]) * (e[1] - c[1]) - (c[1] - a[1]) * (e[0] - c[0])) / dn;
+          var u2 = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / dn;
+          if (t2 > 0.001 && t2 < 0.999 && u2 > 0.001 && u2 < 0.999) {
+            bad.push(pc.name + ' 이 자기교차한다'); return;
+          }
+        }
+    });
+    if (bad.length) fails++;
+    console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+      '절개 뒤 ' + f(U.sLen(g.bPrinIn), 6) + ' · 앞 ' + f(U.sLen(g.fPrinIn), 6) +
+      ' · 자기교차 없음' + (bad.length ? '\n      → ' + bad.join('\n      → ') : ''));
+  });
+})();
+
+/* ══ 4. 도면 참고 — sisterMAG Barjacke DE36 ═══════════════════════════
+   ⚠ **맞춰야 할 정답지가 아니다.** 이 재킷은 백영례 제도법으로 다시 그린 것이라
+   조각 분할부터 다르다(도면은 옆판이 겨드랑을 품는 구성). 크기 감각만 본다.  */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 4. 도면 참고 (soft) — Barjacke DE36 ↔ 55호. 맞출 대상이 아니다');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var m = E.measuresForSize('55호');
+  var g = E.geom(m), d = E.draftJacket(m, { seam: E.SEAM_DEFAULT });
+  var P = {}; d.pieces.forEach(function (p) { P[p.id] = p; });
+  var G = GT.pieces;
+  ok('옷길이(뒤)', Math.abs(g.hemY - G.back.h) <= 4.0,
+     f(g.hemY, 6) + '  도면 ' + f(G.back.h, 6) + ' · 차 ' + f(g.hemY - G.back.h, 6), true);
+  [['front', '앞판'], ['frontSide', '앞옆판'], ['back', '뒤판']].forEach(function (w) {
+    var e = P[w[0]].bbox, t = G[w[0]];
+    ok('크기 ' + w[1], Math.abs(e.w - t.w) <= 5.0 && Math.abs(e.h - t.h) <= 5.0,
+       f(e.w, 6) + '×' + f(e.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
+       ' · 차 ' + f(e.w - t.w, 6) + ' / ' + f(e.h - t.h, 6), true);
+  });
+  ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
+  ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
+  var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
+  ok('조각 구성', d.pieces.length === 7, '7장 — ' + names);
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');

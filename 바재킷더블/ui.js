@@ -35,32 +35,28 @@
        (값을 바꿔도 outline 해시가 안 변한다 — 2026-08-12 QA). 화면에 있는 입력란이
        아무것도 안 하면 그건 거짓말이다. 키를 늘리려면 엔진에 `num(opt.…)` 을 먼저 넣어라. */
   var STYLE_KEYS = [
-    /* ⚠ 재킷은 가슴다트가 **조각 안 닫힌 다트**라 옆선 웨지 옵션(bustDartAt)이 없다.
-       엔진이 안 읽는 키를 두면 입력란이 거짓말을 한다. */
-    { k: 'bustDartW',   label: '가슴 다트분',  min: 0, max: 4,  step: 0.1, hint: '앞옆판 안 다트 폭 · 도면 1.5' },
-    { k: 'bustDartLen', label: '가슴다트 길이', min: 8, max: 30, step: 0.5, hint: '다트 전체 길이 · 도면 20' },
-    { k: 'jacketEase',  label: '재킷 여유분',   min: 0, max: 4,  step: 0.1, hint: '반폭에 더한다 · 완성 가슴 = B + 약 12' },
-    { k: 'jacketLenAdd',label: '재킷 길이 추가', min: 0, max: 20, step: 0.5, hint: '원형 옷길이에 더한다 · 도면 뒤판 64.4' },
-    { k: 'overlap',     label: '여밈 겹침',     min: 3, max: 12, step: 0.1, hint: '앞중심 → 여밈 끝 (더블) · 도면 7.9' },
-    { k: 'collarH',     label: '칼라 높이',     min: 5, max: 12, step: 0.1, hint: '칼라 총 높이 · 도면 8.5' },
-    { k: 'backDartSh',  label: '뒤 어깨 다트분', min: 0, max: 3, step: 0.1, hint: '어깨너비/2 + 다트분 · 원본 도면 1.3' },
-    { k: 'frontDartSh', label: '앞 어깨 벌림',  min: 0, max: 3, step: 0.1, hint: '앞 어깨 절개 벌림 · 원본 도면 0.6' }
+    /* 백영례 제도법이 **범위로 준 값**과 「자연스럽게 · 원하는 곳」이라고 적은 자리다.
+       괄호 안이 교재의 번호점/단계. 전부 engine.js 의 `num(opt.xxx, K.xxx)` 자리와 1:1. */
+    { k: 'jacketLenAdd',  label: '재킷 길이 추가', min: 0,   max: 20,  step: 0.5, hint: '옷길이에 더한다 · H선보다 길게' },
+    { k: 'underarmAdd',   label: '겨드랑 여유',    min: 1.0, max: 3.0, step: 0.05, hint: '유B/4 + 1.5~2  [7] 13번' },
+    { k: 'waistEase',     label: '허리 여유',      min: 1.0, max: 3.5, step: 0.05, hint: 'W/4 + 1.5~2  [9] 18번' },
+    { k: 'hipEase',       label: '엉덩이 여유',    min: 0.5, max: 3.5, step: 0.05, hint: 'H/4 + 여유  [8] 16번' },
+    { k: 'sideWaistIn',   label: '옆선 허리 들임', min: 0,   max: 4,   step: 0.1, hint: '0 이면 교재 그대로(들임 없음) · 남는 양이 절개 다트로 간다  [9] 19번' },
+    { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '0 으로 두면 이세 0.75 로 대신한다  [10][12] 21번' },
+    { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
+    { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
+    { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
+    { k: 'gorgeLen',      label: '고지선 길이',    min: 4,   max: 13,  step: 0.1, hint: '라펠 폭을 정한다  [43] 83번' },
+    { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' }
   ];
-  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
-  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
+  /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다.
+   *  키 목록도 STYLE_KEYS 하나에서만 나온다 (예전엔 여기에 또 적어 두 곳이 어긋났다). */
   function styleDefaults() {
-    var K = (ENG() && ENG().K) || {};
-    return {
-      bustDartW:    (K.bustDartW    === undefined) ? 1.5  : K.bustDartW,
-      bustDartLen:  (K.bustDartLen  === undefined) ? 20   : K.bustDartLen,
-      jacketEase:   (K.jacketEase   === undefined) ? 0.65 : K.jacketEase,
-      jacketLenAdd: (K.jacketLenAdd === undefined) ? 6.7  : K.jacketLenAdd,
-      overlap:      (K.overlap      === undefined) ? 7.89 : K.overlap,
-      collarH:      (K.collarH      === undefined) ? 8.5  : K.collarH,
-      backDartSh:   (K.backDartSh   === undefined) ? 1.3  : K.backDartSh,
-      frontDartSh:  (K.frontDartSh  === undefined) ? 0.6  : K.frontDartSh
-    };
+    var K = (ENG() && ENG().K) || {}, out = {};
+    STYLE_KEYS.forEach(function (s) { if (isFinite(K[s.k])) out[s.k] = K[s.k]; });
+    return out;
   }
+  /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
   /** state.style 을 opt 에 얹는다 (없는 값은 엔진 기본값이 쓰인다) */
   function styleOpt(opt) { return styleOpt_(opt || {}); }
   function styleOpt_(opt) {
@@ -1103,16 +1099,20 @@
     put('sumNkB', num(M.neckBack)); put('sumNkF', num(M.neckFront)); put('sumNkT', num(M.neckTotal));
     put('sumSdB', num(M.sideBack)); put('sumSdF', num(M.sideFront));
 
-    /* 어깨 이세분 — ★ 이 원형은 이세로 먹이지 않고 **어깨 다트(뒤 1.3)·벌림(앞 0.6)**
-       으로 처리한다. 접으면 앞뒤 어깨가 같아지므로 이세분은 0 이 정상이다.
-       원형2 의 「0.3~0.6」 검사를 복붙해 둔 탓에 항상 거짓 경보였다 (2026-08-12 QA). */
-    var ease = num(M.shoulderEase);
+    /* 어깨 이세분 — 제도법 [12] 은 **뒤 어깨 다트 1.5** 또는 **이세 0.7~0.8** 중
+       하나를 쓴다. 다트로 처리하면 이세분 0 이 정상이고, 다트를 0 으로 두면
+       엔진이 이세로 바꾸므로 0.7~0.8 이 정상이다. 둘 다 통과시켜야 한다. */
+    var ease = num(M.shoulderEase), shDart = num(M.backShDart);
     if (ease !== null) {
-      var ok = Math.abs(ease) <= 0.05;
+      var dartMode = (shDart === null) || shDart > 0.01;
+      var ok = dartMode ? Math.abs(ease) <= 0.05 : (ease >= 0.5 && ease <= 1.0);
       mark('sumShEok', ok ? 'pass' : 'fail');
       checks.push({ k: ok ? 'ok' : 'bad',
-        t: ok ? '어깨 이세분 0 — 어깨 다트·벌림으로 처리한다'
-              : '어깨 이세분 ' + f2(ease) + ' cm — 이 원형은 0 이어야 한다' });
+        t: dartMode
+             ? (ok ? '어깨 이세분 0 — 뒤 어깨 다트 ' + f2(shDart) + ' 로 처리한다 [12]'
+                   : '어깨 이세분 ' + f2(ease) + ' cm — 다트로 처리할 때는 0 이어야 한다')
+             : (ok ? '어깨 이세분 ' + f2(ease) + ' cm — 다트 대신 이세로 처리한다 [12]'
+                   : '어깨 이세분 ' + f2(ease) + ' cm — 이세는 0.7~0.8 이라야 한다 [12]') });
     } else mark('sumShEok', null);
 
     /* 어깨 솔기 — 다트를 접은 뒤 앞뒤가 같아야 한다 (|뒤 − 앞| = 이세분 = 0). */
@@ -1130,11 +1130,19 @@
            (okS ? ' (뒤를 이세로 먹인다)' : ' — 어긋남') });
     } else { put('sumShSeam', '—'); mark('sumShSeamok', null); }
 
-    /* ★ 재킷은 **옆선이 옆판 안쪽**이라 봉제 짝이 아니다 — 앞뒤 옆선을 비교하면
-       늘 어긋난 것처럼 보인다(원형에서 물려받은 검사였다). 값만 표시한다. */
+    /* ★ 백영례 제도법은 **옆선이 그대로 있다** — 앞뒤 옆선이 다시 봉제 짝이다.
+       앞 옆선은 가슴다트(유차)를 접은 뒤의 길이라 뒤와 같아야 한다 [24][27b].
+       (Barjacke 판에서는 옆판이 옆선을 흡수해 짝이 아니었다 — 그 검사를 되살린다.) */
     var sb = num(M.sideBack), sf = num(M.sideFront);
     put('sumSdB', sb); put('sumSdF', sf);
-    mark('sumSdBok', null); mark('sumSdFok', null);
+    if (sb !== null && sf !== null) {
+      var okSd = Math.abs(sb - sf) <= 0.4;
+      mark('sumSdBok', okSd ? 'pass' : 'fail'); mark('sumSdFok', okSd ? 'pass' : 'fail');
+      checks.push({ k: okSd ? 'ok' : 'bad',
+        t: '옆선 짝 차 ' + f2(Math.abs(sb - sf)) + ' cm' +
+           (okSd ? ' — 가슴다트가 유차를 정확히 먹었다 [27b]'
+                 : ' — 가슴다트분(유차)을 확인하세요') });
+    } else { mark('sumSdBok', null); mark('sumSdFok', null); }
     els.sideWarn.hidden = true;
 
     /* ── 소매는 이 앱에서 제외되었습니다 (2026-08-07 사용자 결정) ──
