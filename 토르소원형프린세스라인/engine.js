@@ -353,10 +353,12 @@
     bPrinCx      : 11.9005, // 뒤 절개 허리 중심 x [(13.1493 + 10.6493)/2]
     /* 밑단에서 두 다리가 교차해 좌우로 0.6 씩 벌어진다 */
     hemSplay     : 0.60,    // [앞뒤 공통 0.6]
-    bPrinHemIn   : 11.299,  // [11.2993]
-    bPrinHemOut  : 12.499,  // [12.4993]
-    fPrinHemIn   : 8.900,   // [8.900]
-    fPrinHemOut  : 9.881    // [9.881]
+    /* ★ 밑단 절개는 **다트 중심에서 좌우 같은 값**으로 벌린다 (도면 「0.6 0.6 (¼)(¼)」).
+       실측 상수를 넷 박아 뒀는데 앞 바깥만 9.881 로 틀려 있었다 — 그 값은 정답지에서
+       **끊긴 곡선의 끝점**(y 56.063)이라 밑단이 아니었다. 뒤는 11.904 ∓ 0.600 으로
+       도면과 정확히 맞았다. 하나로 합치면 앞뒤가 같은 규칙이 되고 전 호수가 따라온다.
+       (프린세스판에서 물려받은 오독 — 2026-08-12 사용자 지적) */
+    hemSplit     : 0.60
   };
   var CAL = {
     backNeck : { mx: 0.70, my: 0.20, a0: 10, k0: 1.60, k1: 0.60 },
@@ -417,7 +419,8 @@
     var bDart = Math.max(0.2, bWaistW - (W / 4 + K.backWaistEase)); // 남는 양이 다트분
     var bCx = K.bPrinCx * s;
     var bPwA = [bCx + bDart / 2, WLb], bPwB = [bCx - bDart / 2, WLb];
-    var bPhA = [K.bPrinHemIn * s, hemY],   bPhB = [K.bPrinHemOut * s, hemY];
+    var bHemCx = (bPwA[0] + bPwB[0]) / 2;                 // 뒤 다트 중심 (DXF 11.904)
+    var bPhA = [bHemCx - K.hemSplit, hemY], bPhB = [bHemCx + K.hemSplit, hemY];
 
     /* ───────── 앞판 ───────── */
     var SNPf = [nw, -K.frontSnpRise];
@@ -450,7 +453,7 @@
     var fDart = Math.max(0.2, fWaistW - (W / 4 + K.frontWaistEase));
     var fCx = BP[0];                                               // 앞 다트 중심 = BP 수직
     var fPwA = [fCx + fDart / 2, WLb], fPwB = [fCx - fDart / 2, WLb];
-    var fPhA = [K.fPrinHemIn * s, fHemY],  fPhB = [K.fPrinHemOut * s, fHemY];
+    var fPhA = [fCx - K.hemSplit, fHemY],  fPhB = [fCx + K.hemSplit, fHemY];
 
     /* ───────── 곡선 ───────── */
     var backNeck  = curveBackNeck(BNP, SNPb, SPb);
@@ -1106,6 +1109,43 @@
       [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP)], '가슴다트 접음선'),
        L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
 
+
+    /* ★ 「중심」 안내선 — 다트/절개의 **좌우 대칭축**이다 (도면 「중심」 표기).
+       앞 = BP 수직 x 9.500 · 뒤 = 허리다트 중심 x 11.904 (66호 · DXF 실측과 일치).
+       조각 4장 중 3장이 internal 0개였다 — 제도선이 없으면 「이 절개가 어디서
+       나왔나」를 되짚을 수 없다 (스킬 규약: 조각 하나가 internal 0개면 미완성).
+       ⚠ 세로선이 조각 **밖으로 나가면 안 된다** — 허리에서는 두 조각 사이를 지나므로
+       조각마다 **안에 있는 구간만** 잘라 넣는다. 판정은 point-in-polygon. */
+    (function () {
+      function inPoly(pt, poly) {
+        var c = false;
+        for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          var a = poly[i], b = poly[j];
+          if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+              pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+        }
+        return c;
+      }
+      function clipRuns(x, y0, y1, poly) {
+        var runs = [], cur = null, STEP = 0.1;
+        for (var y = y0; y <= y1 + 1e-9; y += STEP) {
+          if (inPoly([x, y], poly)) { if (!cur) cur = [y, y]; else cur[1] = y; }
+          else if (cur) { runs.push(cur); cur = null; }
+        }
+        if (cur) runs.push(cur);
+        return runs.filter(function (r) { return r[1] - r[0] >= 3.0; });   // 3cm 미만은 안 그린다
+      }
+      var fCxL = g.BP[0], bCxL = (g.bPwA[0] + g.bPwB[0]) / 2;
+      pieces.forEach(function (pc) {
+        var back = (pc.id === 'back' || pc.id === 'backSide');
+        var x = back ? bCxL : fCxL;
+        var y0 = back ? g.BL : g.BP[1] - 8.0, y1 = back ? hemY : g.fHemY;
+        clipRuns(x, y0, y1, pc.outline).forEach(function (r, k) {
+          pc.internal.push(L('center' + (k ? k + 1 : ''), 'dashed',
+            [[x, r[0]], [x, r[1]]], '중심'));
+        });
+      });
+    })();
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
     function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
