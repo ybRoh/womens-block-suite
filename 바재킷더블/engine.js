@@ -298,7 +298,7 @@
     fSideSeamT   : 0.30,    // 옆 앞선 출발 — 앞 암홀 겨드랑에서 잰 호 비율
     bSideSeamT   : 0.34,    // 옆 뒷선 출발 — 뒤 암홀 겨드랑에서 잰 호 비율
     /* 옆판 경계의 허리·밑단 x — 절개선(0) ~ 옆선(1) 사이 비율 */
-    sideFrontWaistF : 0.95, sideFrontHemF : 0.95,
+    sideFrontWaistF : 1.10, sideFrontHemF : 1.00,
     /* 재킷 여유분 — 원형보다 넓다. 폭 상수에 더한다(반폭 기준) */
     jacketEase   : 0.65,   // 완성 가슴 = B + 약 12 (테일러드)
     jacketLenAdd : 6.70,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
