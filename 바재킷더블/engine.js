@@ -292,6 +292,26 @@
        ⚠ 예전에는 x·y 를 실측 상수로 박고 폭 배율만 곱해서 **66호에서만 맞았다**
          (봉제 어깨 차 44호 −1.17 · 88호 +1.20). */
     /* 프린세스 — 앞뒤 모두 **어깨선을 정확히 2등분**한 자리에서 출발한다 (도면 ✳ 표시) */
+    /* ★ 재킷 4패널 — 옆판이 겨드랑을 품고 옆선을 흡수한다.
+       옆판의 두 경계선은 **암홀 위**에서 출발한다 (겨드랑에서 잰 호 비율).
+       앞 절개선만 어깨에서 출발한다 — 도면상 앞판에는 암홀이 없다. */
+    fSideSeamT   : 0.30,    // 옆 앞선 출발 — 앞 암홀 겨드랑에서 잰 호 비율
+    bSideSeamT   : 0.34,    // 옆 뒷선 출발 — 뒤 암홀 겨드랑에서 잰 호 비율
+    /* 옆판 경계의 허리·밑단 x — 절개선(0) ~ 옆선(1) 사이 비율 */
+    sideFrontWaistF : 0.95, sideFrontHemF : 0.95,
+    /* 재킷 여유분 — 원형보다 넓다. 폭 상수에 더한다(반폭 기준) */
+    jacketEase   : 2.20,
+    /* ── 더블 여밈 · 라펠 (36호 도면 실측) ─────────────────────────────
+       여밈 겹침·단추 위치·라펠 크기는 **스타일 값**이다 (치수에서 파생되지 않는다).
+       도면 실측을 기본값으로 두고 UI 에서 고르게 한다. */
+    overlap      : 7.89,   // 앞중심 → 여밈 끝 (더블이라 넓다)
+    btnOut       : 3.71,   // 앞중심에서 단추열까지 (좌우 대칭 → 간격 7.42)
+    btnGapY      : 9.80,   // 단추 세로 간격
+    btnTopFromBL : 5.30,   // 맨 위 단추 — 가슴선에서 아래로 [도면 y 27.2, BL 21.9]
+    bhLen        : 2.09,   // 단춧구멍 길이
+    notchDrop    : 6.20,   // 노치 꼭짓점 — 목옆점 높이에서 아래로. x 는 **앞중심 위**
+    lapelOut     : 3.89,   // 라펠 끝 — 앞중심에서 바깥으로
+    lapelDrop    : 2.60,   // 라펠 끝 — 목옆점 높이에서 아래로
     princessAt   : 0.5,
     frontDartSh  : 0.60,    // 앞 어깨 벌림 [0.600]
     backDartSh   : 1.30,    // 뒤 어깨 다트분 [1.300]
@@ -410,9 +430,10 @@
     var SNPb = [nw + K.backNeckAdd, -K.backSnpRise];
     var SPb = null;   // 앞 어깨선을 먼저 낸 뒤 아래에서 정한다
     var bPitchX = backW / 2;
-    var Ub   = [K.bSideBL * s, BL];
-    var bWaistSide = [K.bSideWaist * s, WLb];
-    var bHemSide   = [K.bSideHem * s, hemY];
+    var je   = num(opt.jacketEase, K.jacketEase);        // 재킷 여유분(반폭에 더한다)
+    var Ub   = [K.bSideBL * s + je, BL];
+    var bWaistSide = [K.bSideWaist * s + je, WLb];
+    var bHemSide   = [K.bSideHem * s + je, hemY];
     var shLenBack = 0, shDirB = null;   // 아래 ③ 에서 채운다
     var bMid, half, bPrinA, bPrinB;   // 뒤 어깨점이 정해진 뒤 아래 ④ 에서 채운다
     var bWaistW = K.bSideWaist * s - K.bCenterWaist * s;          // 뒤 허리 총폭
@@ -427,10 +448,10 @@
     var FNP  = [0, nw + K.frontNeckAdd];
     var fPitchX = frontW / 2;
     var SPf  = [fPitchX + K.frontSpOut, K.frontSpDrop];
-    var Uf   = [K.fSideBL * s, BL];
-    var fWaistSide = [K.fSideWaist * s, WLb];
+    var Uf   = [K.fSideBL * s + je, BL];
+    var fWaistSide = [K.fSideWaist * s + je, WLb];
     var fHemY      = hemY + K.frontHemDrop;          // 앞 밑단은 뒤보다 아래
-    var fHemSide   = [K.fSideHem * s, fHemY];
+    var fHemSide   = [K.fSideHem * s + je, fHemY];
     var BP   = [bpSpan / 2, K.bpDrop];
     var shLenFront = V.dist(SNPf, SPf);
     var shDirF     = V.norm(V.sub(SPf, SNPf));
@@ -460,6 +481,12 @@
     var frontNeck = curveFrontNeck(FNP, SNPf, nw, SPf);
     var backArm   = armCurve(SPb, bPitchX, K.bArmTopY, Ub, BL, CAL.backArm);
     var frontArm  = armCurve(SPf, fPitchX, SPf[1],      Uf, BL, CAL.frontArm);
+    /* ★ 옆판 경계 두 개를 **암홀 위**에서 잘라 낸다. 곡선 위라야 조각들의 암홀이
+       맞물리고, 겨드랑에서 잰 호 비율이라 전 호수가 따라 움직인다. */
+    var bSideCut = cutSegsAtT(backArm,  num(opt.bSideSeamT, K.bSideSeamT),
+                     backArm[0].p0[1] > backArm[backArm.length - 1].p1[1]);
+    var fSideCut = cutSegsAtT(frontArm, num(opt.fSideSeamT, K.fSideSeamT),
+                     frontArm[0].p0[1] > frontArm[frontArm.length - 1].p1[1]);
     /* 옆선 — BL → 허리 → 밑단 (허리에서 들어갔다 밑단에서 다시 나온다) */
     var backSide  = sideCurve(Ub, bWaistSide, bHemSide, [K.bSideMidX * s, K.bSideMidY]);
     /* 앞 옆선은 BL 아래 6.2 에서 가슴다트로 끊긴다 — 위 조각 · 다트 · 아래 조각 */
@@ -503,12 +530,26 @@
       fSideTop: wedge.top, fSideBot: wedge.bot, wedgeTop: wedge.pTop, wedgeBot: wedge.pBot,
       wedgeAmt: wedge.amt,
       /* 프린세스 곡선 — 어깨 → (앞은 BP) → 허리 → 밑단 */
-      bPrinOut: princess(bPrinA, null, bPwA, bPhA,
+      /* 옆판 ↔ 뒤판 — **암홀에서** 출발한다 (뒤판이 암홀 위쪽을 갖는다) */
+      bPrinOut: princess(bSideCut.p, null, bPwA, bPhA,
                  [[K.bPrinOutX1 * s, K.bPrinY1], [K.bPrinOutX2 * s, BL],
                   [K.bPrinOutX3 * s, K.bPrinOutY3]]),
-      bPrinIn : princess(bPrinB, null, bPwB, bPhB,
+      /* 짝이므로 **같은 자리**에서 출발해야 한다 */
+      bPrinIn : princess(bSideCut.p, null, bPwB, bPhB,
                  [[K.bPrinInX1 * s, K.bPrinY1], [K.bPrinInX2 * s, BL]]),
                  /* 밑단 쪽(y 54.5)에 앵커를 더해 봤으나 0.312 → 0.415 로 나빠져 뺐다 */
+      /* ── 재킷 옆판 재료 ─────────────────────────────────────────────
+         암홀 두 도막: Low = 겨드랑쪽(옆판) · Up = 어깨쪽(앞옆판/뒤판) */
+      fArmLow: fSideCut.head, fArmUp: fSideCut.tail,
+      bArmLow: bSideCut.head, bArmUp: bSideCut.tail,
+      fSideSplit: fSideCut.p, bSideSplit: bSideCut.p,
+      /* 옆 앞선 — 앞옆판 ↔ 옆판. 허리·밑단 x 는 절개선(0)~옆선(1) 사이 비율이다 */
+      fSideSeam: princess(fSideCut.p, null,
+        [fPwA[0] + (fWaistSide[0] - fPwA[0]) * num(opt.sideFrontWaistF, K.sideFrontWaistF), WLb],
+        [fPhA[0] + (fHemSide[0] - fPhA[0]) * num(opt.sideFrontHemF, K.sideFrontHemF), fHemY]),
+      /* 뒤 → 앞 프레임 변환 (옆선에서 붙인다) */
+      toFront: backToFrontTf(Ub, [K.bSideHem * s, hemY], Uf, fHemSide),
+      bHemSideP: [K.bSideHem * s, hemY],
       fPrinOut: princess(fPrinA, BP, fPwA, fPhA),
       fPrinIn : princess(fPrinB, BP, fPwB, fPhB)
     };
@@ -886,6 +927,63 @@
    *  ② 겨드랑 구간 이세 0 — 거기 이세를 넣으면 주름이 지고 겨드랑이 당긴다
    *  ③ 전체 이세는 뒤 60% / 앞 40% — 어깨 맞춤 너치를 옮겨 맞춘다            */
   var ARM_DIV = 3, EASE_SHARE = [0.0, 0.5, 0.5], EASE_BACK = 0.6;
+  /** 3차 베지어를 t 에서 둘로 나눈다 (de Casteljau) */
+  function bezSplit(g, t) {
+    var a = _lerp(g.p0, g.c1, t), b = _lerp(g.c1, g.c2, t), c = _lerp(g.c2, g.p1, t);
+    var d = _lerp(a, b, t), e = _lerp(b, c, t), m = _lerp(d, e, t);
+    return [{ p0: g.p0, c1: a, c2: d, p1: m }, { p0: m, c1: e, c2: c, p1: g.p1 }];
+  }
+  /** ★ 곡선을 **겨드랑 끝에서 잰 호 비율** 자리에서 둘로 자른다.
+   *  암홀라인은 절개선이 암홀 위에서 갈라지므로 암홀을 두 조각으로 나눠야 한다.
+   *  절대 좌표로 자르면 66호만 맞는다 — 비율이라야 전 호수가 따라온다.
+   *  @returns {head, tail, p} head = 겨드랑 쪽, tail = 어깨 쪽, p = 자른 점 */
+  function cutSegsAtT(segs, frac, fromUnderarm) {
+    var work = fromUnderarm ? segs : revSegs(segs);        // 항상 겨드랑이 앞
+    var lens = work.map(function (g) { return bezLen(g.p0, g.c1, g.c2, g.p1); });
+    var tot = lens.reduce(function (a, b) { return a + b; }, 0), want = tot * frac;
+    var acc = 0, i = 0;
+    for (; i < work.length - 1; i++) {
+      if (acc + lens[i] >= want) break;
+      acc += lens[i];
+    }
+    var t = lens[i] > 1e-9 ? (want - acc) / lens[i] : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    var pair = bezSplit(work[i], t);
+    var head = work.slice(0, i).concat([pair[0]]);
+    var tail = [pair[1]].concat(work.slice(i + 1));
+    return fromUnderarm ? { head: head, tail: tail, p: pair[0].p1 }
+                        : { head: head, tail: tail, p: pair[0].p1 };
+  }
+  /** ★ 뒤 조각을 **옆선에서 앞 조각에 붙이는** 강체 변환.
+   *  재킷의 옆판은 옆선을 가로질러 한 장이라, 앞·뒤가 각자 원점을 쓰는 이 엔진에서는
+   *  그대로 만들 수 없다. 종이로 하는 응용 제도와 같이 **뒷옆면을 옆선에서 앞옆면에
+   *  붙인 뒤** 새 절개선을 긋는다. 옆선 짝이 0.02 밖에 차이가 안 나 이음매가 정확하다.
+   *  앞뒤는 몸의 반대편이므로 **x 를 뒤집고** 겨드랑·밑단 두 점으로 회전·평행이동을 정한다. */
+  function backToFrontTf(Ub, bHemSide, Uf, fHemSide) {
+    var A = [-Ub[0], Ub[1]], B = [-bHemSide[0], bHemSide[1]];
+    var a = V.sub(B, A), b = V.sub(fHemSide, Uf);
+    var ang = Math.atan2(b[1], b[0]) - Math.atan2(a[1], a[0]);
+    var co = Math.cos(ang), si = Math.sin(ang);
+    return function (p) {
+      var qx = -p[0] - A[0], qy = p[1] - A[1];
+      return [Uf[0] + qx * co - qy * si, Uf[1] + qx * si + qy * co];
+    };
+  }
+  /** 세그먼트 전체에 점 변환 적용 (제어점까지) */
+  function mapSegs(segs, f) {
+    return segs.map(function (g) {
+      return { p0: f(g.p0), c1: f(g.c1), c2: f(g.c2), p1: f(g.p1) };
+    });
+  }
+  /** 곡선 위에서 y 가 주어진 자리 (해부학적 높이로 너치를 찍는 데 쓴다) */
+  function ptOnSegsAtY(segs, targetY) {
+    var p = sampleSegs(segs, 0.02), best = null, bd = Infinity;
+    for (var i = 0; i < p.length; i++) {
+      var d = Math.abs(p[i][1] - targetY);
+      if (d < bd) { bd = d; best = p[i]; }
+    }
+    return bd <= 1.0 ? [best[0], best[1]] : null;
+  }
   function _ptAtLen(segs, dist, fromEnd) {
     var p = sampleSegs(segs, 0.02);
     if (fromEnd) p = p.slice().reverse();
@@ -1045,107 +1143,125 @@
     var nFront = levelNotches(g.fPrinIn, [0, g.WLf], g.fPrinOut, [g.sideX, g.WLf],
                    [['가슴선', g.BL], ['BP', g.BP[1]], ['허리', g.WLb], ['엉덩이', g.hipY]],
                    null, rotIfBelow);
-    var nSide  = pairNotches(g.backSide, g.fSideTop.concat(rotSegsBelow(g.fSideBot, g.BP, dc)),
-                   [0.45, 0.75], [0, g.WLb], [0, g.WLf], '옆선', g.Ub);   // 기준 = 겨드랑
+    /* ★ 옆선은 이제 **옆판 안쪽**이라 봉제 짝이 아니다 — 짝 너치가 필요 없다.
+       대신 새로 생긴 「옆 앞선」(앞옆판 ↔ 옆판)에 짝 너치를 찍는다.
+       두 조각이 **같은 곡선**을 쓰므로 한 번 찍어 양쪽에 넣으면 정확히 맞는다. */
+    var nSideFront = (function () {
+      var out = [];
+      [['가슴선', g.BL], ['허리', g.WLb], ['엉덩이', g.hipY]].forEach(function (lv) {
+        var q = ptOnSegsAtY(g.fSideSeam, lv[1]);
+        if (q) out.push({ p: cp(q), angle: 0, label: lv[0] });
+      });
+      return out;
+    })();
+    /* 암홀 3등분 너치를 자기 도막(=자기 조각)으로 보낸다 */
+    function armSplitNotches(armFull, low, up, U, inside, tag) {
+      var all = armNotches(armFull, U, inside, tag);
+      function near(q, segs) {
+        var pts = sampleSegs(segs, 0.05), b = Infinity;
+        for (var i = 0; i < pts.length; i++) { var e = V.dist(q, pts[i]); if (e < b) b = e; }
+        return b;
+      }
+      var lo = [], hi = [];
+      all.forEach(function (n) { (near(n.p, low) <= near(n.p, up) ? lo : hi).push(n); });
+      return { low: lo, up: hi };
+    }
+    var nArmB = armSplitNotches(g.backArm,  g.bArmLow, g.bArmUp, g.Ub, [g.bPwA[0], g.BL + 6], '뒤 암홀');
+    var nArmF = armSplitNotches(g.frontArm, g.fArmLow, g.fArmUp, g.Uf, [g.fPwA[0], g.BL + 6], '앞 암홀');
 
-    /* ① 뒷면 — 뒤중심 골선 */
-    pieces.push(mk('back', '뒷면', [
+    /* ══ 재킷 4패널 ══════════════════════════════════════════════════
+       앞판(여밈·라펠) | 앞옆판(암홀·다트) | 옆판(겨드랑을 품는다) | 뒤판(뒤중심·어깨)
+       ★ 옆판은 **옆선을 가로질러 한 장**이다. 앞·뒤가 각자 원점을 쓰므로
+         뒷부분을 `g.toFront` 로 옮겨 앞 프레임에서 이어 붙인다 (옆선 짝 차 0.02). */
+    var TF = g.toFront;
+    var bArmLowF  = mapSegs(g.bArmLow,  TF);      // 뒤 암홀 겨드랑쪽 → 앞 프레임
+    var bPrinOutF = mapSegs(g.bPrinOut, TF);      // 옆판의 뒤쪽 경계
+    var bHemF     = mapSegs(lineSegs(g.bHemSide, g.bPhA), TF);
+
+    /* ① 앞판 — 더블 여밈 · 라펠 · 노치 · 고지선 · 어깨 · 앞 절개선 · 밑단.
+       ★ 테일러드 재킷의 앞판에는 **앞목둘레 곡선이 없다** — 라펠이 접혀 나오므로
+         목선 자리를 **고지선(gorge)** 이 대신하고, 거기에 칼라가 붙는다.
+         앞중심도 골선이 아니다 — 여밈이 앞중심을 **overlap 만큼 넘어간다**(더블). */
+    var ov  = num(opt.overlap, K.overlap);
+    var edgeX = -ov;                                   // 여밈 끝 (앞중심 바깥이라 음수)
+    var notch = [0, g.SNPf[1] + num(opt.notchDrop, K.notchDrop)];      // 노치 = 앞중심 위
+    var lapel = [-num(opt.lapelOut, K.lapelOut), g.SNPf[1] + num(opt.lapelDrop, K.lapelDrop)];
+    /* 꺾임선 (roll line) — 맨 윗단추 ↔ 목옆점 바깥 15% (Freesewing Carlton 규칙) */
+    var btnTopY = g.BL + num(opt.btnTopFromBL, K.btnTopFromBL);
+    var rollStart = [edgeX, btnTopY];
+    var shDir = V.norm(V.sub(g.SPf, g.SNPf));
+    var rollEdge = V.add(g.SNPf, V.mul(shDir, -0.15 * V.dist(g.SNPf, g.SPf)));
+    pieces.push(mk('front', '앞판', [
+      { name: '고지선',   role: 'neck',     segs: lineSegs(g.SNPf, notch) },
+      { name: '라펠',     role: 'neck',     segs: lineSegs(notch, lapel) },
+      { name: '여밈선',   role: 'center',   segs: lineSegs(lapel, [edgeX, g.fHemY]) },
+      { name: '밑단',     role: 'hem',      segs: lineSegs([edgeX, g.fHemY], g.fPhB) },
+      { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinIn) },
+      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinB, g.SNPf) }
+    ], [[-ov * 0.4, g.BL + 2.0], [-ov * 0.4, g.fHemY - 4.0]],
+      [{ p: cp(g.SNPf), angle: 0, label: '목옆점' },
+       { p: cp(notch), angle: 90, label: '노치' },
+       { p: cp(rollStart), angle: 0, label: '꺾임선' }]
+        .concat(nFront.a.map(function (n) { return { p: cp(n.p), angle: n.angle, label: n.label }; })),
+      /* 제도선 — 앞중심 · 꺾임선 · 단추 · 단춧구멍 */
+      [L('cf', 'dashed', [[0, g.SNPf[1]], [0, g.fHemY]], '앞중심'),
+       L('roll', 'dashed', [rollStart, rollEdge], '꺾임선')]
+        .concat((function () {
+          var o2 = [], bo = num(opt.btnOut, K.btnOut), gap = num(opt.btnGapY, K.btnGapY),
+              bl = num(opt.bhLen, K.bhLen);
+          for (var i = 0; i < 3; i++) {
+            var y = btnTopY + gap * i;
+            o2.push(L('btn' + i, 'point', [[bo, y]], '단추'));          // 반대쪽 단추열
+            o2.push(L('bh' + i, 'line', [[-bo, y], [-bo - bl, y]], '단춧구멍'));
+          }
+          return o2;
+        })())));
+
+    /* ② 앞옆판 — 어깨 일부 + 앞 암홀 위쪽 + 옆 앞선. 가슴다트를 돌려 닫는다 */
+    var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);
+    pieces.push(mk('frontSide', '앞옆판', [
+      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
+      { name: '앞 암홀',  role: 'armhole',  segs: revSegs(g.fArmUp) },
+      { name: '옆 앞선',  role: 'princess', segs: g.fSideSeam },
+      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fSideSeam[g.fSideSeam.length - 1].p1, g.fPhA) },
+      { name: '절개선',   role: 'princess', segs: revSegs(g.fPrinOut) }
+    ], [[g.fPwA[0] + 3.0, g.BL + 2.0], [g.fPwA[0] + 3.0, hemY - 4.0]],
+      [{ p: cp(g.fSideSplit), angle: 180, label: '옆 앞선 시작' }]
+        .concat(nArmF.up).concat(nFront.b).concat(nSideFront)));
+
+    /* ③ 옆판 — **겨드랑을 가운데 품는다.** 위 변 전체가 암홀(U자)이고 어깨가 없다.
+       앞 절반은 앞 프레임 그대로, 뒤 절반은 TF 로 옮겨 붙였다. */
+    /* 고리 순서: 옆앞선(위→아래) → 밑단 → 뒤절개선(아래→위) → 뒤암홀(→겨드랑)
+       → 앞암홀(겨드랑→옆앞선 시작) 으로 닫는다. 방향이 하나라도 뒤집히면 되짚는다. */
+    var sideHemA = g.fSideSeam[g.fSideSeam.length - 1].p1;   // 옆 앞선 밑단 끝
+    var sideHemB = TF(g.bPhA);                               // 뒤 절개선 밑단 끝(변환)
+    pieces.push(mk('side', '옆판', [
+      { name: '옆 앞선',  role: 'princess', segs: g.fSideSeam },
+      { name: '밑단',     role: 'hem',      segs: lineSegs(sideHemA, sideHemB) },
+      { name: '절개선',   role: 'princess', segs: revSegs(bPrinOutF) },
+      { name: '뒤 암홀',  role: 'armhole',  segs: mapSegs(revSegs(g.bArmLow), TF) },
+      { name: '앞 암홀',  role: 'armhole',  segs: g.fArmLow }
+    ], [[g.Uf[0] - 2.0, g.BL + 3.0], [g.Uf[0] - 2.0, hemY - 4.0]],
+      [{ p: cp(g.Uf), angle: 90, label: '겨드랑' },
+       { p: cp(g.fSideSplit), angle: 0, label: '옆 앞선 시작' }]
+        .concat(nSideFront.map(function (n) { return { p: cp(n.p), angle: 180, label: n.label }; }))
+        .concat(nArmF.low)
+        /* 뒤쪽 너치는 앞 프레임으로 옮겨 붙인다 */
+        .concat(nArmB.low.map(function (n) { return { p: TF(n.p), angle: n.angle, label: n.label }; }))
+        .concat(nBack.b.map(function (n) { return { p: TF(n.p), angle: n.angle, label: n.label }; }))));
+
+    /* ④ 뒤판 — 뒤중심 · 어깨 전체 · 뒤 암홀 위쪽 · 절개선 */
+    pieces.push(mk('back', '뒤판', [
       { name: '뒷목둘레', role: 'neck',     segs: revSegs(g.backNeck) },
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPb, g.bPrinB) },
+      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPb, g.SPb) },
+      { name: '뒤 암홀',  role: 'armhole',  segs: revSegs(g.bArmUp) },
       { name: '절개선',   role: 'princess', segs: g.bPrinIn },
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.bPhB, [g.bCenter[3][0], hemY]) },
       { name: '뒤중심',   role: 'center',   segs: revSegs(lineSegs.apply(null, g.bCenter)) }
     ], [[2.0, 4.0], [2.0, hemY - 4.0]],
-      /* 허리·가슴선·엉덩이 너치는 nBack 이 절개선 위에 짝으로 찍는다 — 여기서 또
-         찍으면 같은 자리에 두 개가 겹친다 */
-      [{ p: cp(g.SNPb), angle: 90, label: '목옆점' }].concat(nBack.a)));
-
-    /* ② 뒷옆면 */
-    pieces.push(mk('backSide', '뒷옆면', [
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.bPrinA, g.SPb) },
-      { name: '뒤 암홀',  role: 'armhole',  segs: g.backArm },
-      { name: '옆선',     role: 'side',     segs: g.backSide },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.bHemSide, g.bPhA) },
-      { name: '절개선',   role: 'princess', segs: revSegs(g.bPrinOut) }
-    ], [[g.bPwA[0] + 4.0, g.BL + 2.0], [g.bPwA[0] + 4.0, hemY - 4.0]],
-      [{ p: cp(g.Ub), angle: 180, label: '겨드랑' }]
-        .concat(armNotches(g.backArm, g.Ub, [g.bPwA[0], g.BL + 6], '뒤 암홀'))
-        .concat(nBack.b).concat(nSide.a)));
-
-    /* ③ 앞면 — 앞중심 골선. **앞옆면보다 먼저 낸다** — 뒷면·뒷옆면과 같은 차례라야
-       인쇄물에서 맞물리는 변(앞면 절개선 ↔ 앞옆면 절개선)이 이웃해 대조하기 쉽다. */
-    pieces.push(mk('front', '앞면', [
-      { name: '앞목둘레', role: 'neck',     segs: g.frontNeck },
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.fPrinB) },
-      { name: '절개선',   role: 'princess', segs: g.fPrinIn },
-      { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, [0, g.fHemY]) },
-      { name: '앞중심',   role: 'fold',     segs: lineSegs([0, g.fHemY], g.FNP) }
-    ], [[2.0, g.FNP[1] + 3.0], [2.0, g.fHemY - 4.0]],
-      [{ p: cp(g.SNPf), angle: 90, label: '목옆점' }].concat(nFront.a)));
-
-    /* ④ 앞옆면 — 가슴다트를 **BP 축으로 돌려 붙인** 조각 (DXF 「다트회전」 회전 후) */
-    var wedgeBotC = rotAbout(g.wedgeBot, g.BP, dc);       // 아래 다리 입을 위 다리 쪽으로
-    pieces.push(mk('frontSide', '앞옆면', [
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.fPrinA, g.SPf) },
-      { name: '앞 암홀',  role: 'armhole',  segs: g.frontArm },
-      /* ★ 다트를 붙인다 — 아래 다리를 BP 축으로 돌려 위 다리에 포갠다. BP 아래 전체
-         (옆선 하부 · 밑단 · 절개선 BP~밑단)가 같이 돈다. 다리 길이가 13.457/13.567 로
-         0.11 달라(도면도 0.14 다르다) 위 다리 끝 → 돌린 아래 다리 입을 짧게 이어 준다
-         — 접으면 맞는 연장이다 (소맷부리 연장과 같은 처리). */
-      { name: '옆선 (위)', role: 'side',    segs: g.fSideTop.concat(lineSegs(g.wedgeTop, wedgeBotC)) },
-      { name: '옆선 (아래)', role: 'side',   segs: rotSegsBelow(g.fSideBot, g.BP, dc) },
-      { name: '밑단',     role: 'hem',      segs: rotSegsBelow(lineSegs(g.fHemSide, g.fPhA), g.BP, dc) },
-      /* 절개선은 BP 아래 구간만 돈다 — BP 가 스플라인 앵커라 rotSegsBelow 판정으로 안전 */
-      { name: '절개선',   role: 'princess', segs: fPrinOutC }
-    ], [[g.fPwA[0] + 4.0, g.BL + 2.0], [g.fPwA[0] + 4.0, hemY - 4.0]],
-      /* ★ BP·허리·가슴선·엉덩이는 nFront 가 **앞면 절개선과 짝으로** 찍는다.
-         2026-08-12 까지 앞면에만 있고 앞옆면엔 없었다(앞면 5 ↔ 앞옆면 3) —
-         검증기가 라벨 '절개' 로 시작하는 것만 짝지어 봐서 통과시켰다. */
-      [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
-       { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
-       { p: cp(wedgeBotC), angle: 180, label: '가슴다트' }]
-        .concat(armNotches(g.frontArm, g.Uf, [g.fPwA[0], g.BL + 6], '앞 암홀'))
-        .concat(nFront.b).concat(nSide.b),
-      [L('bustDart', 'dashed', [cp(g.wedgeTop), cp(g.BP)], '가슴다트 접음선'),
-       L('bustTip',  'point',  [cp(g.BP)], 'BP')]));
-
-
-    /* ★ 「중심」 안내선 — 다트/절개의 **좌우 대칭축**이다 (도면 「중심」 표기).
-       앞 = BP 수직 x 9.500 · 뒤 = 허리다트 중심 x 11.904 (66호 · DXF 실측과 일치).
-       조각 4장 중 3장이 internal 0개였다 — 제도선이 없으면 「이 절개가 어디서
-       나왔나」를 되짚을 수 없다 (스킬 규약: 조각 하나가 internal 0개면 미완성).
-       ⚠ 세로선이 조각 **밖으로 나가면 안 된다** — 허리에서는 두 조각 사이를 지나므로
-       조각마다 **안에 있는 구간만** 잘라 넣는다. 판정은 point-in-polygon. */
-    (function () {
-      function inPoly(pt, poly) {
-        var c = false;
-        for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-          var a = poly[i], b = poly[j];
-          if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
-              pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
-        }
-        return c;
-      }
-      function clipRuns(x, y0, y1, poly) {
-        var runs = [], cur = null, STEP = 0.1;
-        for (var y = y0; y <= y1 + 1e-9; y += STEP) {
-          if (inPoly([x, y], poly)) { if (!cur) cur = [y, y]; else cur[1] = y; }
-          else if (cur) { runs.push(cur); cur = null; }
-        }
-        if (cur) runs.push(cur);
-        return runs.filter(function (r) { return r[1] - r[0] >= 3.0; });   // 3cm 미만은 안 그린다
-      }
-      var fCxL = g.BP[0], bCxL = (g.bPwA[0] + g.bPwB[0]) / 2;
-      pieces.forEach(function (pc) {
-        var back = (pc.id === 'back' || pc.id === 'backSide');
-        var x = back ? bCxL : fCxL;
-        var y0 = back ? g.BL : g.BP[1] - 8.0, y1 = back ? hemY : g.fHemY;
-        clipRuns(x, y0, y1, pc.outline).forEach(function (r, k) {
-          pc.internal.push(L('center' + (k ? k + 1 : ''), 'dashed',
-            [[x, r[0]], [x, r[1]]], '중심'));
-        });
-      });
-    })();
+      [{ p: cp(g.SNPb), angle: 90, label: '목옆점' },
+       { p: cp(g.bSideSplit), angle: 180, label: '절개 시작' }]
+        .concat(nArmB.up).concat(nBack.a)));
 
     /* ───────── 계측 · 봉제 짝 검사 ───────── */
     function SL(s) { return sLen(s); }   // 전역 L(내부선) 과 이름이 겹치면 안 된다
