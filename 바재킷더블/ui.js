@@ -42,12 +42,15 @@
     { k: 'waistEase',     label: '허리 여유',      min: 1.0, max: 3.5, step: 0.05, hint: 'W/4 + 1.5~2  [9] 18번' },
     { k: 'hipEase',       label: '엉덩이 여유',    min: 0.5, max: 3.5, step: 0.05, hint: 'H/4 + 여유  [8] 16번' },
     { k: 'sideWaistIn',   label: '옆선 허리 들임', min: 0,   max: 4,   step: 0.1, hint: '0 이면 교재 그대로(들임 없음) · 남는 양이 절개 다트로 간다  [9] 19번' },
-    { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '0 으로 두면 이세 0.75 로 대신한다  [10][12] 21번' },
+    { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '기본 0 = 이세 0.75 로 대신 (도면에 다트가 없다) · 다트로 하려면 1.5  [12]' },
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
-    { k: 'gorgeLen',      label: '고지선 길이',    min: 4,   max: 13,  step: 0.1, hint: '라펠 폭을 정한다  [43] 83번' },
-    { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' }
+    { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
+    { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
+    { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
+    { k: 'sleeveLenAdd',  label: '소매길이 가감',  min: -8,  max: 8,   step: 0.5, hint: '호수별 기본(60 + 1.0/호수)에 더한다' },
+    { k: 'cuffAdd',       label: '소맷부리 가감',  min: -4,  max: 6,   step: 0.5, hint: '호수별 기본 소맷부리 둘레에 더한다' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다.
    *  키 목록도 STYLE_KEYS 하나에서만 나온다 (예전엔 여기에 또 적어 두 곳이 어긋났다). */

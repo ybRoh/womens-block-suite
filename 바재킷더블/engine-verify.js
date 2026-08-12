@@ -53,7 +53,10 @@ console.log('   앞 옆선은 가슴다트 입(별도 변)을 빼고 위·아래
 var PAIRS = [
   ['앞 절개선', 'front', '절개선', 'frontSide', '절개선', 0.30],
   ['뒤 절개선', 'back',  '절개선', 'backSide',  '절개선', 0.30],
-  ['옆선',     'frontSide', ['옆선 (위)', '옆선 (아래)'], 'backSide', '옆선', 0.40]
+  ['옆선',     'frontSide', ['옆선 (위)', '옆선 (아래)'], 'backSide', '옆선', 0.40],
+  /* 2장소매 두 절개선은 서로 꿰매는 짝이다. 원형2 에서 몫을 이분법으로 풀어
+     전 호수 0.000 으로 맞춘 판을 가져왔으므로 허용을 좁게 건다. */
+  ['소매 절개선', 'sleeveBig', '뒤 절개선', 'sleeveUnder', '절개선', 0.15]
 ];
 E.SIZES.forEach(function (sz) {
   var d = E.draftJacket(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), bad = [], row = [];
@@ -63,7 +66,7 @@ E.SIZES.forEach(function (sz) {
     row.push(w[0] + ' ' + f(a, 6) + '/' + f(b, 6));
     if (Math.abs(a - b) > w[5]) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
   });
-  if (d.pieces.length !== 7) bad.push('조각 ' + d.pieces.length + '장 (7 이라야 한다)');
+  if (d.pieces.length !== 9) bad.push('조각 ' + d.pieces.length + '장 (9 이라야 한다)');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
   if (bad.length) fails++;
   console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) + row.join(' · ') +
@@ -116,6 +119,10 @@ E.SIZES.forEach(function (sz) {
   chk(g.WLf - g.btnTopY >= 2.5, '[40] 꺾임 시작이 허리에서 ' + (g.WLf - g.btnTopY).toFixed(2) + ' 위');
   /* [42] 위카라(80번)가 꺾임선 안으로 들어가면 안 된다 = 카라넓이 > 스탠드 */
   chk(K.collarW - K.collarStand >= 1.0, '[42] 카라넓이 − 스탠드 < 1.0');
+  /* 소매 — 소매산 이세를 **앞뒤 각각** 본다. 총합만 보면 배분이 틀려도 안 드러난다 */
+  chk(M.capEaseFront >= 0.2 && M.capEaseFront <= 3.5, '앞 소매산 이세 ' + M.capEaseFront);
+  chk(M.capEaseBack  >= 0.2 && M.capEaseBack  <= 4.0, '뒤 소매산 이세 ' + M.capEaseBack);
+  chk(M.sleeveLen > 40 && M.sleeveLen < 80, '소매길이 ' + M.sleeveLen);
   /* 완성 치수 — 테일러드 재킷의 적정 여유 */
   chk(M.chestEase >= 10 && M.chestEase <= 14, '완성 가슴 여유 ' + M.chestEase + ' (10~14)');
   chk(M.waistEase >= 4 && M.waistEase <= 11, '완성 허리 여유 ' + M.waistEase + ' (4~11)');
@@ -222,7 +229,7 @@ console.log('══════════════════════�
   ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
   ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
   var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
-  ok('조각 구성', d.pieces.length === 7, '7장 — ' + names);
+  ok('조각 구성', d.pieces.length === 9, '9장 — ' + names);
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');

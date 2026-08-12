@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-12 18:29 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-12 18:51 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 18:29'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-12 18:51'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1127,7 +1127,11 @@ td.n.n-fail{color:var(--red)}
        더 들일지를 값으로 뺀다. 0 이면 교재 그대로(옆선 들임 없음)다. */
     sideWaistIn  : 1.5,    // 옆선 허리 들임 (19번을 안으로)     [9] 19번
     shSlope      : 1.4,    // 어깨기울기 = 품선 위끝에서 1.3~1.5 [10] 22번
-    backShDart   : 1.5,    // 뒤 어깨 다트분                     [10] 21번
+    /* ★ 교재 [12] 는 **다트 1.5 또는 이세 0.7~0.8** 중 하나를 쓰라고 한다.
+       Barjacke 도면(참고자료)의 뒤판에는 **어깨 다트가 없다** — 이세로 처리한 것이다.
+       그래서 기본을 0(= 이세)으로 둔다. 다트로 하고 싶으면 UI 에서 1.5 를 준다.
+       (2026-08-12 사용자 지적 — 도면에 없는 다트가 조각에 생겼다) */
+    backShDart   : 0,      // 뒤 어깨 다트분 (0 = 이세로 대신)   [10] 21번
     backShEase   : 0.75,   // 다트 대신 이세로 할 때 0.7~0.8    [12]
     backShDartLen: 7.0,    // 어깨 다트 길이                     [19] 40번
     armInset     : 0.5,    // 암홀이 품선에서 떨어지는 양 0.5~1  [13] 26번 · [25] 49번
@@ -1158,8 +1162,17 @@ td.n.n-fail{color:var(--red)}
     btnRows      : 3,      // 단추 줄 수
     bhLen        : 2.09,   // 단춧구멍 길이
     rollIn       : 2.5,    // 꺾임선이 어깨선을 지나는 자리       [41] 76번
-    gorgeDrop    : 2.5,    // 고지선 시작 = 목옆점에서 2.5 내려   [43] 82번
-    gorgeLen     : 8.0,    // 고지선 길이 (= 라펠 폭을 정한다)    [43] 83번
+    /* ── 노치 라펠 [43]~[46] ────────────────────────────────────────
+       ★ 앞판 윗변은 **봉우리 두 개 + V** 다 — 목옆점(53) → 고지선을 타고 내려간
+         **V 바닥(83)** → 라펠 윗변을 타고 올라간 **라펠 꼭짓점** → 여밈선.
+         V 바닥에서 카라 끝(87)과 만나 노치가 된다 [45].
+       ⚠ 예전에는 목옆점에서 수직으로 2.5 내리고 곧장 여밈선으로 갔다 —
+         봉우리가 하나뿐이라 도면과 모양이 달랐다 (2026-08-12 사용자 지적).
+       고지선은 **카라가 붙는 변**이고, 라펠 윗변은 안단으로 처리하는 변이다. */
+    gorgeLen     : 6.0,    // 고지선 길이 — 목옆점 → V 바닥      [43] 82~83번
+    gorgeAngle   : 25.0,   // 고지선이 수평에서 **내려가는** 각
+    notchLen     : 4.2,    // 라펠 윗변 — V 바닥 → 라펠 꼭짓점    [45] 83~87 쪽
+    notchAngle   : 36.0,   // 라펠 윗변이 수평에서 **올라가는** 각 — 꼭짓점이 목옆점 높이쯤
     collarOut    : 0.5,    // 테일러 카라 — 옆목점에서 0.5 나가서 [42] 78번
     collarW      : 7.5,    // 카라 넓이 (79~80)                  [42] 80번
     collarStand  : 3.0,    // 스탠드 높이 — 넓이보다 작아야 눕는다
@@ -1167,8 +1180,34 @@ td.n.n-fail{color:var(--red)}
        올려 굽힌다. 굽은 목붙임선을 바깥으로 넓이만큼 밀면 바깥선이 저절로 길어진다
        (slash & spread 를 안 해도 같은 결과다). 0 이면 목붙임선이 직선 = 선 카라. */
     collarCurl   : 0.55,
-    notchLen     : 4.0,    // 카라 끝 — 86번에서 직각 3.5~4      [44] 87번
-    notchAngle   : 38.0,   // 노치(V홈) 벌림 각                  [45]
+    /* ── 2장소매 (숙녀복기본원형2 에서 이식 · [ ] 안이 그 모듈 정답지 실측) ──── */
+    capHeightDiv   : 3,        // 소매산 높이 = AH/3 (도면 `AH/3`)
+    capPad         : 1.0,      // 패드분 — 소매산을 이만큼 더 올린다 [1.0000]
+    capApexShift   : 0.6,      // 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
+    capBulge       : 0.5,      // 곡선 통과점 = 대각선 발점 ↔ 마크 사이 비율 [0.500~0.512]
+    capReduce      : 0,        // 소매산 대각선에서 뺄 양 (0 = 암홀 길이 그대로)
+    twoMarkBotB    : 4.5,      // 뒤 하단 마크 — 고정 4.5 (AH/12+0.6 아님)
+    armNotchDiv    : 3,
+    capEaseShare   : [0.0, 0.5, 0.5],   // 겨드랑 구간 이세 0 — 넣으면 주름이 진다
+    capEaseBack    : 0.6,      // 전체 이세의 뒤 몫
+    elbowAdd       : 2.5,      // 팔꿈치선 = 소매길이/2 + 2.5
+    twoSplitGap    : 0.8,      // 큰·작은 절개점 간격 [0.8000]
+    twoSideOff     : 3.0,      // 큰소매 앞 −3 · 작은소매 뒤 +3 (총폭 불변)
+    twoHemDrop     : 1.492,    // 소맷부리 다트분 [1.4920]
+    twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 [식 미상]
+    twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 — **이분법이 실패할 때만 쓰는 대비값**
+    twoSeamBulge   : 0.661, twoSeamBulge2 : 0.404, twoSeamBulge3 : -0.878,
+    twoSeamBulgeU  : 1.139, twoSeamBulgeU2: 0.882, twoSeamBulgeU3: -0.398,
+    twoSeamT1      : 0.234715, twoSeamT2   : 0.484585, twoSeamT3   : 0.798122,
+    twoUndOutIn1   : 1.965, twoUndOutY1   : 36.199,
+    twoUndOutIn2   : 1.809, twoUndOutY2   : 45.291,
+    twoUndHemIn    : 1.175,    // 작은소매 부리 뒤 모서리 — 뒤 경계에서 **안쪽**
+    twoUndHemRise  : 0.300,
+    twoFrontHemIn  : 6.25, twoFrontElbowIn: 1.44,
+    twoInsetY      : 20.8,
+    ventW          : 2.0, ventWBig : 2.174, ventLen : 9.0, ventMitre : 2.0,
+    sleeveLenAdd   : 0,        // 소매길이 가감 (기본 = 호수별 60 + 1.0/호수)
+    cuffAdd        : 0,        // 소맷부리 둘레 가감
     /* ── 주머니 (교재 밖 · Barjacke 도면 실측) ───────────────────── */
     pocketFromWL : 6.20,   // 주머니 입구 — 허리선에서 아래로
     pocketW      : 14.30,  // 입구 너비
@@ -1183,7 +1222,15 @@ td.n.n-fail{color:var(--red)}
     backArm  : { k0: 1.50, kA: 1.10, kB: 1.50, k1: 2.00, upFx: 0.45, upT: 0.38 },
     frontArm : { k0: 1.20, kA: 1.30, kB: 1.40, k1: 1.60, upFx: 0.45, upT: 0.40 },
     side     : { k0: 0.60, k1: 1.20 },
-    princess : { k0: 0.30, kM: 1.00, k1: 0.60 }
+    princess : { k0: 0.30, kM: 1.00, k1: 0.60 },
+    /* ── 2장소매 (원형2 이식) ── */
+    sleeveCap: { k0: 1.1487, k1: 1.8359 },
+    capBack  : { k0: 1.10, k1: 1.50 },
+    capFront : { k0: 1.40, k1: 1.60 },
+    twoSeam  : { k0: 0.10, k1: 0.10 },     // 완만한 C자 — 절개점 수직 출발, 앵커 두 점 → 밑단
+    twoFront : { k0: 1.00 },
+    twoUndOuter: { k0: 0.10, k1: 1.60 },
+    twoUnderCap: { k0: 1.00 }
   };
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1366,8 +1413,14 @@ td.n.n-fail{color:var(--red)}
     var rollDir = V.norm(V.sub(rollOn, breakPt));                    // 꺾임선 방향(위쪽)
     var rollOut = [rollDir[1], -rollDir[0]];                         // 몸 바깥쪽 법선
     if (rollOut[0] > 0) rollOut = [-rollOut[0], -rollOut[1]];
-    var gorge0 = [SNPf[0], SNPf[1] + num(opt.gorgeDrop, K.gorgeDrop)];         // [43] 82번
-    var lapelPt = V.add(gorge0, V.mul(rollOut, num(opt.gorgeLen, K.gorgeLen))); // [43] 83번
+    /* 고지선 — 목옆점에서 앞중심 쪽으로 **내려간다**. 그 끝이 노치의 V 바닥이다 */
+    var gA = num(opt.gorgeAngle, K.gorgeAngle) * Math.PI / 180;
+    var gL = num(opt.gorgeLen, K.gorgeLen);
+    var gorgeEnd = [SNPf[0] - Math.cos(gA) * gL, SNPf[1] + Math.sin(gA) * gL];  // [43] 83번
+    /* 라펠 윗변 — V 바닥에서 다시 **올라가** 라펠 꼭짓점에 닿는다 */
+    var nA = num(opt.notchAngle, K.notchAngle) * Math.PI / 180;
+    var nL = num(opt.notchLen, K.notchLen);
+    var lapelPt = [gorgeEnd[0] - Math.cos(nA) * nL, gorgeEnd[1] - Math.sin(nA) * nL];
     /* 라펠 폭 = 꺾임선에서 83번까지의 수직거리 — 「접어서 확인」의 수치판 */
     var lapelW = Math.abs((lapelPt[0] - breakPt[0]) * rollDir[1] -
                           (lapelPt[1] - breakPt[1]) * rollDir[0]);
@@ -1402,7 +1455,7 @@ td.n.n-fail{color:var(--red)}
       fHemSideCut: wedge.hem, dartClose: dartClose,
       /* 여밈 · 라펠 */
       overlap: ov, btnTopY: btnTopY, breakPt: breakPt, rollOn: rollOn,
-      rollDir: rollDir, rollOut: rollOut, gorge0: gorge0, lapelPt: lapelPt, lapelW: lapelW
+      rollDir: rollDir, rollOut: rollOut, gorgeEnd: gorgeEnd, lapelPt: lapelPt, lapelW: lapelW
     };
   }
 
@@ -2017,11 +2070,14 @@ td.n.n-fail{color:var(--red)}
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, hemEdgeF) },
       { name: '여밈선',   role: 'center',   segs: lineSegs(hemEdgeF, g.breakPt) },
       { name: '라펠선',   role: 'center',   segs: lineSegs(g.breakPt, g.lapelPt) },
-      { name: '고지선',   role: 'neck',     segs: lineSegs(g.lapelPt, g.gorge0) },
-      { name: '목선',     role: 'neck',     segs: lineSegs(g.gorge0, g.SNPf) }
+      /* 라펠 윗변 — 노치의 위쪽 변. 카라가 아니라 **안단**과 만난다 */
+      { name: '라펠 윗변', role: 'center',   segs: lineSegs(g.lapelPt, g.gorgeEnd) },
+      /* 고지선 — **카라가 붙는 변**. V 바닥에서 목옆점까지 */
+      { name: '고지선',   role: 'neck',     segs: lineSegs(g.gorgeEnd, g.SNPf) }
     ], [[edgeX * 0.4, g.BL + 2.0], [edgeX * 0.4, g.hemYf - 4.0]],
       [{ p: cp(g.SNPf), angle: 0,   label: '목옆점' },
-       { p: cp(g.gorge0), angle: 0, label: '고지 시작' },
+       { p: cp(g.gorgeEnd), angle: 0, label: '노치(카라 끝)' },
+       { p: cp(g.lapelPt), angle: 0, label: '라펠 꼭짓점' },
        { p: cp(g.breakPt), angle: 0, label: '꺾임점' },
        { p: cp(g.fCutP), angle: 180, label: '절개 시작' }].concat(nFront.a),
       [L('cf',   'dashed', [[0, g.SNPf[1]], [0, g.fHemAt(0)]], '앞중심'),
@@ -2109,7 +2165,8 @@ td.n.n-fail{color:var(--red)}
          들어가면 안 된다 — 들어가면 카라가 목에서 뜬다.
        조각으로 뽑을 때는 목붙임선(= 뒷목 + 옆목~고지 + 고지선)을 그대로 두고
        바깥선만 slash & spread 로 벌린다. 「접어서 확인」은 검산기가 대신한다. */
-    var collarNeckLen = sLen(g.backNeck) + V.dist(g.SNPf, g.gorge0) + V.dist(g.gorge0, g.lapelPt);
+    /* 카라 목붙임선 = 뒷목 + **고지선**. 라펠 윗변은 카라가 아니라 안단과 만난다. */
+    var collarNeckLen = sLen(g.backNeck) + V.dist(g.SNPf, g.gorgeEnd);
     (function () {
       var Hc = num(opt.collarW, K.collarW);
       var st = Math.min(Hc - 1.0, num(opt.collarStand, K.collarStand));
@@ -2173,6 +2230,24 @@ td.n.n-fail{color:var(--red)}
         [L('mid', 'dashed', [[0, ph * 0.5], [pw, ph * 0.5]], '접음선')]));
     })();
 
+    /* ══ ⑦ 2장소매 ═══════════════════════════════════════════════════
+       ★ 소매는 **우리 암홀 길이**로 제도한다 — 소매산 대각선이 곧 암홀 길이다.
+         재킷 암홀이 계산식으로 나오므로 소매도 전 호수가 따라온다.
+       소매길이·부리는 호수별 기본값에 가감만 준다 (그레이딩을 덮어쓰지 않는다). */
+    var sleeve = null;
+    if (num(opt.includeSleeve, 1)) {
+      var sOpt = {}, kk;
+      for (kk in opt) if (opt.hasOwnProperty(kk)) sOpt[kk] = opt[kk];
+      var stp = (num(opt.B, m.B) - BASE.B) / GRADE.B;
+      var la = num(opt.sleeveLenAdd, K.sleeveLenAdd), ca = num(opt.cuffAdd, K.cuffAdd);
+      if (sOpt.sleeveLen === undefined && la)
+        sOpt.sleeveLen = SLEEVE_TYPE.two.len + SLEEVE_TYPE.two.lenGrade * stp + la;
+      if (sOpt.cuffW === undefined && ca)
+        sOpt.cuffW = SLEEVE_TYPE.two.cuff + SLEEVE_TYPE.two.cuffGrade * stp + ca;
+      sleeve = twoSleeveGeom(m, sOpt, sLen(g.backArm), sLen(g.frontArm));
+      pieces.push.apply(pieces, twoSleevePieces(sleeve, seam));
+    }
+
     /* ───────── 계측 · **교재가 시키는 확인 절차** ─────────
        원문의 「확인하라」는 곧 검사다 — [12] 어깨 · [23] 앞뒤 어깨 짝 ·
        [24] 앞뒤 옆라인 · [40] 라펠 높이 · [42] 위카라. 전부 여기서 잰다. */
@@ -2201,6 +2276,16 @@ td.n.n-fail{color:var(--red)}
     /* [40] 75번은 W 선 위로 2.5 이상 — 그보다 낮으면 배꼽이 보인다 */
     if (g.WLf - g.btnTopY < 2.5)
       warnings.push('꺾임 시작(75번)이 허리에서 ' + r4(g.WLf - g.btnTopY) + ' 위 — 2.5 이상이라야 한다 [40]');
+    /* 소매 — 소매산 이세는 앞뒤 **각각** 봐야 한다. 총합만 보면 배분이 틀려도 안 드러난다
+       (앞 이세가 음수인데 총 이세는 넉넉해 통과한 적이 있다 — 원형2 QA). */
+    if (sleeve) {
+      if (sleeve.capEaseFront < 0.2 || sleeve.capEaseFront > 3.5)
+        warnings.push('앞 소매산 이세 ' + r4(sleeve.capEaseFront) + ' (0.2~3.5 이라야 한다)');
+      if (sleeve.capEaseBack < 0.2 || sleeve.capEaseBack > 4.0)
+        warnings.push('뒤 소매산 이세 ' + r4(sleeve.capEaseBack) + ' (0.2~4.0 이라야 한다)');
+      if (Math.abs(sleeve.seamLenBig - sleeve.seamLenUnder) > 0.15)
+        warnings.push('소매 절개선 짝 ' + r4(sleeve.seamLenBig) + ' ↔ ' + r4(sleeve.seamLenUnder));
+    }
     /* [42] 위카라가 꺾임선 안으로 들어가면 안 된다 = 카라넓이 > 스탠드 */
     if (num(opt.collarW, K.collarW) - num(opt.collarStand, K.collarStand) < 1.0)
       warnings.push('카라넓이 − 스탠드 가 1.0 미만 — 위카라가 꺾임선 안으로 들어간다 [42]');
@@ -2223,7 +2308,7 @@ td.n.n-fail{color:var(--red)}
         neckBack: r4(sLen(g.backNeck)),
         /* 테일러드 앞판에는 앞목둘레 곡선이 없다 — 목선 + 고지선 + 라펠선이 그 자리다.
            고지선만 재면 스타일 상수라 호수가 커져도 안 변한다. */
-        neckFront: r4(V.dist(g.SNPf, g.gorge0) + V.dist(g.gorge0, g.lapelPt) +
+        neckFront: r4(V.dist(g.SNPf, g.gorgeEnd) + V.dist(g.gorgeEnd, g.lapelPt) +
                       V.dist(g.lapelPt, g.breakPt)),
         neckTotal: r4(collarNeckLen),
         armholeBack: r4(sLen(g.backArm)), armholeFront: r4(sLen(g.frontArm)),
@@ -2234,13 +2319,21 @@ td.n.n-fail{color:var(--red)}
         princessBackIn: r4(sLen(g.bPrinIn)), princessBackOut: r4(sLen(g.bPrinOut)),
         princessFrontIn: r4(sLen(g.fPrinIn)), princessFrontOut: r4(sLen(g.fPrinOut)),
         lapelW: r4(g.lapelW), collarW: r4(num(opt.collarW, K.collarW)),
+        sleeveLen: sleeve ? r4(sleeve.sleeveLen) : null,
+        cuffWidth: sleeve ? r4(sleeve.cuffW) : null,
+        sleeveCapTotal: sleeve ? r4(sleeve.capLenTotal) : null,
+        capEase: sleeve ? r4(sleeve.capEase) : null,
+        capEaseFront: sleeve ? r4(sleeve.capEaseFront) : null,
+        capEaseBack: sleeve ? r4(sleeve.capEaseBack) : null,
+        sleeveSeamBig: sleeve ? r4(sleeve.seamLenBig) : null,
+        sleeveSeamUnder: sleeve ? r4(sleeve.seamLenUnder) : null,
         pieceCount: pieces.length
       },
       meta: {
         title: '바 재킷 (더블)',
         source: '백영례 「테일러 자켓 패턴」 번호점 제도법 (docs/테일러드재킷-제도법-백영례.md)',
         sizeName: sizeNameOf(m), m: m, geom: g, warnings: warnings, notes: [],
-        formulaNotes: formulaNotes(m, g), seam: seam
+        formulaNotes: formulaNotes(m, g).concat(sleeve ? twoNotes(sleeve) : []), seam: seam
       }
     };
   }
@@ -2277,7 +2370,8 @@ td.n.n-fail{color:var(--red)}
       FN('wedge', '가슴다트',  '겨드랑에서 ' + f1(K.bustDartAt) + ' 아래 · **유차만큼** 덜어낸다 (꼭짓점 BP)  [27b]',
                   g.wedgeAmt, 'frontSide', [g.wedgeTop[0] - 4.6, (g.wedgeTop[1] + g.wedgeBot[1]) / 2]),
       FN('lapel', '라펠',      '꺾임 = 75(맨 윗단추) → 76(어깨선 안 ' + f1(K.rollIn) + ') · 고지선 ' +
-                  f1(K.gorgeLen) + '  [40]~[43]', g.lapelW, 'front',
+                  f1(K.gorgeLen) + ' ↓' + f1(K.gorgeAngle) + '° · 노치 ' + f1(K.notchLen) +
+                  ' ↑' + f1(K.notchAngle) + '°  [40]~[46]', g.lapelW, 'front',
                   [g.lapelPt[0] - 1.0, g.lapelPt[1] + 3.0]),
       FN('collar', '카라',     '옆목점에서 ' + f1(K.collarOut) + ' 나가서 · 뒷목치수 + 카라넓이 ' +
                   f1(K.collarW) + '  [42]', K.collarW, 'collar', [1.0, K.collarW * 0.5])
@@ -2286,6 +2380,696 @@ td.n.n-fail{color:var(--red)}
   function FN(id, label, formula, value, piece, anchor) {
     return { id: id, label: label, formula: formula, value: r4(value), piece: piece, anchor: cp(anchor) };
   }
+
+
+  /* ══════════════════════════════════════════════════════════════════
+   * 7. 2장소매 — `숙녀복기본원형2` 에서 이식 (2026-08-12)
+   *
+   *   ★ 소매는 **암홀 길이만 있으면 제도된다** — `twoSleeveGeom(m, opt, AHb, AHf)`.
+   *     재킷 암홀이 이제 계산식으로 나오므로 그대로 물리면 전 호수가 따라온다.
+   *   ★ 원형2 판을 **그대로** 가져왔다. 2026-08-12 에 소맷부리 몫을 이분법으로 풀어
+   *     큰↔작은 절개선 짝을 전 호수 0.000 으로 맞춘 판이다 — 옛 버전을 쓰면 안 된다.
+   *   ⚠ 이 소매는 「큰소매 앞폭 3 을 떼어 작은소매 뒤에 붙인」 설계라
+   *     **조각 경계 ≠ 앞뒤 암홀 경계**다. 작은소매의 `소매통 연결`은 제도상 뒤에 있어도
+   *     꿰맬 때는 **앞 암홀** 몫이다 (SPEC §B2-1).
+   * ════════════════════════════════════════════════════════════════ */
+  var SLEEVE_TYPE = {
+    two: { name: '2장소매', len: 60.0, lenGrade: 1.0,      // 패드점에서 잰 길이
+           cuff: 25.479, cuffGrade: 0.65, twoPiece: true } // 도면 큰 17.019 + 작은 8.460
+  };
+  /** 너치 보정 — ① 재단선 위로 스냅 ② 틱이 조각 **안쪽**을 향하게.
+   *  판정은 그리는 것과 같은 방식(point-in-polygon)이라야 한다. */
+  function fixNotches(notches, o) {
+    (notches || []).forEach(function (n) {
+      var best = null, bd = Infinity;
+      for (var i = 1; i < o.length; i++) {
+        var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+        var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        var q = [a[0] + t * dx, a[1] + t * dy], e = V.dist(n.p, q);
+        if (e < bd) { bd = e; best = q; }
+      }
+      if (bd <= 3.0) n.p = best;
+      function ok(deg) {
+        var r = deg * Math.PI / 180;
+        return ptInPoly([n.p[0] + Math.cos(r) * NOTCH_TICK, n.p[1] + Math.sin(r) * NOTCH_TICK], o);
+      }
+      if (ok(n.angle)) return;
+      for (var sd = 5; sd <= 180; sd += 5) {
+        if (ok(n.angle + sd)) { n.angle = ((n.angle + sd) % 360 + 360) % 360; return; }
+        if (ok(n.angle - sd)) { n.angle = ((n.angle - sd) % 360 + 360) % 360; return; }
+      }
+    });
+    return notches;
+  }
+  /** 곡선 위에서 y 가 주어진 자리 — **가장 가까운 점을 반드시 낸다.**
+   *  몸판용 `ptOnSegsAtY` 는 0.25 를 넘으면 null 을 내므로 소매 절개점에 쓸 수 없다. */
+  function ptOnSegsAtYNear(segs, targetY) {
+    var p = sampleSegs(segs, 0.01), best = p[0], bd = 1e9;
+    for (var i = 0; i < p.length; i++) {
+      var d = Math.abs(p[i][1] - targetY);
+      if (d < bd) { bd = d; best = p[i]; }
+    }
+    return cp(best);
+  }
+  function ptAtLenOn(segs, dist, fromEnd) {
+    var p = sampleSegs(segs, 0.02);
+    if (fromEnd) p = p.slice().reverse();
+    var acc = 0;
+    for (var i = 1; i < p.length; i++) {
+      var seg = V.dist(p[i - 1], p[i]);
+      if (acc + seg >= dist) {
+        var t = seg > 1e-9 ? (dist - acc) / seg : 0;
+        return { p: _lerp(p[i - 1], p[i], t), tan: V.norm(V.sub(p[i], p[i - 1])) };
+      }
+      acc += seg;
+    }
+    return { p: cp(p[p.length - 1]), tan: V.norm(V.sub(p[p.length - 1], p[p.length - 2])) };
+  }
+  function inwardAngle(tan, at, inside) {
+    var nr = [tan[1], -tan[0]];
+    if (nr[0] * (inside[0] - at[0]) + nr[1] * (inside[1] - at[1]) < 0) nr = [-nr[0], -nr[1]];
+    return angDeg(nr);
+  }
+  function capNotches(s) {
+    var mid = [s.apexShift, s.sleeveLen * 0.4], out = [];
+    /* 앞뒤 이세 재배분 — 전체 이세를 뒤 capEaseBack / 앞 나머지 로 나눈다 */
+    var capLB = polyLen(sampleSegs(s.capBack, 0.02)), capLF = polyLen(sampleSegs(s.capFront, 0.02));
+    var easeAll = Math.max(0, (capLB + capLF) - (s.AHb + s.AHf));
+    var easeB = easeAll * K.capEaseBack, easeF = easeAll - easeB;
+    /* 어깨 맞춤점 = 뒤 소매산에서 (뒤암홀 + 뒤이세) 만큼 간 자리. 정점에서 얼마나 밀렸는지도 낸다 */
+    var needB = s.AHb + easeB;
+    /* 뒤 소매산만으로 모자라면 **정점을 넘어 앞 소매산 쪽으로** 넘어간다 (66호 0.45) */
+    var fit = (needB <= capLB) ? ptAtLenOn(s.capBack, needB, true)
+                               : ptAtLenOn(s.capFront, needB - capLB, false);
+    out.push({ p: cp(fit.p), angle: inwardAngle(fit.tan, fit.p, mid), label: '어깨 맞춤' });
+    [[s.capBack, s.AHb, '뒤', easeB], [s.capFront, s.AHf, '앞', easeF]].forEach(function (w) {
+      var AH = w[1];
+      var ease = w[3], accE = 0;
+      for (var q = 1; q < K.armNotchDiv; q++) {
+        accE += ease * (K.capEaseShare[q - 1] || 0);
+        var hit = ptAtLenOn(w[0], AH * q / K.armNotchDiv + accE, true);
+        out.push({ p: cp(hit.p), angle: inwardAngle(hit.tan, hit.p, mid),
+                   label: w[2] + ' ' + q + '/' + K.armNotchDiv });
+      }
+    });
+    return out;
+  }
+  function splitSegsAtX(segs, targetX) {
+    var p = sampleSegs(segs, 0.01), cut = -1;
+    for (var i = 1; i < p.length; i++) {
+      if ((p[i - 1][0] - targetX) * (p[i][0] - targetX) <= 0) { cut = i; break; }
+    }
+    if (cut < 1) cut = Math.max(1, Math.floor(p.length / 2));
+    return { head: p.slice(0, cut + 1).map(cp), tail: p.slice(cut - 1).map(cp) };
+  }
+  function revPts(a) { return a.slice().reverse(); }
+  function splitSegsAtLenFromEnd(segs, L) {
+    var target = sLen(segs) - L;
+    if (target <= 0) return { head: [], tail: segs.slice() };
+    var acc = 0;
+    for (var i = 0; i < segs.length; i++) {
+      var li = sLen([segs[i]]);
+      if (acc + li >= target) {
+        var lo = 0, hi = 1;
+        for (var it = 0; it < 32; it++) {
+          var mt = (lo + hi) / 2;
+          if (acc + sLen([bezSplit(segs[i], mt)[0]]) < target) lo = mt; else hi = mt;
+        }
+        var sp = bezSplit(segs[i], (lo + hi) / 2);
+        return { head: segs.slice(0, i).concat([sp[0]]), tail: [sp[1]].concat(segs.slice(i + 1)) };
+      }
+      acc += li;
+    }
+    return { head: segs.slice(), tail: [] };
+  }
+  /** 트임 덧단 — 폭은 조각마다 다르다 (도면 큰 2.174 / 작은 2.0). 하나로 쓰면
+   *  큰소매 트임 밑단이 −0.21, 미터가 −0.19 짧다. */
+  function ventOf(seamSegs, insideRef, wIn) {
+    var ventW = (wIn === undefined) ? K.ventW : wIn;
+    var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
+    var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
+    var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
+    var hem = seamSegs[seamSegs.length - 1].p1;
+    var ch = V.norm(V.sub(hem, top)), nr = [ch[1], -ch[0]];
+    if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) < 0) nr = [-nr[0], -nr[1]];
+    var vv = [nr[0] * ventW, nr[1] * ventW];
+    /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
+    var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
+    return {
+      seamHead: mp.head, fold: fold, top: top, hem: hem,
+      mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,
+      topOut: [top[0] + vv[0], top[1] + vv[1]],
+      hemOut: [hem[0] + vv[0], hem[1] + vv[1]],
+      vec: vv, w: ventW, len: polyLen(sampleSegs(fold, 0.02))
+    };
+  }
+  /** 점열의 **끝에서부터** 기준점 ref 와의 현(직선거리)이 d 가 되는 자리.
+   *  도면의 「3」처럼 곡선을 따라가 아니라 **직선거리로 잰 치수**를 옮길 때 쓴다.
+   *  @returns {i, p} — i = 그 자리 직전 점의 인덱스, p = 보간한 점 */
+  function idxAtChordFromEnd(pts, ref, d) {
+    for (var i = pts.length - 2; i >= 0; i--) {
+      var a = pts[i], b = pts[i + 1], da = V.dist(a, ref), db = V.dist(b, ref);
+      if (da >= d && db <= d) {
+        var t = (da - db) ? (da - d) / (da - db) : 0;
+        return { i: i, p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] };
+      }
+    }
+    return { i: 0, p: pts[0].slice() };
+  }
+  function seamMatchNotches(segsA, segsB, inside) {
+    var LA = sLen(segsA), LB = sLen(segsB), L3 = Math.min(LA, LB) / 3;
+    function nt(segs, dist, fromEnd, label) {
+      var h = ptAtLenOn(segs, dist, fromEnd);
+      return { p: cp(h.p), angle: inwardAngle(h.tan, h.p, inside), label: label };
+    }
+    return {
+      a: [nt(segsA, L3, false, '앞솔기 1/3'), nt(segsA, L3, true, '앞솔기 2/3')],
+      b: [nt(segsB, L3, false, '앞솔기 1/3'), nt(segsB, L3, true, '앞솔기 2/3'),
+          /* 가운데 — 남는 이세 " + (LB - LA).toFixed(2) + " 를 여기에서 조절한다 */
+          nt(segsB, LB / 2, false, '이세 조절 (' + f1(Math.abs(LB - LA)) + ')')],
+      ease: LB - LA, LA: LA, LB: LB
+    };
+  }
+
+  function twoInternal(s, id) {
+    var big = (id === 'sleeveBig'), v = big ? s.ventBig : s.ventUnd;
+    var x0 = big ? s.bigHemB[0] : s.undHemB[0], x1 = big ? s.bigHemF[0] : s.undHemF[0];
+    var common = [
+      L('elbow',     'dashed', [[Math.min(x0, x1) - 0.5, s.elbowY], [Math.max(x0, x1) + 0.5, s.elbowY]], '팔꿈치선'),
+      /* 접음선 둘 — 절개선 아래 9 와 트임 위 가로선 2.2. 미터 사선은 **재단선**이라
+         내부선이 아니다 (외곽선 '트임 미터' 변). */
+      L('ventFold',  'dashed', subsamp(v.fold), '트임 접음선 (9)'),
+      L('ventTop',   'dashed', [cp(v.top), cp(v.topOut)], '트임 위 접음선 (2.2)'),
+      L('splitPt',   'point',  [cp(s.splitP)], '절개 시작 −AH/4')
+    ];
+    return big ? common.concat([
+      L('bicep',    'line',   [cp(s.splitP), [s.frontInX, s.topY]], '절개점 ↔ 앞 경계'),
+      L('center',   'dashed', [[s.apexShift, 0], [s.apexShift, s.sleeveLen]], '정점 수직선'),
+      L('capH',     'dashed', [[s.apexShift, 0], [s.apexShift, s.capH]], '소매산 높이'),
+      L('apexPt',   'point',  [cp(s.apex)], '정점'),
+      L('frontIn',  'point',  [[s.frontInX, s.topY]], '앞 경계 (소매통 −3)')
+    ]) : common.concat([
+      L('bicep',    'line',   [[s.backOutX, s.topY], cp(s.bicepB)], '바깥 경계 ↔ 소매통'),
+      L('backOut',  'point',  [[s.backOutX, s.topY]], '뒤 경계 (소매통 +3)')
+    ]);
+  }
+  function twoNotes(s) {
+    var B = 'sleeveBig', U = 'sleeveUnder', mid = s.sleeveLen * 0.55;
+    var vB = s.ventBig, vU = s.ventUnd;
+    return [
+      /* ── 공통 골격 (큰소매에 표기) ── */
+      FN('capH',     '소매산 높이', 'AH/4 + 2',                         s.capH, B, [s.apexShift + 0.4, s.capH * 0.5]),
+      FN('apexPt',   '정점 이동',   '앞으로 ' + f1(K.capApexShift),    s.apexShift, B, [s.apexShift, -0.9]),
+      FN('center',   '소매길이',    '2장소매 — 66호 ' + f1(SLEEVE_TYPE.two.len) +
+                                    ' · 호수당 +' + f1(SLEEVE_TYPE.two.lenGrade), s.sleeveLen, B, [s.apexShift, mid]),
+      FN('elbow',    '팔꿈치선',    '소매길이/2 + ' + f1(K.elbowAdd), s.elbowY, B, [s.frontInX * 0.4, s.elbowY]),
+      FN('splitPt',  '절개 시작점', '뒤 소매산 위 x = −AH/4',            -s.AH / 4, B, cp(s.splitP)),
+      FN('frontIn',  '앞 경계',     '앞 소매통 − ' + f1(K.twoSideOff),   s.frontInX, B, [s.frontInX, s.topY - 0.8]),
+      FN('capBigFront', '큰소매 앞 소매산', '정점 → 앞 경계 (소매통까지 가지 않는다) · 앞 암홀 몫',
+                     polyLen(s.capBigFront), B, [s.frontInX * 0.55, s.capH * 0.45]),
+      FN('capBigBack',  '큰소매 뒤 소매산', '정점 → 절개점 · 뒤 암홀 몫',
+                     polyLen(s.capBigBack), B, [s.splitP[0] * 0.5, s.capH * 0.30]),
+      FN('bigBack',  '뒤 절개선',   '작은소매 절개선과 **길이가 같아야** 봉제된다',
+                     s.seamLenBig, B, [(s.splitP[0] + s.bigHemB[0]) / 2 - 1.2, s.elbowY + 6]),
+      FN('bigFront', '앞 밑선',     '앞 경계 → 밑단 (작은소매 바깥 뒤선 ' + f1(s.underLenB) + ' 와 맞물린다)',
+                     s.underLenF, B, [s.frontInX - 1.0, s.elbowY + 8]),
+      FN('bigHem',   '큰소매 밑단', '봉제 모서리까지 (트임 덧단 ' + f1(K.ventW) + ' 는 별도)',
+                     V.dist(s.bigHemF, s.bigHemB), B, [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 1.6]),
+      FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
+                     vB.len, B, [vB.topOut[0] - 0.6, (vB.topOut[1] + vB.hemOut[1]) / 2]),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre) +
+                                    ' (직각으로 두면 접을 때 부피가 겹친다)',
+                     V.dist(vB.topOut, vB.mitreOn), B, cp(vB.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vB.top, vB.topOut), B, cp(vB.top)),
+      FN('hemDrop',  '밑단 하강',   '소매길이보다 ' + f1(K.twoHemDrop) + ' 내려간다',
+                     K.twoHemDrop, B, [s.bigHemB[0] + 1.5, s.sleeveLen + 0.7]),
+
+      /* ── 작은소매 ── */
+      FN('backOut',  '뒤 경계',     '뒤 소매통 + ' + f1(K.twoSideOff),   s.backOutX, U, [s.backOutX, s.topY - 0.8]),
+      FN('bicep',    '소매통 연결', '뒤 경계 → 소매통 끝 · 제도는 뒤에 있어도 **앞 암홀 몫**' +
+                     ' (큰소매 앞에서 ' + f1(K.twoSideOff) + ' 떼어 여기 붙였다)',
+                     polyLen(sampleSegs(s.undCapOut, 0.02)), U, [(s.backOutX + s.bicepB[0]) / 2, s.topY - 0.6]),
+      FN('capUnderBack', '작은소매 소매산', '소매통 → 절개점 · 뒤 암홀 몫',
+                     polyLen(s.capUnderBack), U, [(s.bicepB[0] + s.splitP[0]) / 2, s.capH * 0.55]),
+      FN('splitPt',  '절개 시작점', '뒤 소매산 위 x = −AH/4',            -s.AH / 4, U, cp(s.splitP)),
+      FN('elbow',    '팔꿈치선',    '소매길이/2 + ' + f1(K.elbowAdd), s.elbowY, U, [s.backOutX + 2.5, s.elbowY]),
+      FN('undBack',  '절개선',      '큰소매 뒤 절개선 ' + f1(s.seamLenBig) + ' 과 같은 길이',
+                     s.seamLenUnder, U, [(s.splitP[0] + s.undHemF[0]) / 2 + 1.2, s.elbowY + 6]),
+      FN('undOuter', '바깥 뒤선',   '뒤 경계 → 밑단 (큰소매 앞 밑선과 맞물린다)',
+                     s.underLenB, U, [s.backOutX - 1.0, s.elbowY + 8]),
+      FN('undHem',   '작은소매 밑단', '봉제 모서리까지 (트임 덧단 ' + f1(K.ventW) + ' 는 별도)',
+                     V.dist(s.undHemF, s.undHemB), U, [(s.undHemF[0] + s.undHemB[0]) / 2, s.sleeveLen + 1.6]),
+      FN('ventFold', '트임',        '절개선 아래 ' + f1(K.ventLen) + ' 를 바깥으로 ' + f1(K.ventW),
+                     vU.len, U, [vU.topOut[0] + 0.6, (vU.topOut[1] + vU.hemOut[1]) / 2]),
+      FN('ventMitre','트임 미터',   '재단선 — 트임 바깥 위 모서리 → 절개선 위 ' + f1(K.ventMitre),
+                     V.dist(vU.topOut, vU.mitreOn), U, cp(vU.mitreOn)),
+      FN('ventTop',  '트임 위 접음선', '트임 너비 ' + f1(K.ventW),
+                     V.dist(vU.top, vU.topOut), U, cp(vU.top)),
+
+      /* ── 소맷부리 합계 (큰소매에 한 번) ── */
+      FN('cuff',     '완성 소맷부리', '큰 ' + f1(V.dist(s.bigHemF, s.bigHemB)) +
+                     ' + 작은 ' + f1(V.dist(s.undHemF, s.undHemB)) + ' (트임 덧단은 서로 겹친다)',
+                     V.dist(s.bigHemF, s.bigHemB) + V.dist(s.undHemF, s.undHemB), B,
+                     [(s.bigHemF[0] + s.bigHemB[0]) / 2, s.sleeveLen + 3.0]),
+      /* ── 봉제 기준 앞뒤 (조각 경계와 다르다) ── */
+      FN('capAll',   '소매산 총합',  '큰 + 작은 = 암홀 ' + f1(s.AH) + ' + 이세분',
+                     s.capLenTotal, B, [s.apexShift, 1.4]),
+      FN('capSewnF', '앞 소매산(봉제)', '큰소매 앞 ' + f1(s.capLenBigFront) + ' + 작은소매 소매통 연결 ' +
+                     f1(s.capLenUnderOut) + ' = 앞 암홀 ' + f1(s.AHf) + ' + 이세 ' + f1(s.capEaseFront),
+                     s.capLenFront, B, [s.frontInX * 0.62, s.capH * 0.72]),
+      FN('capSewnB', '뒤 소매산(봉제)', '큰소매 뒤 ' + f1(s.capLenBigBack) + ' + 작은소매 소매산 ' +
+                     f1(s.capLenUnderBack) + ' = 뒤 암홀 ' + f1(s.AHb) + ' + 이세 ' + f1(s.capEaseBack),
+                     s.capLenBack, B, [s.splitP[0] * 0.62, s.capH * 0.72])
+    ];
+  }
+
+  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn, padIn, botBIn) {
+    var capH = (capHIn === undefined) ? AH / 4 + 2 : capHIn;   // ★ 이 모듈은 AH/3 + 패드분
+    /* ★ AH 대각선은 **상단선이 아니라 패드점 (0, 패드분) 에서** 내린다 — 정답지 확인.
+       패드분은 소매산을 위로 밀어 올릴 뿐 대각선(=암홀 길이)의 수직변이 아니다.
+       상단선에서 내리면 66호 소매폭이 1.87 좁아진다. */
+    var pad = padIn || 0, vert = capH - pad;
+    var diagB = AHb - capReduce, diagF = AHf - capReduce;    // 대각선 = 각 암홀 길이
+    var halfB = Math.sqrt(Math.max(diagB * diagB - vert * vert, 0.01));
+    var halfF = Math.sqrt(Math.max(diagF * diagF - vert * vert, 0.01));
+    var apex = [apexShift, 0], bicepB = [-halfB, capH], bicepF = [halfF, capH];
+
+    // 마크 — 상단은 중심선 상단점에서 수평 AH/8, 하단은 소매폭 끝에서 안쪽으로
+    var markTopB = [-AH / 8, 0], markTopF = [AH / 8, 0];
+    /* 뒤 하단 마크는 **고정 4.5** — 정답지 실측 4.5000 (AH/12+0.6 = 4.41 이 아니다) */
+    var markBotB = [-halfB + (botBIn === undefined ? AH / 12 + 0.6 : botBIn), capH];
+    var markBotF = [halfF - AH / 8, capH];
+
+    /* 각 마크에서 대각선에 수선 → 발점. 곡선은 발점↔마크 사이 capBulge 비율 지점을 지난다.
+       ★ 수선을 내리는 대각선은 **패드점 (0, 패드분) → 소매폭점** 이다 (원본 DXF 에 그 선이
+         엔티티로 남아 있다: (0,1)→(−18.47,16.218) · (0,1)→(15.5,16.218)).
+         공용 footOn() 은 원점 (0,0) 기준이라 여기서 쓰면 상단 통과점이 0.33 어긋난다
+         — 그게 소매산이 도면보다 배부르던 원인이다. tightSleeveGeom 은 패드분이 없어
+         (0,0)=패드점이므로 공용 footOn 그대로 쓴다. */
+    var org = [0, pad];
+    function footFromOrg(D, P) {
+      var d = V.sub(D, org), L = Math.hypot(d[0], d[1]), u = [d[0] / L, d[1] / L];
+      var q = V.sub(P, org), t = q[0] * u[0] + q[1] * u[1];
+      var F = [org[0] + u[0] * t, org[1] + u[1] * t];
+      return { foot: F, t: t / L, dist: V.dist(P, F), u: u, len: L };
+    }
+    var fTB = footFromOrg(bicepB, markTopB), fBB = footFromOrg(bicepB, markBotB);
+    var fTF = footFromOrg(bicepF, markTopF), fBF = footFromOrg(bicepF, markBotF);
+    var mixP = function (f, mk) { return _lerp(f.foot, mk, K.capBulge); };
+    var pTB = mixP(fTB, markTopB), pBB = mixP(fBB, markBotB);
+    var pTF = mixP(fTF, markTopF), pBF = mixP(fBF, markBotF);
+
+    // 소매산 곡선 — 정점에서 수평 출발, 상단 볼록점 → 하단 오목점 → 소매폭 끝
+    /* 양 끝 접선은 **둘 다 수평** — 정점에서 수평으로 출발해 소매통 끝에도 수평으로
+       닿는다 (긴소매 DXF 실측: 소매통 도착 접선 뒤 −1.55° / 앞 1.82°).
+       끝접선을 자유롭게 두면 소매통 근처에서 도면과 0.15 cm 어긋난다. */
+    /* 정점 → 상단 통과점 → 하단 통과점 → 소매통 끝을 **C2 스플라인**으로 잇는다.
+       양 끝 접선은 둘 다 수평 (DXF 실측 도착 접선 뒤 −1.55° / 앞 1.82°).
+       구간별 장력을 따로 적합하던 이전 방식은 통과점 사이가 직선처럼 펴져 보였다. */
+    /* 앞뒤 장력을 따로 쓴다 — 하나로 묶으면 앞이 배부르고 뒤가 모자란다 */
+    var cb = CAL.capBack || CAL.sleeveCap, cf = CAL.capFront || CAL.sleeveCap;
+    /* ★ 중간앵커(현의 중점)를 뺐다 — **이 도면에는 그 마크가 없다**. 실제 곡선은 중점보다
+       0.27 뒤를 지난다. 4점 [정점, 상단 통과점, 하단 통과점, 소매폭점] 이 도면과 맞는다. */
+    var capBack = splineSegs([apex, pTB, pBB, bicepB],
+      endTan([-1, 0], cb.k0), endTan([-1, 0], cb.k1));
+    var capFront = splineSegs([apex, pTF, pBF, bicepF],
+      endTan([1, 0], cf.k0), endTan([1, 0], cf.k1));
+    var capLenBack = sLen(capBack), capLenFront = sLen(capFront);
+    return {
+      capH: capH, diagB: diagB, diagF: diagF, halfB: halfB, halfF: halfF,
+      apexShift: apexShift, apex: apex, bicepB: bicepB, bicepF: bicepF,
+      markTopB: markTopB, markTopF: markTopF, markBotB: markBotB, markBotF: markBotF,
+      footTopB: fTB, footBotB: fBB, footTopF: fTF, footBotF: fBF,
+      pTB: pTB, pBB: pBB, pTF: pTF, pBF: pBF,
+      capBack: capBack, capFront: capFront,
+      capLenBack: capLenBack, capLenFront: capLenFront,
+      capLenTotal: capLenBack + capLenFront, capEase: capLenBack + capLenFront - AH
+    };
+  }
+  function twoSleeveGeom(m, opt, AHb, AHf) {
+    var AH = AHb + AHf;
+    var capReduce = (opt.capReduce === undefined) ? K.capReduce : +opt.capReduce;
+    capReduce = Math.max(0, Math.min(1, capReduce));
+    var ST = SLEEVE_TYPE.two;
+    var step = (m.B - BASE.B) / GRADE.B;
+    var sleeveLen = (opt.sleeveLen === undefined) ? ST.len + ST.lenGrade * step : +opt.sleeveLen;
+    var cuffW = (opt.cuffW === undefined) ? ST.cuff + ST.cuffGrade * step : +opt.cuffW;
+
+    /* ★ 소매산 높이를 넘긴다 — 원형1 은 AH/4+2, 이 모듈은 **AH/3 + 패드분** 이다.
+       capGeom 안에 하드코딩돼 있던 것을 파라미터로 뺐다. */
+    var capH2 = AH / K.capHeightDiv + num(opt.capPad, K.capPad);
+    var pad2 = num(opt.capPad, K.capPad);
+    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2, pad2, K.twoMarkBotB);
+    var halfB = cg.halfB, halfF = cg.halfF;
+    /* 길이 골격은 **패드점 기준** — 정답지: 팔꿈치 33.5 = 1 + 60/2 + 2.5 · 부리 61.0 = 1 + 60 */
+    var elbowY = pad2 + sleeveLen / 2 + K.elbowAdd;
+    var insetY = K.twoInsetY;              // 이세처리 구간 표시용
+
+    /* ── 절개 골격 (정답지 실측) ────────────────────────────────────────
+     *  · 절개점 높이 = **소매산의 정확히 절반** (정답지 8.109 = 16.218/2)
+     *  · 큰소매 절개점 = 소매산 곡선 ∩ 그 높이
+     *  · 작은소매 절개점 = 큰소매보다 **0.8 뒤** (도면 `0.8` 두 곳 · 실측 0.8000)
+     *    두 조각이 절개선에서 0.8 씩 겹쳐 그 만큼이 이세로 들어간다.
+     *  ⚠ 예전에는 splitX = −AH/4 한 점을 두 조각이 공유했다. */
+    var splitY = cg.capH / 2;
+    var splitP = ptOnSegsAtYNear(cg.capBack, splitY);
+    var splitX = splitP[0];
+    var splitU = [splitX - num(opt.twoSplitGap, K.twoSplitGap), splitY];   // 작은소매 절개점
+    /* 소매산(정점 → 뒤 소매통)을 절개점에서 자른다.
+       head = 정점~절개점 → **큰소매** 몫, tail = 절개점~뒤 소매통 → **작은소매** 몫 */
+    var capSplit = splitSegsAtX(cg.capBack, splitX);
+
+    /* ★ 큰소매 앞 소매산은 소매통 끝까지 가지 않고 **소매폭점 F 에서 현(직선거리) 3.0 인
+       곡선 위 점**에서 끝난다. 도면의 숫자 `3` 은 x 오프셋이 아니라 **현 길이**다
+       (실측 앞 3.0087 · 뒤 3.0071). 예전에는 x = halfF − 3 으로 잘라 끝점이 도면과
+       0.16 어긋났고, `앞경계 상단 0.558 올림`을 별도 규칙으로 오해했다 — 그 0.558 은
+       현 3 절단의 **결과**이지 규칙이 아니다. */
+    var capFrontPts = sampleSegs(cg.capFront, 0.02);
+    var cutF = idxAtChordFromEnd(capFrontPts, cg.bicepF, num(opt.twoSideOff, K.twoSideOff));
+    var capBigFront = capFrontPts.slice(0, cutF.i + 1).concat([cutF.p]);
+    var frontInX = cutF.p[0];
+    var topY = cutF.p[1];
+    /* ★ 잘라낸 꼬리(앞경계 → 소매폭점 F)를 **소매폭만큼 뒤로 평행이동**한 것이
+       작은소매의 `소매통 연결`이다. 도면에서 두 곡선의 끝점 차 0.0017 · 접선각 둘 다 23.17°
+       — 같은 곡선이다. 「큰소매 앞폭 3 을 떼어 작은소매 뒤에 붙인다」가 문자 그대로 이것이다.
+       그래서 backOutX·topY 는 규칙이 아니라 **파생값**이다. */
+    var sleeveW = halfB + halfF;
+    var capOutPts = capFrontPts.slice(cutF.i + 1);
+    capOutPts = [cutF.p].concat(capOutPts, [cg.bicepF]).map(function (q) { return [q[0] - sleeveW, q[1]]; });
+    var backOutX = capOutPts[0][0];
+    /* 밑단선 y — **패드점 기준**이라야 팔꿈치(33.5)와 앞뒤가 맞는다.
+       도면 실측 60.7 = 패드분 1 + 소매길이 60 − 0.3. 그 0.3 이 어디서 오는지는 [미확정]. */
+    var hemY = pad2 + sleeveLen - K.twoHemUp, hemLowY = hemY + K.twoHemDrop;
+
+    var bigHemF = [halfF - K.twoFrontHemIn, hemY];
+    /* ★ 작은소매 부리 뒤 모서리는 뒤 경계보다 **안쪽**이고 **0.3 올라간다**
+       (도면 마크 「작은소매 부리 뒤모서리(0.3 올림)」 실측 (−20.250, 60.4) · 뒤 경계 −21.425).
+       예전에는 `backOutX − 1.492` 로 **바깥으로** 내밀어 부호가 반대였다. 그 2.6 때문에
+       바깥 뒤선이 팔꿈치 아래에서 크게 휘고(휨 0.404 · 도면 0.117) 부리 몫도 틀렸다
+       (작은 9.85 / 도면 8.46). 팔꿈치선까지는 도면과 0.05 로 맞고 있었다. */
+    var undHemB = [backOutX + K.twoUndHemIn, hemY - K.twoUndHemRise];
+    /* ★ 작은소매 절개선은 큰소매 절개선을 **절개점 수직선에 대칭**시킨 것이다.
+       도면이 그렇다 — 큰 −5.586 / 작은 −15.836 은 절개점 −10.711 에 대해 정확히 대칭.
+       대칭이면 두 절개변 길이가 저절로 같아진다(도면 53.7565 = 53.7565).
+       그래서 **입력은 소맷부리 총둘레 하나뿐**이고, 큰/작은 몫은 대칭이 정한다.
+         총둘레 C = (앞 − 큰끝) + (2·절개x − 큰끝 − 작은바깥)
+         ⇒ 큰끝 = (앞 − 작은바깥 + 2·절개x − C) / 2
+       ⚠ 큰소매 몫만 따로 등급을 주면 대칭 때문에 작은소매 몫이 호수마다 널뛴다
+         (66호 6.9 → 88호 3.4 로 줄었다). 총둘레를 등급하고 몫은 계산해야 한다. */
+    /* ★ 소맷부리는 **큰:작은 = 2:1** 로 나눈다 (도면 17.019 / 8.460 = 0.668 / 0.332).
+       예전에는 두 조각을 절개점 수직선에 대칭시켜 몫을 정했다. 그러면 대칭축이
+       절개점(엔진 −9.585)에 묶이는데, 도면의 축은 **밑단 두 모서리의 중점 −9.835** 이고
+       절개점의 중점(−10.074)과도 다르다 — 즉 대칭이 아니라 이 비율이 축을 정한다. */
+    /* 비율은 **호(부리선 길이)** 기준이다. 밑단 두 끝의 y 가 달라(하강 1.492 · 올림 0.3)
+       x 폭으로 그대로 쓰면 호가 길어진다 — y 차를 빼고 x 폭을 낸다. */
+    var xOf = function (arc, dy) { return Math.sqrt(Math.max(arc * arc - dy * dy, 0.01)); };
+    /* ★ 몫(share)은 **고정 상수가 아니라 계산 결과**다 — 위 주석이 이미 경고한 함정이다.
+       2/3 을 박아 두면 66호만 맞고, 다른 호수에서는 두 밑단 모서리(bigHemF·undHemB)가
+       서로 다른 속도로 벌어져 **큰↔작은 절개선 길이가 44호 1.16 · 88호 1.53 어긋난다**
+       (2026-08-12 QA). 두 절개선은 서로 꿰매는 짝이라 길이가 같아야 한다.
+       총 부리둘레 cuffW 는 그대로 두고 **몫만 이분법으로 풀어** 길이를 맞춘다.
+       66호에서는 답이 2/3 근처로 나오므로 정답지 적합이 유지된다. */
+    var hemPts = function (share) {
+      return [[bigHemF[0] - xOf(cuffW * share, hemLowY - bigHemF[1]), hemLowY],
+              [undHemB[0] + xOf(cuffW * (1 - share), hemLowY - undHemB[1]), hemLowY]];
+    };
+    var shareSolved, cuffBigArc, cuffUndArc, bigHemB, undHemF, cuffBig, cuffUnder;   // ↓ mkSeam 정의 뒤에 푼다
+
+    /* 절개선 — 절개점 → 팔꿈치선 위의 중간 앵커 → 밑단.
+       앵커 위치(mr·my)와 양 끝 접선(k0·k1)은 도면 bigBack 41점에 적합했다. */
+    /* 절개선은 **C 자**다 — 한쪽으로만 휘고 곡률 부호가 바뀌지 않는다.
+       x 의 극값이 중간(y = twoInsetY 20.805)에 있을 뿐이다.
+       도면 큰소매 뒤선: 절개점 −9.674 → 가장 부푼 점 −10.335(y 20.805) → 트임어깨 −8.796.
+       즉 절개점 수직선에서 **뒤로 0.661** 부풀었다가 밑단 쪽으로 돌아온다.
+       ⚠ 예전 앵커는 팔꿈치선보다 6.8 **위**의 한 점이라 이 S 를 못 그렸고, 팔꿈치 휨이
+         0.25(도면 0.94)로 거의 곧은 선이었다. 앵커를 정점 자리로 옮긴다. */
+    var mkSeam = function (endPt, startP, outSign, bulgeScale) {
+      var cs = CAL.twoSeam;
+      var st = startP || splitP;
+      var bs = (bulgeScale === undefined) ? 1 : bulgeScale;
+      /* 앵커 **두 점** — 가장 부푼 자리(y 20.805)와 팔꿈치 아래(y 34.315).
+         한 점만 쓰면 아래쪽이 곧게 펴져 도면과 0.29 벗어난다 (도면 −10.078 · 엔진 −9.9). */
+      /* ★ 두 절개선은 서로의 거울이지만 **각자의 절개점**에서 출발한다. 그래서 자기
+         절개점 기준으로 재면 부푼 양이 다르다 (큰 0.661/0.404 · 작은 1.139/0.882).
+         차이는 둘 다 0.478 로 같다 — 대칭축이 절개점이 아니라 그 사이의 −9.835 이기 때문. */
+      var sg = (outSign || -1), un = (sg > 0);
+      /* ★ 앵커 y 는 **절개선 자기 구간 안의 비율**이다 (절대 좌표 아님).
+         66호 실측 y(20.8 · 34.315 · 51.273)를 그대로 박아 뒀더니 절개점·밑단은
+         호수 따라 움직이는데 앵커는 안 움직여, 서로 반대로 부푸는 두 곡선이 호수마다
+         다르게 늘어났다 — **큰↔작은 절개선 짝이 44호 1.16 · 88호 1.53 어긋났다**
+         (66호만 −0.045 로 맞았다. 2026-08-12 QA). 봉제하면 소매가 뒤틀린다. */
+      var yAt = function (t) { return st[1] + (endPt[1] - st[1]) * t; };
+      var b1 = [st[0] + sg * bs * num(opt.twoSeamBulge, un ? K.twoSeamBulgeU : K.twoSeamBulge), yAt(K.twoSeamT1)];
+      var b2 = [st[0] + sg * bs * (un ? K.twoSeamBulgeU2 : K.twoSeamBulge2), yAt(K.twoSeamT2)];
+      /* 앵커 3 — **트임어깨 자리**(y 51.27). 여기가 비어 있으면 아래쪽이 끝접선만으로
+         흘러가 트임어깨가 큰 0.193 · 작은 0.110 어긋난다. 이 자리에서 곡선은 자기
+         절개점 수직선을 이미 **넘어가 있다**(큰 +0.878 · 작은 −0.398) — 그래서 부호가 음수다. */
+      var b3 = [st[0] + sg * bs * (un ? K.twoSeamBulgeU3 : K.twoSeamBulge3), yAt(K.twoSeamT3)];
+      return splineSegs([st, b1, b2, b3, endPt],
+        endTan([0, 1], cs.k0), endTan(V.sub(endPt, b3), cs.k1));
+    };
+    shareSolved = (function () {
+      function gap(sh) {
+        var h = hemPts(sh);
+        return sLen(mkSeam(h[0])) - sLen(mkSeam(h[1], splitU, +1));
+      }
+      var lo = 0.35, hi = 0.90, gLo = gap(lo);
+      if (gLo * gap(hi) > 0) return K.twoCuffBigShare;      // 구간 안에 답이 없으면 도면 몫
+      for (var i = 0; i < 44; i++) {
+        var mid = (lo + hi) / 2;
+        if (gap(mid) * gLo > 0) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    })();
+    cuffBigArc = cuffW * shareSolved; cuffUndArc = cuffW * (1 - shareSolved);
+    var _hp = hemPts(shareSolved);
+    bigHemB = _hp[0]; undHemF = _hp[1];
+    cuffBig = bigHemF[0] - bigHemB[0]; cuffUnder = undHemF[0] - undHemB[0];
+    var bigBack = mkSeam(bigHemB);
+    /* 작은소매 절개선은 **자기 절개점(splitU)** 에서 출발한다 — 큰소매보다 0.8 뒤.
+       두 절개선이 그 0.8 만큼 겹쳐 그것이 이세로 들어간다 (도면 `0.8` 두 곳). */
+    /* ★ 두 절개선은 **서로 꿰매는 짝**이라 길이가 같아야 한다. 앵커 x 는 66호 실측이라
+       호수가 바뀌면 밑단 x 가 크게 움직여(큰소매 dx 44호 −3.2 ↔ 88호 +7.4) 두 곡선이
+       다르게 늘어난다 — 44호 1.16 · 88호 1.53 어긋난 채 나갔다 (2026-08-12 QA).
+       작은소매 앵커의 부푼 양에 **배율 하나**를 걸어 길이를 맞춘다. 66호는 배율 ≈ 1
+       이라 정답지 적합이 그대로 유지되고, 다른 호수만 따라온다.
+       (부푼 양을 줄이면 곡선이 짧아진다 — 단조라 이분법으로 찾는다) */
+    var undBack = mkSeam(undHemF, splitU, +1);   // 작은소매는 반대쪽(앞)으로 부푼다 — 큰소매의 거울
+    /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
+    var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig));      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
+    var ventUnd = ventOf(undBack, [backOutX, elbowY], num(opt.ventWUnd, K.ventW));   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
+
+    var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    /* 작은소매 바깥 뒤선 — 앵커 **두 점**. 가장 앞으로 나온 자리는 팔꿈치선(33.5)이 아니라
+       그보다 아래 y 36.199 다 (도면 −19.460 · 뒤 경계에서 1.965). 팔꿈치선에 한 점만 두면
+       아래쪽이 곧게 펴져 도면과 0.53 벗어난다. */
+    var undOuter = splineSegs([[backOutX, topY],
+        [backOutX + K.twoUndOutIn1, K.twoUndOutY1],
+        [backOutX + K.twoUndOutIn2, K.twoUndOutY2], undHemB],
+      endTan([0, 1], CAL.twoUndOuter.k0), endTan([0, 1], CAL.twoUndOuter.k1));
+    /* 소매통 연결 — 위에서 만든 **큰소매 앞 소매산의 잘린 꼬리를 평행이동한 것** 그대로다.
+       예전에는 CAL.twoCapOut 으로 따로 적합한 스플라인을 그렸다 (도면에 없는 곡선이었다). */
+    var undCapOut = lineSegs.apply(null, capOutPts);
+
+    /* ── 작은소매 소매산 — **독립 재제도 곡선**이다 (도면 마크가 그대로 남아 있다) ──
+     *  예전에는 큰소매 소매산을 큰소매 절개점에서 자른 tail 을 그대로 썼다. 그러면 끝점이
+     *  절개선 시작점(0.8 뒤)과 안 맞아 외곽선에 0.8 짜리 직선 점프가 생겼다.
+     *  도면의 작도 골격:
+     *    · 소매폭점 B 에서 앞으로 **0.8 수평 직선** (실측 Δx 0.800 / Δy 0.002)
+     *    · 그 다음 스플라인이 pBB(뒤 하단 마크 4.5 의 수선 통과점, 큰소매와 공유) 와
+     *      **선분 splitU↔markBotB 의 중점** 을 지나 작은소매 절개점에서 끝난다
+     *      (도면 십자 마크 3곳과 0.002 이내 일치)
+     *  평행이동·x압축 가설은 각각 편차 0.68 · 0.53 으로 기각됐다. */
+    var undCapHead = [cg.bicepB, [cg.bicepB[0] + num(opt.twoSplitGap, K.twoSplitGap), cg.bicepB[1]]];
+    var undCapCurve = splineSegs(
+      [undCapHead[1], cg.pBB, _lerp(splitU, cg.markBotB, 0.5), splitU],
+      endTan([1, 0], CAL.twoUnderCap.k0), null);
+    var capUnderBack = undCapHead.concat(sampleSegs(undCapCurve, 0.02).slice(1));
+
+    var out = {
+      AH: AH, AHb: AHb, AHf: AHf, capReduce: capReduce, sleeveLen: sleeveLen,
+      sleeveType: 'two', typeName: ST.name, twoPiece: true,
+      cuffBig: cuffBig, cuffUnder: cuffUnder, cuffW: cuffBig + cuffUnder,
+      elbowY: elbowY, insetY: insetY, splitX: splitX, splitP: splitP, splitU: splitU,
+      backOutX: backOutX, frontInX: frontInX, topY: topY,
+      capBigFront: capBigFront,               // 정점 → 앞 절단점 (소매통까지 안 간다)
+      capBigBack: revPts(capSplit.head),      // 절개점 → 정점
+      capUnderBack: capUnderBack,             // 뒤 소매통 → 작은소매 절개점(0.8 뒤)
+      bigHemF: bigHemF, bigHemB: bigHemB, undHemB: undHemB, undHemF: undHemF,
+      bigBack: bigBack, undBack: undBack, bigFront: bigFront,
+      ventBig: ventBig, ventUnd: ventUnd, ventW: K.ventW, ventLen: K.ventLen,
+      undOuter: undOuter, undCapOut: undCapOut,
+      seamLenBig: polyLen(sampleSegs(bigBack, 0.02)),
+      seamLenUnder: polyLen(sampleSegs(undBack, 0.02)),
+      underLenB: polyLen(sampleSegs(undOuter, 0.02)),
+      underLenF: polyLen(sampleSegs(bigFront, 0.02)),
+      hemEndB: bigHemB, hemEndF: bigHemF, hemMidB: bigHemB, hemMidF: bigHemF,
+      hemHalfB: cuffBig / 2, hemHalfF: cuffBig / 2, hemBack: null, hemFront: null
+    };
+    for (var k in cg) if (cg.hasOwnProperty(k)) out[k] = cg[k];
+
+    /* ── 봉제 기준 앞뒤 구분 ────────────────────────────────────────────────
+     *  이 2장소매는 **큰소매 앞쪽 폭에서 3 을 떼어 작은소매 뒤쪽에 붙인** 설계다.
+     *  그래서 작은소매의 `소매통 연결`(뒤바깥 상단 → 소매폭점 B)은 제도에서는 뒤에
+     *  그려지지만 **꿰맬 때는 앞 암홀**로 들어간다.
+     *      앞 = 큰소매 앞 소매산 + 작은소매 소매통 연결   (정답지 20.662 + 3.035 = 23.697)
+     *      뒤 = 큰소매 뒤 소매산 + 작은소매 뒤 소매산     (정답지 13.679 + 12.258 = 25.937)
+     *  ⚠ 총합만 보면 이 배분이 틀려도 안 드러난다. 예전에는 소매통 연결을 뒤로 세어
+     *    앞 이세가 −0.95(소매가 안 들어가는 값)인데도 총 이세 4.66 이라 통과했다.        */
+    var lenBigF = polyLen(out.capBigFront), lenBigB = polyLen(out.capBigBack);
+    var lenUndB = polyLen(out.capUnderBack), lenUndO = polyLen(sampleSegs(undCapOut, 0.02));
+    out.capLenBigFront = lenBigF; out.capLenBigBack = lenBigB;
+    out.capLenUnderBack = lenUndB; out.capLenUnderOut = lenUndO;
+    out.capLenFront = lenBigF + lenUndO;          // 봉제 앞 소매산
+    out.capLenBack = lenBigB + lenUndB;           // 봉제 뒤 소매산
+    out.capLenTotal = out.capLenFront + out.capLenBack;
+    out.capEaseFront = out.capLenFront - AHf;
+    out.capEaseBack = out.capLenBack - AHb;
+    out.capEase = out.capLenTotal - AH;
+    return out;
+  }
+  /** 2장소매 소매산 너치 — **겨드랑에서 꿰매는 순서대로** 걸어 자리를 잡는다.
+   *  앞 = 작은소매 `소매통 연결` → 큰소매 앞 소매산   (조각 경계 ≠ 앞뒤 암홀 경계)
+   *  뒤 = 작은소매 소매산 → 큰소매 뒤 소매산
+   *  이렇게 하면 조각이 바뀌어도 자리가 정확하고, 너치 개수가 호수에 상관없이 같다. */
+  function twoCapNotches(s, big, und) {
+    var midB = [s.apexShift, s.sleeveLen * 0.4];
+    var midU = [(s.backOutX + s.splitU[0]) / 2, s.sleeveLen * 0.4];
+    var frontPath = [
+      { pts: revPts(sampleSegs(s.undCapOut, 0.02)), host: und, inside: midU },
+      { pts: revPts(s.capBigFront), host: big, inside: midB }
+    ];
+    var backPath = [
+      { pts: s.capUnderBack.slice(), host: und, inside: midU },
+      { pts: s.capBigBack.slice(), host: big, inside: midB }
+    ];
+    function put(path, dist, label) {
+      for (var k = 0; k < path.length; k++) {
+        var pts = path[k].pts, acc = 0;
+        for (var i = 1; i < pts.length; i++) {
+          var seg = V.dist(pts[i - 1], pts[i]);
+          if (acc + seg >= dist) {
+            var t = seg > 1e-9 ? (dist - acc) / seg : 0, p = _lerp(pts[i - 1], pts[i], t);
+            path[k].host.notches.push({ p: cp(p), label: label,
+              angle: inwardAngle(V.norm(V.sub(pts[i], pts[i - 1])), p, path[k].inside) });
+            return;
+          }
+          acc += seg;
+        }
+        dist -= acc;
+      }
+      /* 경로 끝을 넘어가면 마지막 조각 끝에 붙인다 — 개수는 호수와 무관하게 같아야 한다 */
+      var last = path[path.length - 1], lp = last.pts[last.pts.length - 1];
+      last.host.notches.push({ p: cp(lp), angle: 90, label: label });
+    }
+    var div = K.armNotchDiv, q, accE = 0;
+    for (q = 1; q < div; q++) {
+      accE += s.capEaseBack * (K.capEaseShare[q - 1] || 0);
+      put(backPath, s.AHb * q / div + accE, '뒤 ' + q + '/' + div);
+    }
+    accE = 0;
+    for (q = 1; q < div; q++) {
+      accE += s.capEaseFront * (K.capEaseShare[q - 1] || 0);
+      put(frontPath, s.AHf * q / div + accE, '앞 ' + q + '/' + div);
+    }
+    /* 어깨 맞춤 — 뒤 소매산을 뒤 암홀 + 뒤 이세만큼 간 자리 */
+    put(backPath, s.AHb + s.capEaseBack, '어깨 맞춤');
+  }
+  function twoSleevePieces(s, seam) {
+    function mk(id, name, edges, grain, notches) {
+      var loop = edgesToLoop(edges), sm = buildSeamline(loop, seam);
+      /* ★ 몸판 조각과 **같은 보정**을 건다 — 재단선 위로 스냅하고, 틱이 조각 안쪽을
+         향하게 돌린다. 원형2 판에는 이 보정이 없어 손으로 넣은 각(180 등)에 의존했다.
+         재킷은 암홀이 달라 그 각이 맞지 않는다 — 작은소매 「절개 시작」 틱이
+         전 호수에서 조각 밖으로 나갔다 (2026-08-12). */
+      fixNotches(notches, loop.pts);
+      return {
+        id: id, name: name, cutCount: 2, grainline: grain,
+        outline: loop.pts, seamline: sm.seamline,
+        foldEdges: [], seamEdges: sm.seamEdges, seamFoldEdges: [],
+        seamByRole: sm.seamByRole, edges: withSeam(loop.ranges, sm.edgeSeam),
+        internal: twoInternal(s, id), notches: notches || [], bbox: bboxOf(loop.pts)
+      };
+    }
+    var poly = function (pts) { return lineSegs.apply(null, pts); };
+    var vB = s.ventBig, vU = s.ventUnd;
+    var big = mk('sleeveBig', '큰소매', [
+      { name: '앞 소매산', role: 'armhole',   segs: poly(s.capBigFront) },
+      { name: '앞 밑선',   role: 'side',      segs: s.bigFront },
+      { name: '밑단',      role: 'sleeveHem', segs: lineSegs(s.bigHemF, s.bigHemB) },
+      /* 트임 덧단 — 밑단에서 2.2 나갔다가 9 올라가고, 위는 미터로 잘려 뾰족해진다 */
+      { name: '트임 밑단', role: 'sleeveHem', segs: lineSegs(s.bigHemB, vB.hemOut) },
+      { name: '트임',      role: 'side',      segs: lineSegs(vB.hemOut, vB.topOut) },
+      { name: '트임 미터', role: 'side',      segs: lineSegs(vB.topOut, vB.mitreOn) },
+      { name: '뒤 절개선', role: 'side',      segs: revSegs(vB.seamHead) },
+      { name: '뒤 소매산', role: 'armhole',   segs: poly(s.capBigBack) }
+    ], [[s.apexShift, 1.0], [s.apexShift, s.sleeveLen - 1.0]],
+       [{ p: cp(s.splitP), angle: 0, label: '절개 시작' },
+        { p: cp(s.apex), angle: 90, label: '소매산 정점' },
+        /* 앞 합인 — 도면 마크 (11.6975, 11.4023) */
+        { p: cp(s.pBF), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBF))), label: '앞 합인' },
+        /* ★ 트임 끝은 **외곽선 위의 mitreOn** 이다 — 절개선(봉제선)이 실제로 끝나는 자리.
+           예전엔 vB.top(원래 절개선 위 9 지점)을 썼는데 그 자리는 미터 사선으로 대체돼
+           **외곽선에서 1.4cm 떨어진 허공**이었다 (전 호수, 2026-08-12 QA).
+           봉제하는 사람에게 필요한 것은 「여기서 박음질을 멈춘다」는 재단선 위의 표시다. */
+        { p: cp(vB.mitreOn), angle: 0, label: '트임 끝' }]
+       .concat(seamMatchNotches(s.bigFront, revSegs(s.undOuter), [0, s.sleeveLen * 0.5]).a)
+       );
+    var und = mk('sleeveUnder', '작은소매', [
+      { name: '뒤 소매산',  role: 'armhole',   segs: poly(s.capUnderBack) },
+      { name: '절개선',     role: 'side',      segs: vU.seamHead },
+      { name: '트임 미터',  role: 'side',      segs: lineSegs(vU.mitreOn, vU.topOut) },
+      { name: '트임',       role: 'side',      segs: lineSegs(vU.topOut, vU.hemOut) },
+      { name: '트임 밑단',  role: 'sleeveHem', segs: lineSegs(vU.hemOut, s.undHemF) },
+      { name: '밑단',       role: 'sleeveHem', segs: lineSegs(s.undHemF, s.undHemB) },
+      { name: '바깥 뒤선',  role: 'side',      segs: revSegs(s.undOuter) },
+      { name: '소매통 연결', role: 'armhole',  segs: s.undCapOut }
+    ], [[s.backOutX + 2, 15], [s.backOutX + 2, s.sleeveLen - 1.0]],
+       /* ★ 작은소매의 절개 시작점은 **자기 절개점 splitU** 다 — splitP(큰소매 것)를 쓰면
+          twoSplitGap 0.8 만큼 통째로 어긋난다. 그 0.8 이 이세로 들어가는 값이라
+          숫자가 작아 눈에 안 띄었다 (전 호수 정확히 0.800 어긋나 있었다). */
+       [{ p: cp(s.splitU), angle: 180, label: '절개 시작' },
+        /* 뒤 합인 — 도면 마크 (−14.9255, 11.7312). 절개점과 소매통 사이라 작은소매 몫 */
+        { p: cp(s.pBB), angle: angDeg(V.norm(V.sub([0, s.sleeveLen * 0.5], s.pBB))), label: '뒤 합인' },
+        { p: cp(vU.mitreOn), angle: 180, label: '트임 끝' }]
+       .concat(seamMatchNotches(s.bigFront, revSegs(s.undOuter), [0, s.sleeveLen * 0.5]).b)
+       );
+    /* ★ 소매산 맞춤 너치 — **각 조각의 실제 소매산 곡선 위**에서 잰다.
+       한 장 소매용 `capNotches` 는 capGeom 의 통짜 소매산에서 재기 때문에,
+       작은소매처럼 **독립 재제도된** 곡선에서는 0.4 넘게 떠 「어느 조각에도 안 속한」
+       너치가 생긴다 — 재킷 암홀에서 실제로 44호 「뒤 2/3」이 사라졌다(호수마다
+       너치 개수가 달라졌다). 겨드랑에서 출발해 **꿰매는 순서대로** 걸으면
+       조각이 바뀌어도 자리가 정확하고 개수가 호수에 상관없이 같다. */
+    twoCapNotches(s, big, und);
+    /* (옛 방식 — 통짜 소매산에서 재어 조각에 배분하던 코드는 아래 주석 참고)
+       ★ 소매산 맞춤 너치는 **조각 외곽선에 붙여 나눈다.**
+       예전엔 「어느 곡선 위인가」(onPts)로 걸렀는데, 곡선 경계에 놓인 너치가 어느 쪽에도
+       안 잡혀 **통째로 사라졌다** — 「뒤 1/3」이 44·55·88호에 없었다(66·77호만 있었다).
+       몸판 암홀 3등분에 대응하는 필수 너치가 호수에 따라 있다 없다 한 것이다
+       (2026-08-12 QA). 외곽선이 기준이면 조각이 곧 판정 기준이라 빠질 수가 없다. */
+    (function () {
+      /** 외곽선까지 최단거리와 그 발 — 꼭짓점이 아니라 **변에 내린 수선**이라야
+          너치가 재단선 위에 정확히 앉는다 */
+      function foot(q, o) {
+        var best = null, bd = Infinity;
+        for (var i = 1; i < o.length; i++) {
+          var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var c = [a[0] + t * dx, a[1] + t * dy], e = V.dist(q, c);
+          if (e < bd) { bd = e; best = c; }
+        }
+        return { d: bd, p: best };
+      }
+    })();
+    fixNotches(big.notches, big.outline);
+    fixNotches(und.notches, und.outline);
+    return [big, und];
+  }
+
 
   return {
     measuresForSize: measuresForSize,
@@ -5344,12 +6128,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'waistEase',     label: '허리 여유',      min: 1.0, max: 3.5, step: 0.05, hint: 'W/4 + 1.5~2  [9] 18번' },
     { k: 'hipEase',       label: '엉덩이 여유',    min: 0.5, max: 3.5, step: 0.05, hint: 'H/4 + 여유  [8] 16번' },
     { k: 'sideWaistIn',   label: '옆선 허리 들임', min: 0,   max: 4,   step: 0.1, hint: '0 이면 교재 그대로(들임 없음) · 남는 양이 절개 다트로 간다  [9] 19번' },
-    { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '0 으로 두면 이세 0.75 로 대신한다  [10][12] 21번' },
+    { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '기본 0 = 이세 0.75 로 대신 (도면에 다트가 없다) · 다트로 하려면 1.5  [12]' },
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
-    { k: 'gorgeLen',      label: '고지선 길이',    min: 4,   max: 13,  step: 0.1, hint: '라펠 폭을 정한다  [43] 83번' },
-    { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' }
+    { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
+    { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
+    { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
+    { k: 'sleeveLenAdd',  label: '소매길이 가감',  min: -8,  max: 8,   step: 0.5, hint: '호수별 기본(60 + 1.0/호수)에 더한다' },
+    { k: 'cuffAdd',       label: '소맷부리 가감',  min: -4,  max: 6,   step: 0.5, hint: '호수별 기본 소맷부리 둘레에 더한다' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다.
    *  키 목록도 STYLE_KEYS 하나에서만 나온다 (예전엔 여기에 또 적어 두 곳이 어긋났다). */
