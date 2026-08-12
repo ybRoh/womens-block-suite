@@ -49,6 +49,8 @@
     { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
     { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
     { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
+    { k: 'bodyVentLen',   label: '밑단 트임 길이', min: 0,   max: 30,  step: 0.5, hint: '뒤중심 트임 — 밑단에서 위로 · 0 이면 트임 없음' },
+    { k: 'bodyVentW',     label: '트임 덧단 너비', min: 2,   max: 7,   step: 0.1, hint: '겹치는 폭' },
     { k: 'facingSh',      label: '안단 어깨쪽',    min: 3,   max: 7,   step: 0.1, hint: '목옆점에서 어깨선을 따라 (교재 4~5)' },
     { k: 'facingHem',     label: '안단 밑단쪽',    min: 4,   max: 10,  step: 0.1, hint: '밑단에서 여밈 끝으로부터 (교재 6~7)' },
     { k: 'facingBack',    label: '뒤 안단 폭',     min: 3,   max: 8,   step: 0.1, hint: '뒷목선에서 안쪽으로' },

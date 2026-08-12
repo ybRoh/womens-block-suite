@@ -386,6 +386,13 @@
     ventW          : 2.0, ventWBig : 2.174, ventLen : 9.0, ventMitre : 2.0,
     sleeveLenAdd   : 0,        // 소매길이 가감 (기본 = 호수별 60 + 1.0/호수)
     cuffAdd        : 0,        // 소맷부리 둘레 가감
+    /* ── 밑단 트임 (벤트) — 교재 밖 · 테일러드 재킷 관례 ─────────────
+       뒤중심 트임 하나. 좌우 두 장이 같은 패턴이고, 꿰맬 때 한쪽이 위로 겹친다.
+       ★ 트임은 **직선 구간**에 있어야 접힌다 — 뒤중심은 허리 아래가 직선이라
+         트임 끝이 허리보다 위로 올라가면 경고를 낸다. */
+    bodyVentLen  : 20.0,   // 밑단에서 위로 (재킷 길이의 1/3 쯤)
+    bodyVentW    : 4.0,    // 덧단 너비
+    bodyVentMitre: 2.0,    // 트임 위 미터 사선 — 직각으로 두면 접을 때 부피가 겹친다
     /* ── 안단 (원문 「안단선」 절) ─────────────────────────────────
        앞판 안단 : 어깨쪽 4~5 · 밑단쪽 6~7 · 안단선은 **앞 절개선 위쪽을 지나
        어깨로 올라간다**. 뒤판 안단도 같은 방식. */
@@ -1320,26 +1327,48 @@
        L('wlBS', 'dashed', [[g.bCx + 0.5, g.WLb], [g.bWaistSide[0], g.WLb]], '허리선'),
        L('hipBS', 'dashed', [[g.bCx + 0.5, g.hipY], [g.bHemSide[0] - 0.5, g.hipY]], '엉덩이선')]));
 
-    /* ══ ④ 뒤패널1 — 뒤중심 · 어깨(다트) · 뒤 암홀 위쪽 ═══════════════ */
+    /* ══ ④ 뒤패널1 — 뒤중심 · 어깨(다트) · 뒤 암홀 위쪽 · **밑단 트임** ══════
+       뒤중심 트임 — 밑단에서 위로 `bodyVentLen`, 덧단 `bodyVentW`.
+       좌우 두 장이 같은 패턴이고 꿰맬 때 한쪽이 위로 겹친다.
+       ★ 접히는 자리라 **직선 구간**이어야 한다 — 뒤중심은 허리 아래가 직선이다. */
+    var bVent = null;
+    if (num(opt.bodyVentLen, K.bodyVentLen) > 0.5) {
+      var vLen = Math.min(num(opt.bodyVentLen, K.bodyVentLen), g.hemY - g.WLb - 1.0);
+      bVent = ventOf(g.bCenter, [g.bCx, g.hemY], num(opt.bodyVentW, K.bodyVentW),
+                     vLen, num(opt.bodyVentMitre, K.bodyVentMitre));
+      if (num(opt.bodyVentLen, K.bodyVentLen) > g.hemY - g.WLb - 1.0)
+        warnings.push('밑단 트임이 허리선을 넘어 ' + r4(num(opt.bodyVentLen, K.bodyVentLen)) +
+                      ' → ' + r4(vLen) + ' 로 줄였다 (굽은 구간은 접히지 않는다)');
+    }
+    var backCenterEdges = bVent
+      ? [{ name: '뒤중심',    role: 'center', segs: bVent.seamHead },
+         { name: '트임 미터', role: 'center', segs: lineSegs(bVent.mitreOn, bVent.topOut) },
+         { name: '트임',      role: 'center', segs: lineSegs(bVent.topOut, bVent.hemOut) },
+         { name: '트임 밑단', role: 'hem',    segs: lineSegs(bVent.hemOut, [g.cbIn, g.hemY]) }]
+      : [{ name: '뒤중심',    role: 'center', segs: g.bCenter }];
     var shoulderEdges = (g.shDart > 0.01)
       ? [{ name: '어깨선 (밖)', role: 'shoulder', segs: lineSegs(g.SPb, g.shLegOut) },
          { name: '어깨 다트',   role: 'dart',     segs: lineSegs(g.shLegOut, g.shApex, g.shLegIn) },
          { name: '어깨선 (안)', role: 'shoulder', segs: lineSegs(g.shLegIn, g.SNPb) }]
       : [{ name: '어깨선',      role: 'shoulder', segs: lineSegs(g.SPb, g.SNPb) }];
     pieces.push(mk('back', '뒤판', [
-      { name: '뒷목둘레', role: 'neck',     segs: g.backNeck },
-      { name: '뒤중심',   role: 'center',   segs: g.bCenter },
+      { name: '뒷목둘레', role: 'neck',     segs: g.backNeck }
+    ].concat(backCenterEdges, [
       { name: '밑단',     role: 'hem',      segs: lineSegs([g.cbIn, g.hemY], g.bPhB) },
       { name: '절개선',   role: 'princess', segs: revSegs(g.bPrinIn) },
       { name: '뒤 암홀',  role: 'armhole',  segs: g.bArmUp }
-    ].concat(shoulderEdges),
-      [[1.6, 4.0], [1.6, g.hemY - 4.0]],
+    ], shoulderEdges),
+      [[3.2, 4.0], [3.2, g.hemY - 4.0]],
       [{ p: cp(g.SNPb), angle: 0, label: '목옆점' },
        { p: cp(g.bCutP), angle: 180, label: '절개 시작' }]
+        .concat(bVent ? [{ p: cp(bVent.mitreOn), angle: 0, label: '트임 끝' }] : [])
         .concat(nArmB.up).concat(nBack.a),
       [L('blB',  'dashed', [[0.5, g.BL], [g.bCx - 0.5, g.BL]], '가슴선'),
        L('wlB',  'dashed', [[g.cbIn + 0.3, g.WLb], [g.bCx - 0.5, g.WLb]], '허리선'),
        L('hipB', 'dashed', [[g.cbIn + 0.3, g.hipY], [g.bCx - 0.5, g.hipY]], '엉덩이선')]
+        .concat(bVent ? [
+          L('ventFold', 'dashed', subsamp(bVent.fold), '트임 접음선'),
+          L('ventTop',  'dashed', [cp(bVent.top), cp(bVent.topOut)], '트임 위 접음선')] : [])
         .concat(g.shDart > 0.01
           ? [L('shDart', 'dashed', [cp(g.shLegOut), cp(g.shApex), cp(g.shLegIn)], '어깨 다트')]
           : [])));
@@ -1753,9 +1782,11 @@
   }
   /** 트임 덧단 — 폭은 조각마다 다르다 (도면 큰 2.174 / 작은 2.0). 하나로 쓰면
    *  큰소매 트임 밑단이 −0.21, 미터가 −0.19 짧다. */
-  function ventOf(seamSegs, insideRef, wIn) {
+  function ventOf(seamSegs, insideRef, wIn, lenIn, mitreIn) {
     var ventW = (wIn === undefined) ? K.ventW : wIn;
-    var sp = splitSegsAtLenFromEnd(seamSegs, K.ventLen);
+    var vLen  = (lenIn === undefined) ? K.ventLen : lenIn;
+    var vMit  = (mitreIn === undefined) ? K.ventMitre : mitreIn;
+    var sp = splitSegsAtLenFromEnd(seamSegs, vLen);
     var top = sp.head.length ? sp.head[sp.head.length - 1].p1 : seamSegs[0].p0;
     var fold = sp.tail;                                  // 트임 접음선 = 절개선 아래 9
     var hem = seamSegs[seamSegs.length - 1].p1;
@@ -1763,7 +1794,7 @@
     if (nr[0] * (hem[0] - insideRef[0]) + nr[1] * (hem[1] - insideRef[1]) < 0) nr = [-nr[0], -nr[1]];
     var vv = [nr[0] * ventW, nr[1] * ventW];
     /* 절개선은 **미터 기준점(트임 위 2.0)** 에서 끝난다 — 그 아래는 미터 사선이 대신한다 */
-    var mp = splitSegsAtLenFromEnd(seamSegs, K.ventLen + K.ventMitre);
+    var mp = splitSegsAtLenFromEnd(seamSegs, vLen + vMit);
     return {
       seamHead: mp.head, fold: fold, top: top, hem: hem,
       mitreOn: mp.head.length ? mp.head[mp.head.length - 1].p1 : top,

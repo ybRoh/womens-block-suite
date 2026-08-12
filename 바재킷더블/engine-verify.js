@@ -130,6 +130,20 @@ E.SIZES.forEach(function (sz) {
   chk(M.capEaseFront >= 0.2 && M.capEaseFront <= 3.5, '앞 소매산 이세 ' + M.capEaseFront);
   chk(M.capEaseBack  >= 0.2 && M.capEaseBack  <= 4.0, '뒤 소매산 이세 ' + M.capEaseBack);
   chk(M.sleeveLen > 40 && M.sleeveLen < 80, '소매길이 ' + M.sleeveLen);
+  /* 밑단 트임 — **직선 구간(허리 아래)** 에 있어야 접힌다. 굽은 자리면 못 접는다 */
+  (function () {
+    var bp = d.pieces.filter(function (x) { return x.id === 'back'; })[0];
+    var ve = (bp.edges || []).filter(function (e) { return e.name === '트임'; })[0];
+    if (K.bodyVentLen > 0.5) {
+      chk(!!ve, '뒤판에 트임 변이 없다');
+      chk(g.hemY - K.bodyVentLen > g.WLb, '트임 끝이 허리선 위 — 굽은 구간이라 접히지 않는다');
+      if (ve) {
+        var vl = 0;
+        for (var i = ve.start + 1; i <= ve.end; i++) vl += V.dist(bp.outline[i - 1], bp.outline[i]);
+        chk(Math.abs(vl - K.bodyVentLen) < 0.6, '트임 길이 ' + vl.toFixed(2) + ' ≠ ' + K.bodyVentLen);
+      }
+    }
+  })();
   /* 완성 치수 — 테일러드 재킷의 적정 여유 */
   chk(M.chestEase >= 10 && M.chestEase <= 14, '완성 가슴 여유 ' + M.chestEase + ' (10~14)');
   chk(M.waistEase >= 4 && M.waistEase <= 11, '완성 허리 여유 ' + M.waistEase + ' (4~11)');
