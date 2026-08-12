@@ -316,7 +316,17 @@
     flapH        : 6.30,   // 플랩 높이 [도면 6.3]
     /* ── 가슴다트 (앞옆판 안 닫힌 다트) ──────────────────────────────── */
     bustDartLen  : 20.00,  // 다트 길이 [도면 타원 둘레 41.0 → 길이 ≈20.5]
-    bustDartW    : 1.50,   // 다트 폭   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
+    bustDartW    : 1.50,   // 다트 폭
+    /* ── 절개선 곡률 — **현에서 벗어난 양**으로 도면에 맞춘다 (36호 실측) ────
+       도면: 앞 절개선 최대 5.16(3/8) · 옆 앞선 +2.25(3/8) · 옆판 반대변 2.97(4/8) */
+    /* ⚠ 이 8개를 수치 최적화로 한꺼번에 돌리지 마라 — 프로파일 RMS 는 줄어도
+       `sideSeamBulgeT2` 가 1.555(곡선 밖)로 튀어 앞옆판이 64→92cm 로 무너졌다.
+       도면 실측값을 그대로 쓰고, 바꿀 땐 **하나씩 넣어 보고 나빠지면 되돌린다.** */
+    fPrinBulge   : 5.16, fPrinBulgeT  : 0.375,
+    fPrinBulge2  : 2.81, fPrinBulgeT2 : 0.625,
+    sideSeamBulge: 2.25, sideSeamBulgeT: 0.375,
+    sideSeamBulge2: 0.67, sideSeamBulgeT2: 0.625,
+    bPrinBulge   : 2.97, bPrinBulgeT  : 0.500,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
     /* ── 더블 여밈 · 라펠 (36호 도면 실측) ─────────────────────────────
        여밈 겹침·단추 위치·라펠 크기는 **스타일 값**이다 (치수에서 파생되지 않는다).
        도면 실측을 기본값으로 두고 UI 에서 고르게 한다. */
@@ -562,14 +572,21 @@
       bArmLow: bSideCut.head, bArmUp: bSideCut.tail,
       fSideSplit: fSideCut.p, bSideSplit: bSideCut.p,
       /* 옆 앞선 — 앞옆판 ↔ 옆판. 허리·밑단 x 는 절개선(0)~옆선(1) 사이 비율이다 */
-      fSideSeam: princess(fSideCut.p, null,
-        [fPwA[0] + (fWaistSide[0] - fPwA[0]) * num(opt.sideFrontWaistF, K.sideFrontWaistF), WLb],
-        [fPhA[0] + (fHemSide[0] - fPhA[0]) * num(opt.sideFrontHemF, K.sideFrontHemF), fHemY]),
+      fSideSeam: (function () {
+        var w = [fPwA[0] + (fWaistSide[0] - fPwA[0]) * num(opt.sideFrontWaistF, K.sideFrontWaistF), WLb];
+        var h = [fPhA[0] + (fHemSide[0] - fPhA[0]) * num(opt.sideFrontHemF, K.sideFrontHemF), fHemY];
+        /* ★ 통과점이 없으면 스플라인이 **반대로** 휜다 (도면 +2.25 인데 −1.01 이었다) */
+        return princess(fSideCut.p, null, w, h,
+          [chordBulge(fSideCut.p, h, num(opt.sideSeamBulgeT, K.sideSeamBulgeT),
+                      num(opt.sideSeamBulge, K.sideSeamBulge)),
+           chordBulge(fSideCut.p, h, K.sideSeamBulgeT2, K.sideSeamBulge2)]);
+      })(),
       /* 뒤 → 앞 프레임 변환 (옆선에서 붙인다) */
       toFront: backToFrontTf(Ub, [K.bSideHem * s, hemY], Uf, fHemSide),
       bHemSideP: [K.bSideHem * s, hemY],
-      fPrinOut: princess(fPrinA, BP, fPwA, fPhA),
-      fPrinIn : princess(fPrinB, BP, fPwB, fPhB)
+      /* 앞 절개선 — BP 를 지나되 **도면 곡률**(현에서 5.16)까지 맞춘다 */
+      fPrinOut: princessB(fPrinA, BP, fPwA, fPhA, num(opt.fPrinBulge, K.fPrinBulge)),
+      fPrinIn : princessB(fPrinB, BP, fPwB, fPhB, num(opt.fPrinBulge, K.fPrinBulge))
     };
   }
 
@@ -623,6 +640,15 @@
     var C = CAL.side;
     var pts = mid ? [U, mid, waist, hem] : [U, waist, hem];
     return splineSegs(pts, endTan([0, 1], C.k0), endTan([0, 1], C.k1));
+  }
+  /** 앞 절개선 — BP 를 지나되 **현 기준 곡률 앵커**로 도면 곡률까지 맞춘다.
+   *  곡률을 「현에서 벗어난 양」으로 재고 같은 방식으로 앵커를 놓으면 재적합이 한 번에 끝난다. */
+  function princessB(shoulder, bp, waist, hem, bulge) {
+    var C = CAL.princess;
+    var mid  = chordBulge(shoulder, waist, K.fPrinBulgeT, bulge);
+    var mid2 = chordBulge(shoulder, hem, K.fPrinBulgeT2, K.fPrinBulge2);
+    return splineSegs([shoulder, mid, bp, mid2, waist, hem],
+      endTan(V.norm(V.sub(mid, shoulder)), C.k0), endTan([0, 1], C.k1));
   }
   /** 프린세스 절개선 — 어깨 절개점 → (앞은 BP 통과) → 허리 → 밑단 */
   function princess(shoulder, bp, waist, hem, mids, lows) {
@@ -992,6 +1018,15 @@
     return segs.map(function (g) {
       return { p0: f(g.p0), c1: f(g.c1), c2: f(g.c2), p1: f(g.p1) };
     });
+  }
+  /** 두 점을 잇는 **현에서 t 자리에 off 만큼 수직으로 띄운 통과점**.
+   *  절개선 곡률을 도면에 맞추는 데 쓴다 — 곡률을 「현에서 벗어난 양」으로 재고
+   *  같은 방식으로 앵커를 놓으면 재적합이 한 번에 끝난다.
+   *  off > 0 은 위→아래 진행 방향의 **오른쪽**. */
+  function chordBulge(a, b, t, off) {
+    var ux = b[0] - a[0], uy = b[1] - a[1], L = Math.hypot(ux, uy) || 1;
+    ux /= L; uy /= L;
+    return [a[0] + ux * L * t - uy * off, a[1] + uy * L * t + ux * off];
   }
   /** 곡선 위에서 y 가 주어진 자리 (해부학적 높이로 너치를 찍는 데 쓴다) */
   function ptOnSegsAtY(segs, targetY) {
