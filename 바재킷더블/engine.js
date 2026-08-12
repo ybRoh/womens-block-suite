@@ -298,7 +298,7 @@
     fSideSeamT   : 0.30,    // 옆 앞선 출발 — 앞 암홀 겨드랑에서 잰 호 비율
     bSideSeamT   : 0.34,    // 옆 뒷선 출발 — 뒤 암홀 겨드랑에서 잰 호 비율
     /* 옆판 경계의 허리·밑단 x — 절개선(0) ~ 옆선(1) 사이 비율 */
-    sideFrontWaistF : 1.10, sideFrontHemF : 1.00,
+    sideFrontWaistF : 0.95, sideFrontHemF : 0.95,
     /* 재킷 여유분 — 원형보다 넓다. 폭 상수에 더한다(반폭 기준) */
     jacketEase   : 0.65,   // 완성 가슴 = B + 약 12 (테일러드)
     jacketLenAdd : 6.70,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
@@ -326,7 +326,14 @@
     fPrinBulge2  : 2.81, fPrinBulgeT2 : 0.625,
     sideSeamBulge: 2.25, sideSeamBulgeT: 0.375,
     sideSeamBulge2: 0.67, sideSeamBulgeT2: 0.625,
-    bPrinBulge   : 2.97, bPrinBulgeT  : 0.500,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
+    bPrinBulge   : 2.97, bPrinBulgeT  : 0.500,
+    /* ⚠ 뒤 절개선을 옆으로 미는 양 — **0 으로 둔다.**
+       옆판을 좁히려고 3.5 를 줬다가 조각이 **자기교차**했다(2026-08-12 사용자 지적).
+       `sideFrontWaistF` 를 1.10(옆선 **바깥**)까지 민 것과 겹쳐 스플라인이 뒤집혔다.
+       옆판 폭은 이 두 값으로 밀어붙일 문제가 아니다 — 겨드랑 폭(fSideBL/bSideBL)을
+       재킷용으로 다시 잡아야 한다. 그때까지 건드리지 말 것.
+       ★ 비율 값은 **1.0 을 넘기지 마라** — 1.0 이 옆선이고 그 바깥은 조각 밖이다. */
+    bPrinShift   : 0.00,   // 재킷 길이 — 원형 옷길이에 더한다 [도면 뒤판 64.4]
     /* ── 더블 여밈 · 라펠 (36호 도면 실측) ─────────────────────────────
        여밈 겹침·단추 위치·라펠 크기는 **스타일 값**이다 (치수에서 파생되지 않는다).
        도면 실측을 기본값으로 두고 UI 에서 고르게 한다. */
@@ -465,7 +472,8 @@
     var bWaistW = K.bSideWaist * s - K.bCenterWaist * s;          // 뒤 허리 총폭
     var bDart = Math.max(0.2, bWaistW - (W / 4 + K.backWaistEase)); // 남는 양이 다트분
     var bCx = K.bPrinCx * s;
-    var bPwA = [bCx + bDart / 2, WLb], bPwB = [bCx - bDart / 2, WLb];
+    var bsh = num(opt.bPrinShift, K.bPrinShift);      // 뒤 절개선을 옆으로 (옆판 좁히기)
+    var bPwA = [bCx + bDart / 2 + bsh, WLb], bPwB = [bCx - bDart / 2 + bsh, WLb];
     var bHemCx = (bPwA[0] + bPwB[0]) / 2;                 // 뒤 다트 중심 (DXF 11.904)
     var bPhA = [bHemCx - K.hemSplit, hemY], bPhB = [bHemCx + K.hemSplit, hemY];
 

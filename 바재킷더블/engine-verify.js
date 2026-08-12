@@ -93,6 +93,70 @@ console.log('     그 호수만 맞는 엔진이 된다 (다른 모듈에서 여
   ok('조각 구성', d.pieces.length === 7, '7장 — ' + names);
 })();
 
+/* ══ 3. **도면 대조** — 조각 형태가 원본과 얼마나 다른가 ═══════════════════
+   ⚠ QA 를 코드만 돌려 놓고 **도면과 출력물을 안 맞춰 봤다.** 그래서 형태 오류
+   (뒤판 V · 옆판 부풀음 · 옆 앞선이 반대로 휨 · 자기교차)를 매번 사람이 눈으로
+   잡았다. 대조를 **검사로** 만든다 — 조각 크기와 절개선 곡률을 수치로 본다. */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3. 도면 대조 — 조각 크기 · 절개선 곡률 (사람 눈 대신 수치로)');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var m = E.measuresForSize('55호');
+  var d = E.draftJacket(m, { seam: E.SEAM_DEFAULT }), g = E.geom(m);
+  var P = {}; d.pieces.forEach(function (p) { P[p.id] = p; });
+  var G = GT.pieces;
+  /* ① 조각 크기 — 도면과 3cm 넘게 다르면 형태가 다른 것이다 */
+  [['front', '앞판'], ['frontSide', '앞옆판'], ['side', '옆판'], ['back', '뒤판']].forEach(function (w) {
+    var e = P[w[0]].bbox, t = G[w[0]];
+    var dw = e.w - t.w, dh = e.h - t.h;
+    ok('크기 ' + w[1], Math.abs(dw) <= 3.0 && Math.abs(dh) <= 3.0,
+       f(e.w, 6) + '×' + f(e.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
+       ' · 차 ' + f(dw, 6) + ' / ' + f(dh, 6), Math.abs(dw) <= 7.0 && Math.abs(dh) <= 3.0);
+  });
+  /* ② 절개선 곡률 — 「현에서 벗어난 양」 프로파일. 부호가 반대면 반대로 휜 것이다 */
+  function prof(segs) {
+    var p = U.sampleSegs(segs, 0.05);
+    if (p[0][1] > p[p.length - 1][1]) p = p.slice().reverse();
+    var a = p[0], b = p[p.length - 1], ux = b[0] - a[0], uy = b[1] - a[1];
+    var ch = Math.hypot(ux, uy); ux /= ch; uy /= ch;
+    var tot = U.polyLen(p), acc = 0, k = 0, res = [];
+    for (var i = 1; i < p.length; i++) {
+      acc += V.dist(p[i - 1], p[i]);
+      while (k < 9 && acc / tot >= k / 8) {
+        var q = p[i]; res.push(-(q[0] - a[0]) * uy + (q[1] - a[1]) * ux); k++;
+      }
+    }
+    while (res.length < 9) res.push(0);
+    return res;
+  }
+  [['앞 절개선', g.fPrinOut, [0.21, 3.28, 4.18, 5.16, 2.81, 2.81, 0, 0, 0]],
+   ['옆 앞선',  g.fSideSeam, [0.03, 0.28, 1.09, 2.25, 1.81, 0.67, 0.05, -0.13, 0]]].forEach(function (w) {
+    var p = prof(w[1]), t = w[2], mx = 0, flip = 0;
+    for (var i = 1; i < 8; i++) {
+      if (Math.abs(p[i] - t[i]) > mx) mx = Math.abs(p[i] - t[i]);
+      if (p[i] * t[i] < -0.3) flip++;          // 부호 반대
+    }
+    ok('곡률 ' + w[0], !flip && mx <= 2.5,
+       '최대 차 ' + f(mx, 5) + (flip ? ' · **부호 반대 ' + flip + '곳**' : '') +
+       '  [' + p.map(function (v) { return v.toFixed(1); }).join(',') + ']', !flip && mx <= 3.5);
+  });
+  /* ③ 자기교차 — 재단선이 꼬이면 아예 못 쓴다 */
+  var tangled = d.pieces.filter(function (pc) {
+    var o = pc.outline;
+    for (var i = 0; i < o.length - 3; i += 3)
+      for (var j = i + 6; j < o.length - 1; j += 3) {
+        var a = o[i], b = o[i + 1], c = o[j], e = o[j + 1];
+        var dn = (b[0] - a[0]) * (e[1] - c[1]) - (b[1] - a[1]) * (e[0] - c[0]);
+        if (Math.abs(dn) < 1e-9) continue;
+        var t2 = ((c[0] - a[0]) * (e[1] - c[1]) - (c[1] - a[1]) * (e[0] - c[0])) / dn;
+        var u2 = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / dn;
+        if (t2 > 0.001 && t2 < 0.999 && u2 > 0.001 && u2 < 0.999) return true;
+      }
+    return false;
+  }).map(function (pc) { return pc.name; });
+  ok('자기교차', !tangled.length, tangled.length ? tangled.join(' · ') + ' 가 꼬였다' : '없음');
+})();
+
 console.log('\n════════════════════════════════════════════════════════════');
 console.log(fails ? ' 실패 ' + fails + '건' + (warns ? ' · 참고 ' + warns + '건' : '')
                   : ' 전체 통과' + (warns ? ' · 참고 ' + warns + '건' : ''));
