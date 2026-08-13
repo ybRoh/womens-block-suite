@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 19:41 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 19:45 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 19:41'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 19:45'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1360,9 +1360,13 @@ td.n.n-fail{color:var(--red)}
     pocketFromWL : 6.20,   // 주머니 입구 — 허리선에서 아래로  [관례 · 도면에 없음]
     pocketW      : 15.70,  // 입구 너비 = 플랩 다는변           [도면 15.71]
     pocketTilt   : 6.0,    // 앞이 올라가는 기울기(도)          [관례 · 도면에 없음]
-    flapH        : 5.60,   // 플랩 깊이                        [도면 5.25~5.69]
+    flapH        : 5.70,   // 플랩 깊이                        [도면 5.25~5.69]
+    /* 귀 둥글리기 — 도면 원 맞춤 실측. 플랩은 두 귀 반지름이 다르다. */
+    flapRoundF   : 1.99,   // 플랩 앞 귀                        [도면 1.99]
+    flapRoundB   : 0.73,   // 플랩 뒤 귀                        [도면 0.73]
     pocketBagAdd : 0.15,   // 주머니감 폭 = 입구 + 이 값        [도면 15.84 − 15.71]
-    pocketBagH   : 12.00   // 주머니감 깊이                     [도면 넓이 190.88 기준]
+    pocketBagH   : 12.36,  // 주머니감 깊이                     [도면 넓이 190.88 기준]
+    pocketBagRound: 3.40   // 주머니감 바닥 귀                  [도면 3.49 / 3.27]
   };
   var CAL = {
     backNeck : { a0: 10, k0: 1.60, k1: 0.60 },
@@ -2446,21 +2450,44 @@ td.n.n-fail{color:var(--red)}
 
     /* ══ ⑥ 주머니 플랩 · 주머니감 ═════════════════════════════════════ */
     (function () {
+      /* 귀 둥글리기 — 중심 (cx,cy) 반지름 r 인 사분원. 각도는 라디안.
+         점 간격 0.04 로 뽑는다 (suite-verify 의 0.015~0.06 규칙 안). */
+      function corner(cx, cy, r, a0, a1) {
+        var n = Math.max(6, Math.ceil(Math.abs(a1 - a0) * r / 0.04)), p = [];
+        for (var i = 0; i <= n; i++) {
+          var t = a0 + (a1 - a0) * i / n;
+          p.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+        }
+        return p;
+      }
+      var HALF = Math.PI / 2;
       var w = num(opt.pocketW, K.pocketW), h = num(opt.flapH, K.flapH);
+      /* ★ 도면 플랩은 **아랫변(자유변) 두 귀만** 둥글다 — 실측 반지름 1.99 와 0.73.
+         다는변(윗선) 쪽 두 귀는 각져 있다. 두 반지름이 다른데 도면에 앞뒤 표시가
+         없어, 기울기가 「앞이 올라간다」인 것에 맞춰 **큰 쪽을 앞(x=0)** 으로 둔다. */
+      var rF = Math.min(num(opt.flapRoundF, K.flapRoundF), w / 2, h);
+      var rB = Math.min(num(opt.flapRoundB, K.flapRoundB), w / 2, h);
       pieces.push(mk('flap', '주머니 플랩', [
         { name: '윗선',      role: 'princess', segs: lineSegs([0, 0], [w, 0]) },
-        { name: '옆선',      role: 'side',     segs: lineSegs([w, 0], [w, h]) },
-        { name: '아랫선',    role: 'hem',      segs: lineSegs([w, h], [0, h]) },
-        { name: '옆선 (앞)', role: 'side',     segs: lineSegs([0, h], [0, 0]) }
+        { name: '옆선',      role: 'side',     segs: lineSegs([w, 0], [w, h - rB]) },
+        { name: '뒤 귀',     role: 'hem',      segs: lineSegs.apply(null, corner(w - rB, h - rB, rB, 0, HALF)) },
+        { name: '아랫선',    role: 'hem',      segs: lineSegs([w - rB, h], [rF, h]) },
+        { name: '앞 귀',     role: 'hem',      segs: lineSegs.apply(null, corner(rF, h - rF, rF, HALF, Math.PI)) },
+        { name: '옆선 (앞)', role: 'side',     segs: lineSegs([0, h - rF], [0, 0]) }
       ], [[w * 0.5, h * 0.2], [w * 0.5, h * 0.8]],
         [{ p: [w / 2, 0], angle: 90, label: '중심' }],
         [L('fold', 'dashed', [[0, h * 0.5], [w, h * 0.5]], '접음선')]));
       var pw = w + num(opt.pocketBagAdd, K.pocketBagAdd), ph = num(opt.pocketBagH, K.pocketBagH);
+      /* 주머니감도 **바닥 두 귀가 둥글다** — 도면 실측 3.49 / 3.27, 평균으로 둔다.
+         모서리가 각지면 안감이 뭉쳐 주머니 바닥에 각이 선다. */
+      var rP = Math.min(num(opt.pocketBagRound, K.pocketBagRound), pw / 2, ph / 2);
       pieces.push(mk('pocketBag', '주머니감', [
         { name: '입구',      role: 'princess', segs: lineSegs([0, 0], [pw, 0]) },
-        { name: '옆선',      role: 'side',     segs: lineSegs([pw, 0], [pw, ph]) },
-        { name: '아랫선',    role: 'hem',      segs: lineSegs([pw, ph], [0, ph]) },
-        { name: '옆선 (앞)', role: 'side',     segs: lineSegs([0, ph], [0, 0]) }
+        { name: '옆선',      role: 'side',     segs: lineSegs([pw, 0], [pw, ph - rP]) },
+        { name: '뒤 귀',     role: 'hem',      segs: lineSegs.apply(null, corner(pw - rP, ph - rP, rP, 0, HALF)) },
+        { name: '아랫선',    role: 'hem',      segs: lineSegs([pw - rP, ph], [rP, ph]) },
+        { name: '앞 귀',     role: 'hem',      segs: lineSegs.apply(null, corner(rP, ph - rP, rP, HALF, Math.PI)) },
+        { name: '옆선 (앞)', role: 'side',     segs: lineSegs([0, ph - rP], [0, 0]) }
       ], [[pw * 0.5, ph * 0.2], [pw * 0.5, ph * 0.8]],
         [{ p: [pw / 2, 0], angle: 90, label: '중심' }],
         [L('mid', 'dashed', [[0, ph * 0.5], [pw, ph * 0.5]], '접음선')]));
