@@ -364,7 +364,8 @@
     capBackIn   : 4.0,    // 7번에서 들어오는 양 → 19 [8]
                           //  ⚠ opt 로 주면 그 값을 쓰고, 안 주면 이세에서 역산한다
     capBackOut  : 4.5,    // 6번에서 나가는 양 → 20 [8] (도면)
-    cuffW       : 24.0,   // 소매부리 [10]  (자켓이면 26)
+    cuffW       : 24.0,   // 55 Size 기준 [10]
+    cuffGrade   : 0.5,    // 호당 증가 — 원문 자켓 표(26·26·27·27·28)에서 읽는다   // 소매부리 [10]  (자켓이면 26)
     sleeveSeamBow: 0.35,  // 솔기가 팔꿈치에서 안쪽으로 부푸는 양 — 도면은 거의 곧다
     cuffDrop    : 0.5,
     cuffPerpK   : 0.45,   // 부리선이 솔기와 직각으로 만나는 정도 (1.0 이면 모서리에 고리)    // 23·24 를 내려 부리를 곡선으로 [15]
@@ -1351,7 +1352,14 @@
     }
     var halfF = Math.sqrt(Math.max(ahF * ahF - h * h, 0.25));
     var halfB = Math.sqrt(Math.max(ahB * ahB - h * h, 0.25));
-    var len = num(opt.sleeveLen, m.sleeveLen), cuffW = num(opt.cuffW, K.cuffW);
+    var len = num(opt.sleeveLen, m.sleeveLen);
+    /* ★ 소맷부리도 **호수 등급**을 준다. 원문은 55 Size 값 24 만 주고 자켓 표
+       (55~66 = 26 · 77~88 = 27 · 99 = 28)가 대략 호당 0.5 다.
+       등급이 없으면 44호와 88호가 같은 부리가 되고, 두 장 소매의 큰/작은 몫이
+       호수 따라 널뛴다 — 큰소매 부리가 44호 15.34 → 88호 14.32 로 **줄었다**
+       (사용자 지적 2026-08-14 「두 장 소매도 도면과 대조해줘」로 발견). */
+    var szStep = (m.B - BASE.B) / GRADE.B;
+    var cuffW = num(opt.cuffW, K.cuffW + num(opt.cuffGrade, K.cuffGrade) * szStep);
     var ctrIn = num(opt.sleeveCtrIn, K.sleeveCtrIn);
     /* ★ 좌표 규약 — **앞 +x · 뒤 −x** (스위트 공통 · 숙녀복기본원형1·2 와 같다).
        도면을 90° 반시계로 돌리면 뒤가 왼쪽·앞이 오른쪽이다. 예전에는 반대로 두어

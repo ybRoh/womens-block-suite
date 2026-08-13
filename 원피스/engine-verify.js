@@ -79,8 +79,11 @@ E.SIZES.forEach(function (sz) {
 
   /* 소매 [11] 부리선 길이가 소매부리와 같은가 — 24번을 「밖으로」 잡으면 어긋난다 */
   row.push('부리 ' + f(M.cuffWidth, 5));
-  if (Math.abs(M.cuffWidth - K.cuffW) > 0.15)
-    bad.push('소맷부리 ' + M.cuffWidth.toFixed(2) + ' ≠ ' + K.cuffW);
+  /* 원문은 55 Size 값 24 만 준다 — 호수는 0.5 씩 등급한다.
+     55호에서 정확히 24 인지, 그리고 호수 따라 커지는지를 본다. */
+  var wantCuff = K.cuffW + K.cuffGrade * ((m.B - 84) / 4);
+  if (Math.abs(M.cuffWidth - wantCuff) > 0.15)
+    bad.push('소맷부리 ' + M.cuffWidth.toFixed(2) + ' ≠ ' + wantCuff.toFixed(2));
 
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
   if (bad.length) fails++;
@@ -219,7 +222,7 @@ E.SIZES.forEach(function (sz) {
    ['cbIn', g.cbIn, 1.5, 1.5], ['shDrop', K.shDrop, 2.0, 2.0], ['shDart', K.shDart, 1.5, 1.5],
    ['sleeveEase', K.sleeveEase, 0.5, 0.5], ['capFrontOut', K.capFrontOut, 4.5, 4.5],
    ['capBackIn', K.capBackIn, 4.0, 4.0], ['capFrontIn', K.capFrontIn, 4.5, 5.0],
-   ['capBackOut', K.capBackOut, 4.5, 5.0], ['cuffW', K.cuffW, 24, 24]
+   ['capBackOut', K.capBackOut, 4.5, 5.0], ['cuffW(55호)', K.cuffW, 24, 24], ['cuffGrade', K.cuffGrade, 0.4, 0.7]
   ].forEach(function (r) {
     if (!(r[1] >= r[2] - 1e-9 && r[1] <= r[3] + 1e-9))
       bad.push('K.' + r[0] + ' = ' + r[1] + ' — 원문은 ' +
@@ -303,6 +306,14 @@ E.SIZES.forEach(function (sz) {
         bad.push('소매산 ' + r[0] + ' 이 정수리에 ' + (180 - a).toFixed(1) + '° 로 붙는다 (6° 이내)');
     });
   })();
+
+  /* 소맷부리는 호수 따라 커져야 한다 (등급이 없으면 44호와 88호가 같은 부리다) */
+  if (sz !== E.SIZES[0]) {
+    var prevCuff = E.draftDress(E.measuresForSize(E.SIZES[E.SIZES.indexOf(sz) - 1]),
+                                { seam: E.SEAM_DEFAULT }).sleeve.cuffW;
+    if (!(s.cuffW > prevCuff + 0.2))
+      bad.push('소맷부리가 호수 따라 안 큰다 (' + prevCuff.toFixed(2) + ' → ' + s.cuffW.toFixed(2) + ')');
+  }
 
   /* ★ 소매 좌표 규약 — **앞 +x · 뒤 −x** (스위트 공통).
      도면을 90° 반시계로 돌리면 뒤가 왼쪽·앞이 오른쪽이다. 반대로 두면 조각이
