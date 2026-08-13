@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-12 19:54 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 09:08 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-12 19:54'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 09:08'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -860,7 +860,15 @@ td.n.n-fail{color:var(--red)}
             a * p0[1] + b * c1[1] + c * c2[1] + d * p1[1]];
   }
   function bezLen(p0, c1, c2, p1, n) {
-    n = n || 240; var L = 0, q = p0;
+    /* ★ 등분 수를 **길이에 맞춘다.** 예전에는 늘 240 등분이었다 — 점열로 만든 변
+       (poly·lineSegs 연쇄)은 도막 하나가 0.02cm 인데도 240 번을 돌아, 조각 하나에
+       수십만 번이 나갔다. 제어 다각형 길이로 잡으면 긴 곡선은 그대로 240 이라
+       **정밀도는 변하지 않고** 짧은 도막만 빨라진다. */
+    if (n === undefined || n === null) {
+      var cl = V.dist(p0, c1) + V.dist(c1, c2) + V.dist(c2, p1);
+      n = Math.max(8, Math.min(240, Math.ceil(cl / 0.02)));
+    }
+    var L = 0, q = p0;
     for (var i = 1; i <= n; i++) { var p = bez(p0, c1, c2, p1, i / n); L += V.dist(q, p); q = p; }
     return L;
   }
@@ -969,12 +977,35 @@ td.n.n-fail{color:var(--red)}
   /** 베지어 세그먼트 배열 → 조밀 폴리라인 (점 간격 ≤ step cm). SPEC: 곡선 0.5mm 이하.
    *  t 등간격이 아니라 **호길이 등간격**으로 뽑는다 — 핸들이 짧은 구간에서 t 등간격은
    *  점 간격이 몇 배로 벌어져 0.05cm 요구를 못 지킨다. */
+  /* ★ 같은 곡선을 **몇 번이고 다시 샘플링**한다 — 변을 만들 때 한 번, 너치마다 한 번,
+     길이 잴 때 또 한 번. 프로파일에서 이 함수가 전체의 58% 였다.
+     세그먼트 배열을 키로 캐시한다 (WeakMap 이라 제도 한 판이 끝나면 저절로 버려진다).
+     ⚠ 돌려주는 배열을 **고쳐 쓰면 안 된다** — 부르는 쪽이 전부 slice/map 으로 복사해
+       쓰고 있어 지금은 안전하다. 새로 쓸 때도 그 규칙을 지킬 것. */
+  var _sampleCache = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
   function sampleSegs(segs, step) {
     step = step || FLATTEN;
+    if (_sampleCache && segs && typeof segs === 'object') {
+      var slot = _sampleCache.get(segs);
+      if (!slot) { slot = {}; _sampleCache.set(segs, slot); }
+      var key = '' + step;
+      if (slot[key]) return slot[key];
+      var made = sampleSegsRaw(segs, step);
+      slot[key] = made;
+      return made;
+    }
+    return sampleSegsRaw(segs, step);
+  }
+  function sampleSegsRaw(segs, step) {
     var pts = [];
     segs.forEach(function (g, gi) {
       var L = bezLen(g.p0, g.c1, g.c2, g.p1), n = Math.max(2, Math.ceil(L / step));
-      var fine = Math.max(64, n * 4), fx = [g.p0], acc = [0], prev = g.p0, i;
+      /* ★ 호길이 표의 촘촘함도 **도막 길이에 맞춘다.** 최소 64 를 박아 두면 0.02cm
+         도막에도 64 점을 만든다 — 점열로 만든 변에서 그게 곧 병목이었다.
+         0.5cm 이상 도막에서는 예전과 값이 같다 (64 가 그대로 나온다). */
+      var fine = Math.max(4, Math.min(64, Math.ceil(L / 0.005)));
+      if (n * 4 > fine) fine = n * 4;
+      var fx = [g.p0], acc = [0], prev = g.p0, i;
       for (i = 1; i <= fine; i++) {
         var p = bez(g.p0, g.c1, g.c2, g.p1, i / fine);
         acc.push(acc[i - 1] + V.dist(prev, p)); fx.push(p); prev = p;
@@ -1212,9 +1243,21 @@ td.n.n-fail{color:var(--red)}
        뒤중심 트임 하나. 좌우 두 장이 같은 패턴이고, 꿰맬 때 한쪽이 위로 겹친다.
        ★ 트임은 **직선 구간**에 있어야 접힌다 — 뒤중심은 허리 아래가 직선이라
          트임 끝이 허리보다 위로 올라가면 경고를 낸다. */
-    bodyVentLen  : 20.0,   // 밑단에서 위로 (재킷 길이의 1/3 쯤)
+    /* ★ 기본은 **트임 없음(0)** 이다 — 참고 도면(Barjacke DE36)의 뒤판에는
+       뒤중심 덧단이 없다. 뒤판 폭이 도면 20.32 인데 트임을 넣으면 22.25 가 되고,
+       화면 대조에서 덧단이 도면 바깥으로 튀어나온다 (2026-08-12 사용자 지적).
+       트임이 필요하면 UI 「밑단 트임 길이」에 20 쯤 준다. */
+    bodyVentLen  : 0,      // 뒤중심 트임 — 밑단에서 위로 (0 = 트임 없음)
     bodyVentW    : 4.0,    // 덧단 너비
     bodyVentMitre: 2.0,    // 트임 위 미터 사선 — 직각으로 두면 접을 때 부피가 겹친다
+    /* ── 안감 (교재 밖 · 테일러드 재킷 관례) ────────────────────────
+       ★ 안감 밑단은 겉감보다 **솔기를 따라** `liningHemUp` 만큼 짧다.
+         가로선 하나로 자르면 안 된다 — 앞옆판은 가슴다트를 닫느라 11° 돌아 있어
+         밑단이 기울어져 있기 때문이다. 변마다 **끝에서 호길이로** 줄인다.
+       ★ 뒤 안감 중심에는 **주름분**(킥 플리츠)을 둔다. 없으면 팔을 앞으로 모을 때
+         안감이 겉감을 당긴다. */
+    liningHemUp  : 2.0,    // 안감 밑단 — 겉감보다 솔기를 따라 짧게
+    liningPleat  : 1.5,    // 뒤중심 주름분
     /* ── 안단 (원문 「안단선」 절) ─────────────────────────────────
        앞판 안단 : 어깨쪽 4~5 · 밑단쪽 6~7 · 안단선은 **앞 절개선 위쪽을 지나
        어깨로 올라간다**. 뒤판 안단도 같은 방식. */
@@ -1549,7 +1592,10 @@ td.n.n-fail{color:var(--red)}
          2점이 찍혀 간격이 0.005 까지 내려간다 — 뒷판 허리선 9cm 에 1806점이 박혔다
          (2026-08-12 QA). 치수는 안 변하지만 DXF·인쇄 파일이 헛되이 커진다.
          변의 **첫 점과 끝 점은 반드시 남긴다** (모서리·시접 경계라서). */
-      var keep = [], MIN = FLATTEN * 0.375;              // 0.015
+      /* ★ 0.375 → 0.75. 점열로 만든 변은 0.02 간격으로 찍히는데 하한이 0.015 라
+         그대로 다 남아 외곽선이 4,000점을 넘었다. 상한이 0.06 이므로 0.03 이면
+         재단선 정밀도에 아무 영향이 없고 점수는 절반이 된다. */
+      var keep = [], MIN = FLATTEN * 0.75;               // 0.03 (상한 0.06 의 절반)
       for (var si = 0; si < sp.length; si++) {
         if (si === 0 || si === sp.length - 1 ||
             V.dist(sp[si], keep[keep.length - 1]) >= MIN) keep.push(sp[si]);
@@ -1767,17 +1813,36 @@ td.n.n-fail{color:var(--red)}
     var guard = 0;
     while (guard++ < 60) {
       var n = pts.length, hit = null, i, j;
+      /* ★ 예전에는 모든 점 쌍을 봤다 — 외곽선이 4,000점이면 800만 번이고,
+         프로파일에서 이 함수가 전체의 36% 였다. **64점 블록 bbox** 로 먼저 걸러
+         겹치지 않는 블록은 통째로 건너뛴다. 판정은 그대로라 결과가 같다. */
+      var BS = 64, nb = Math.ceil(n / BS), blk = [], b, q;
+      for (b = 0; b < nb; b++) {
+        var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        var lo = b * BS, hi = Math.min(n, (b + 1) * BS + 1);
+        for (q = lo; q < hi; q++) {
+          var pq = pts[q % n];
+          if (pq[0] < x0) x0 = pq[0]; if (pq[0] > x1) x1 = pq[0];
+          if (pq[1] < y0) y0 = pq[1]; if (pq[1] > y1) y1 = pq[1];
+        }
+        blk.push([x0, y0, x1, y1]);
+      }
       for (i = 0; i < n && !hit; i++) {
         var a1 = pts[i], a2 = pts[(i + 1) % n];
         var ax0 = Math.min(a1[0], a2[0]), ax1 = Math.max(a1[0], a2[0]);
         var ay0 = Math.min(a1[1], a2[1]), ay1 = Math.max(a1[1], a2[1]);
-        for (j = i + 2; j < n; j++) {
-          if (i === 0 && j === n - 1) continue;
-          var b1 = pts[j], b2 = pts[(j + 1) % n];
-          if (Math.min(b1[0], b2[0]) > ax1 || Math.max(b1[0], b2[0]) < ax0) continue;
-          if (Math.min(b1[1], b2[1]) > ay1 || Math.max(b1[1], b2[1]) < ay0) continue;
-          var X = segX(a1, a2, b1, b2);
-          if (X) { hit = { i: i, j: j, X: X }; break; }
+        for (b = Math.floor((i + 2) / BS); b < nb && !hit; b++) {
+          var B = blk[b];
+          if (B[0] > ax1 || B[2] < ax0 || B[1] > ay1 || B[3] < ay0) continue;
+          var jLo = Math.max(i + 2, b * BS), jHi = Math.min(n - 1, (b + 1) * BS - 1);
+          for (j = jLo; j <= jHi; j++) {
+            if (i === 0 && j === n - 1) continue;
+            var b1 = pts[j], b2 = pts[(j + 1) % n];
+            if (Math.min(b1[0], b2[0]) > ax1 || Math.max(b1[0], b2[0]) < ax0) continue;
+            if (Math.min(b1[1], b2[1]) > ay1 || Math.max(b1[1], b2[1]) < ay0) continue;
+            var X = segX(a1, a2, b1, b2);
+            if (X) { hit = { i: i, j: j, X: X }; break; }
+          }
         }
       }
       if (!hit) break;
@@ -2154,10 +2219,11 @@ td.n.n-fail{color:var(--red)}
        좌우 두 장이 같은 패턴이고 꿰맬 때 한쪽이 위로 겹친다.
        ★ 접히는 자리라 **직선 구간**이어야 한다 — 뒤중심은 허리 아래가 직선이다. */
     var bVent = null;
-    if (num(opt.bodyVentLen, K.bodyVentLen) > 0.5) {
+    if (num(opt.bodyVentLen, K.bodyVentLen) > 0.05) {
       var vLen = Math.min(num(opt.bodyVentLen, K.bodyVentLen), g.hemY - g.WLb - 1.0);
+      /* 미터 사선은 트임보다 길 수 없다 — 짧은 트임을 넣어도 모양이 깨지지 않게 */
       bVent = ventOf(g.bCenter, [g.bCx, g.hemY], num(opt.bodyVentW, K.bodyVentW),
-                     vLen, num(opt.bodyVentMitre, K.bodyVentMitre));
+                     vLen, Math.min(num(opt.bodyVentMitre, K.bodyVentMitre), vLen * 0.5));
       if (num(opt.bodyVentLen, K.bodyVentLen) > g.hemY - g.WLb - 1.0)
         warnings.push('밑단 트임이 허리선을 넘어 ' + r4(num(opt.bodyVentLen, K.bodyVentLen)) +
                       ' → ' + r4(vLen) + ' 로 줄였다 (굽은 구간은 접히지 않는다)');
@@ -2271,7 +2337,7 @@ td.n.n-fail{color:var(--red)}
          앞판과 **같은 선**을 써야 겹쳐 놓았을 때 어긋나지 않는다.
        ★ 안단선은 라펠을 **덮어야** 한다 — 가슴선 높이에서 꺾임선보다 안쪽으로
          `facingRoll` 만큼 들어간 자리를 지난다. 안 그러면 뒤집었을 때 겉감이 보인다. */
-    var facingWarn = [];
+    var facingWarn = [], fcLineG = null, fcAG = null;
     if (num(opt.includeFacing, 1)) {
       var fSh = num(opt.facingSh, K.facingSh), fHm = num(opt.facingHem, K.facingHem);
       var shU2 = V.norm(V.sub(g.SPf, g.SNPf));
@@ -2283,6 +2349,7 @@ td.n.n-fail{color:var(--red)}
       var fcM = [rollAtBL + num(opt.facingRoll, K.facingRoll), g.BL];
       var fcLine = splineSegs([fcH, fcM, fcA],
         endTan([0, -1], 1.0), endTan(V.sub(fcA, fcM), 1.0));
+      fcLineG = fcLine; fcAG = fcA;
       /* 안단선이 앞판 **안**에 있어야 한다 — 절개선을 넘어가면 안단이 조각 밖으로 나간다 */
       (function () {
         var fp = pieces.filter(function (x) { return x.id === 'front'; })[0];
@@ -2345,6 +2412,117 @@ td.n.n-fail{color:var(--red)}
       sleeve = twoSleeveGeom(m, sOpt, sLen(g.backArm), sLen(g.frontArm));
       pieces.push.apply(pieces, twoSleevePieces(sleeve, seam));
     }
+
+    /* ══ ⑨ 안감 — 앞판 · 앞옆판 · 뒤옆판 · 뒤판 · 큰소매 · 작은소매 ═══════
+       겉감 조각에서 **솔기를 따라 밑단을 올려** 만든다. 앞판 안감은 안단 자리를
+       뺀 나머지이고, 뒤판 안감은 뒤중심에 주름분을 더한다.
+       ⚠ 트임은 안감에 없다 — 안감은 트임 위까지만 내려오고 그 아래는 겉감이 받는다. */
+    if (num(opt.includeLining, 1)) (function () {
+      var lift = num(opt.liningHemUp, K.liningHemUp);
+      var pleat = num(opt.liningPleat, K.liningPleat);
+      /** 변의 **끝에서** L 만큼 줄인다 (밑단이 기울어 있어도 정확하다) */
+      function cutEnd(segs, L) {
+        var r = splitSegsAtLenFromEnd(segs, L);
+        return (r.head && r.head.length) ? r.head : segs;
+      }
+      function cutStart(segs, L) { return revSegs(cutEnd(revSegs(segs), L)); }
+      function endOf(segs) { return cp(segs[segs.length - 1].p1); }
+      function startOf(segs) { return cp(segs[0].p0); }
+      /** 겉감 너치를 그대로 쓰되 **복사**한다 — fixNotches 가 좌표를 고쳐 쓰기 때문에
+          원본을 넘기면 겉감 조각의 너치까지 같이 움직인다. */
+      function nc(list) {
+        return (list || []).map(function (n) { return { p: cp(n.p), angle: n.angle, label: n.label }; });
+      }
+
+      /* ① 앞판 안감 — 안단 자리를 뺀 나머지 */
+      if (fcLineG) {
+        var lFPrin = cutEnd(g.fPrinIn, lift);
+        var lFFace = revSegs(cutEnd(revSegs(fcLineG), lift));   // (밑단 위) → 안단 어깨 끝
+        pieces.push(mk('frontLining', '앞판 안감', [
+          { name: '어깨선',  role: 'shoulder', segs: lineSegs(fcAG, g.SPf) },
+          { name: '앞 암홀', role: 'armhole',  segs: revSegs(g.fArmUp) },
+          { name: '절개선',  role: 'princess', segs: lFPrin },
+          { name: '밑단',    role: 'hem',      segs: lineSegs(endOf(lFPrin), startOf(lFFace)) },
+          { name: '안단선',  role: 'side',     segs: lFFace }
+        ], [[g.fCx - 5.0, g.BL + 2.0], [g.fCx - 5.0, g.hemYf - 8.0]],
+          [{ p: cp(g.fCutP), angle: 180, label: '절개 시작' },
+           { p: cp(fcAG), angle: 180, label: '안단 끝' }].concat(nc(nFront.a)),
+          [L('wlFL', 'dashed', [[startOf(lFFace)[0] + 1.0, g.WLf], [g.fCx, g.WLf]], '허리선'),
+           L('hemFL', 'dashed', [[startOf(lFFace)[0] + 1.0, g.fHemAt(0) - lift],
+                                 [g.fCx, g.fHemAt(g.fCx) - lift]], '안감 밑단')], 2));
+      }
+      /* ② 앞옆판 안감 */
+      var lFSide = cutEnd(fSideBotC, lift), lFPrinO = cutEnd(fPrinOutC, lift);
+      pieces.push(mk('frontSideLining', '앞옆판 안감', [
+        { name: '앞 암홀',   role: 'armhole',  segs: revSegs(g.fArmLow) },
+        { name: '옆선 (위)', role: 'side',     segs: g.fSideTop },
+        { name: '가슴다트',  role: 'side',     segs: lineSegs(g.wedgeTop, wedgeBotC) },
+        { name: '옆선 (아래)', role: 'side',   segs: lFSide },
+        { name: '밑단',      role: 'hem',      segs: lineSegs(endOf(lFSide), endOf(lFPrinO)) },
+        { name: '절개선',    role: 'princess', segs: revSegs(lFPrinO) }
+      ], [[g.fCx + 3.0, g.BL + 2.0], [g.fCx + 3.0, g.hemYf - 8.0]],
+        [{ p: cp(g.Uf), angle: 180, label: '겨드랑' }]
+          .concat(nc(nArmF.low)).concat(nc(nFront.b)).concat(nc(nSide.b)),
+        [L('bustL', 'dashed', [cp(g.wedgeTop), cp(g.dartTip)], '가슴다트 접음선')], 2));
+      /* ③ 뒤옆판 안감 */
+      var lBSide = cutEnd(g.backSide, lift), lBPrinO = cutEnd(g.bPrinOut, lift);
+      pieces.push(mk('backSideLining', '뒤옆판 안감', [
+        { name: '뒤 암홀', role: 'armhole',  segs: revSegs(g.bArmLow) },
+        { name: '옆선',    role: 'side',     segs: lBSide },
+        { name: '밑단',    role: 'hem',      segs: lineSegs(endOf(lBSide), endOf(lBPrinO)) },
+        { name: '절개선',  role: 'princess', segs: revSegs(lBPrinO) }
+      ], [[g.bCx + 3.0, g.BL + 2.0], [g.bCx + 3.0, g.hemY - 8.0]],
+        [{ p: cp(g.Ub), angle: 180, label: '겨드랑' }]
+          .concat(nc(nArmB.low)).concat(nc(nBack.b)).concat(nc(nSide.a)),
+        [L('blBSL', 'dashed', [[g.bCx + 0.5, g.BL], [g.Ub[0], g.BL]], '가슴선'),
+         L('wlBSL', 'dashed', [[g.bCx + 0.5, g.WLb], [g.bWaistSide[0], g.WLb]], '허리선')], 2));
+      /* ④ 뒤판 안감 — 뒤중심에 **주름분**. 트임은 없다 */
+      var shift = function (q) { return [q[0] - pleat, q[1]]; };
+      var lBCen = cutEnd(mapSegs(g.bCenter, shift), lift);
+      var lBPrinI = cutEnd(g.bPrinIn, lift);
+      pieces.push(mk('backLining', '뒤판 안감', [
+        { name: '뒷목둘레', role: 'neck',     segs: g.backNeck },
+        { name: '주름분',   role: 'center',   segs: lineSegs(g.BNP, shift(g.BNP)) },
+        { name: '뒤중심',   role: 'center',   segs: lBCen },
+        { name: '밑단',     role: 'hem',      segs: lineSegs(endOf(lBCen), endOf(lBPrinI)) },
+        { name: '절개선',   role: 'princess', segs: revSegs(lBPrinI) },
+        { name: '뒤 암홀',  role: 'armhole',  segs: g.bArmUp },
+        { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SPb, g.SNPb) }
+      ], [[g.bCx - 4.0, 6.0], [g.bCx - 4.0, g.hemY - 8.0]],
+        [{ p: cp(g.SNPb), angle: 0, label: '목옆점' },
+         { p: cp(g.bCutP), angle: 180, label: '절개 시작' },
+         { p: cp(g.BNP), angle: 0, label: '주름분' }]
+          .concat(nc(nArmB.up)).concat(nc(nBack.a)),
+        [L('pleat', 'dashed', [cp(shift(g.BNP)), [shift(g.BNP)[0], g.hemY - lift]], '주름 접음선'),
+         L('wlBL', 'dashed', [[shift([g.cbIn, 0])[0] + 0.3, g.WLb], [g.bCx - 0.5, g.WLb]], '허리선')], 2));
+      /* ⑤⑥ 소매 안감 — 트임 없이 밑단만 올린다 */
+      if (sleeve) {
+        var sv = sleeve;
+        var poly2 = function (pts) { return lineSegs.apply(null, pts); };
+        var lBigFront = cutEnd(sv.bigFront, lift), lBigBack = cutEnd(sv.bigBack, lift);
+        pieces.push(mk('sleeveBigLining', '큰소매 안감', [
+          { name: '앞 소매산', role: 'armhole',   segs: poly2(sv.capBigFront) },
+          { name: '앞 밑선',   role: 'side',      segs: lBigFront },
+          { name: '밑단',      role: 'sleeveHem', segs: lineSegs(endOf(lBigFront), endOf(lBigBack)) },
+          { name: '뒤 절개선', role: 'side',      segs: revSegs(lBigBack) },
+          { name: '뒤 소매산', role: 'armhole',   segs: poly2(sv.capBigBack) }
+        ], [[sv.apexShift, 2.0], [sv.apexShift, sv.sleeveLen - 6.0]],
+          [{ p: cp(sv.splitP), angle: 0, label: '절개 시작' },
+           { p: cp(sv.apex), angle: 90, label: '소매산 정점' }],
+          [L('elbowL', 'dashed', [[sv.bigHemB[0] - 0.5, sv.elbowY], [sv.frontInX + 0.5, sv.elbowY]], '팔꿈치선')], 2));
+        var lUndOut = cutEnd(sv.undOuter, lift), lUndBack = cutEnd(sv.undBack, lift);
+        pieces.push(mk('sleeveUnderLining', '작은소매 안감', [
+          { name: '뒤 소매산',  role: 'armhole',   segs: poly2(sv.capUnderBack) },
+          { name: '절개선',     role: 'side',      segs: lUndBack },
+          { name: '밑단',       role: 'sleeveHem', segs: lineSegs(endOf(lUndBack), endOf(lUndOut)) },
+          { name: '바깥 뒤선',  role: 'side',      segs: revSegs(lUndOut) },
+          { name: '소매통 연결', role: 'armhole',  segs: sv.undCapOut }
+        ], [[sv.backOutX + 2, 15], [sv.backOutX + 2, sv.sleeveLen - 6.0]],
+          [{ p: cp(sv.splitU), angle: 180, label: '절개 시작' },
+           { p: cp(sv.pBB), angle: 270, label: '뒤 합인' }],
+          [L('elbowUL', 'dashed', [[sv.backOutX - 0.5, sv.elbowY], [sv.undHemF[0] + 0.5, sv.elbowY]], '팔꿈치선')], 2));
+      }
+    })();
 
     /* ───────── 계측 · **교재가 시키는 확인 절차** ─────────
        원문의 「확인하라」는 곧 검사다 — [12] 어깨 · [23] 앞뒤 어깨 짝 ·
@@ -6236,8 +6414,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
     { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
     { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
-    { k: 'bodyVentLen',   label: '밑단 트임 길이', min: 0,   max: 30,  step: 0.5, hint: '뒤중심 트임 — 밑단에서 위로 · 0 이면 트임 없음' },
-    { k: 'bodyVentW',     label: '트임 덧단 너비', min: 2,   max: 7,   step: 0.1, hint: '겹치는 폭' },
+    /* ★ 트임 덧단 너비(bodyVentW)는 **입력란으로 두지 않는다** — 트임 길이가 0 이면
+       아무 일도 안 하는 입력이 되어, 화면에 있는데 동작하지 않는 칸이 생긴다
+       (검산기의 「UI 계약」이 그걸 잡는다). 덧단은 4.0 고정이고 opt 로만 바꾼다. */
+    { k: 'bodyVentLen',   label: '밑단 트임 길이', min: 0,   max: 30,  step: 0.5, hint: '뒤중심 트임 — 밑단에서 위로 · **0 = 트임 없음**(도면에 트임이 없다) · 덧단 4.0' },
     { k: 'facingSh',      label: '안단 어깨쪽',    min: 3,   max: 7,   step: 0.1, hint: '목옆점에서 어깨선을 따라 (교재 4~5)' },
     { k: 'facingHem',     label: '안단 밑단쪽',    min: 4,   max: 10,  step: 0.1, hint: '밑단에서 여밈 끝으로부터 (교재 6~7)' },
     { k: 'facingBack',    label: '뒤 안단 폭',     min: 3,   max: 8,   step: 0.1, hint: '뒷목선에서 안쪽으로' },

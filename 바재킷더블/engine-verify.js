@@ -63,7 +63,12 @@ var PAIRS = [
   ['안단 고지선',  'front', '고지선', 'frontFacing', '고지선', 0.06],
   ['안단 라펠선',  'front', '라펠선', 'frontFacing', '라펠선', 0.06],
   ['안단 라펠 윗변', 'front', '라펠 윗변', 'frontFacing', '라펠 윗변', 0.06],
-  ['뒤 안단 뒷목', 'back',  '뒷목둘레', 'backFacing', '뒷목둘레', 0.06]
+  ['뒤 안단 뒷목', 'back',  '뒷목둘레', 'backFacing', '뒷목둘레', 0.06],
+  /* 안감도 서로 꿰맨다 — 겉감과 같은 짝이 안감에도 있어야 한다 */
+  ['안감 앞 절개선', 'frontLining', '절개선', 'frontSideLining', '절개선', 0.30],
+  ['안감 뒤 절개선', 'backLining', '절개선', 'backSideLining', '절개선', 0.30],
+  ['안감 옆선', 'frontSideLining', ['옆선 (위)', '옆선 (아래)'], 'backSideLining', '옆선', 0.40],
+  ['안감 소매 절개선', 'sleeveBigLining', '뒤 절개선', 'sleeveUnderLining', '절개선', 0.15]
 ];
 E.SIZES.forEach(function (sz) {
   var d = E.draftJacket(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT }), bad = [], row = [];
@@ -73,7 +78,7 @@ E.SIZES.forEach(function (sz) {
     row.push(w[0] + ' ' + f(a, 6) + '/' + f(b, 6));
     if (Math.abs(a - b) > w[5]) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
   });
-  if (d.pieces.length !== 11) bad.push('조각 ' + d.pieces.length + '장 (11 이라야 한다)');
+  if (d.pieces.length !== 17) bad.push('조각 ' + d.pieces.length + '장 (17 이라야 한다)');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
   if (bad.length) fails++;
   console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) + row.join(' · ') +
@@ -134,7 +139,7 @@ E.SIZES.forEach(function (sz) {
   (function () {
     var bp = d.pieces.filter(function (x) { return x.id === 'back'; })[0];
     var ve = (bp.edges || []).filter(function (e) { return e.name === '트임'; })[0];
-    if (K.bodyVentLen > 0.5) {
+    if (K.bodyVentLen > 0.05) {
       chk(!!ve, '뒤판에 트임 변이 없다');
       chk(g.hemY - K.bodyVentLen > g.WLb, '트임 끝이 허리선 위 — 굽은 구간이라 접히지 않는다');
       if (ve) {
@@ -250,7 +255,7 @@ console.log('══════════════════════�
   ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
   ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
   var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
-  ok('조각 구성', d.pieces.length === 11, '11장 — ' + names);
+  ok('조각 구성', d.pieces.length === 17, '17장 — ' + names);
 })();
 
 console.log('\n════════════════════════════════════════════════════════════');
