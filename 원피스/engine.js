@@ -342,6 +342,8 @@
     frontWEase  : 1.5,    // 앞 W 여유 [36]
     frontDrop   : 2.0,    // 앞처짐 — 3번에서 아래로 [37]
     frontArmIn  : 0.3,    // 앞 암홀 보조 (0.3) [40]
+    frontArmAt  : 0.45,   // 78번 자리 — 56 에서 진동선까지의 비율 [44]
+    frontArmPerp: 0.55,   // 앞 암홀 출발 접선 — 1 이면 어깨에 직각(각짐) · 0 이면 통과점 직행
     frontArmGap : 0.4,    // 앞 암홀이 78번에서 떨어지는 양 (0.3~0.5) [45]
     /* ── 소매 ──────────────────────────────────────────────────── */
     capDiv      : 3,      // 소매산 = AH / 이 값 (capFromAH 를 켰을 때만)
@@ -366,8 +368,9 @@
     hemPerpK    : 0.30
   };
   var CAL = {
-    arm     : { k0: 1.10, k1: 1.20 },   // 뒤 암홀 — [27] 「23번에 직각」이라 세게
-    armF    : { k0: 0.65, k1: 1.20 },   // 앞 암홀 — 직각 규정이 없다. 세게 주면 각이 진다
+    /* 암홀 2도막 — k0 어깨쪽 · kA 접점 위 · kB 접점 아래 · k1 겨드랑쪽 */
+    arm     : { k0: 1.20, kA: 1.10, kB: 1.50, k1: 1.80 },   // 뒤
+    armF    : { k0: 0.35, kA: 1.60, kB: 1.60, k1: 1.60 },   // 앞 — 토르소프린세스 값
     neck    : { k0: 1.00, k1: 1.00 },
     princess: { k0: 1.05, k1: 1.15 },
     cap     : { k0: 1.20, k1: 1.20 },
@@ -408,6 +411,27 @@
       }
     });
     return notches;
+  }
+
+  /** 암홀 — **품선에 세로로 접하는 2도막 곡선** (토르소프린세스 armCurve 이식).
+   *
+   *  단순히 「어깨점 → 통과점 → 겨드랑」 3점 스플라인으로 그리면 어깨 끝에서
+   *  직선으로 떨어졌다가 급히 꺾인다 — 실제로 그렇게 나와서 각져 보였다.
+   *  사람이 운형자로 그으면 **품선에 한 번 접했다가** 오목점을 지나 겨드랑으로 간다.
+   *
+   *  @param SP    어깨 끝
+   *  @param pitchX 품선 x (등품/2 또는 앞품/2)  @param pitchTop 품선 위끝 y
+   *  @param U     겨드랑  @param BL 진동선 y  @param gap 품선에서 띄우는 양 [27][45]
+   */
+  function armhole2(SP, pitchX, pitchTop, U, BL, gap, C) {
+    var ax = pitchX + gap;
+    var A  = [ax, (pitchTop + BL) / 2];            // 접점 — 품선 위끝~BL 의 2등분
+    var d  = V.norm(V.sub(U, A));
+    var Cn = [ax, BL];                             // 품선 × 진동선 모서리
+    var F  = V.add(A, V.mul(d, (Cn[0] - A[0]) * d[0] + (Cn[1] - A[1]) * d[1]));
+    var H  = _lerp(Cn, F, 0.5);                    // 오목점 = 모서리→현 수선의 중점
+    return splineSegs([SP, A], endTan(V.norm(V.sub(A, SP)), C.k0), endTan([0, 1], C.kA))
+      .concat(splineSegs([A, H, U], endTan([0, 1], C.kB), endTan(V.sub(U, H), C.k1)));
   }
 
   /** 두 점을 잇는 직선을 y 까지 연장한 x */
@@ -494,10 +518,10 @@
 
     /* ── 뒤판 곡선 ──────────────────────────────────────────────── */
     var bNeck = splineSegs([p2, p41, p20], endTan([1, 0], 1.0), endTan(V.sub(p20, p41), 1.0));
-    var bArmGuide = [p42[0] + num(opt.armFromBW, K.armFromBW), p42[1]];
-    var bArm = splineSegs([p23, bArmGuide, p12],
-                          endTan(perpToward(shU, p23, p12), CAL.arm.k0),
-                          endTan(V.sub(p12, bArmGuide), CAL.arm.k1));
+    /* 등품선 위끝 = 어깨선이 등품선을 자르는 y */
+    var bwTop = p20[1] + (p26[0] - p20[0]) / Math.max(p23[0] - p20[0], 1e-6) * (p23[1] - p20[1]);
+    var bArm = armhole2(p23, p26[0], bwTop, p12, BL, num(opt.armFromBW, K.armFromBW), CAL.arm);
+    var bArmGuide = [p26[0] + num(opt.armFromBW, K.armFromBW), (bwTop + BL) / 2];
     var bSide = splineSegs([p12, p15, p40],
                            endTan(V.sub(p15, p12), CAL.side.k0), endTan(V.sub(p40, p15), CAL.side.k1));
     /* [28] 44번 — 밑단이 옆선과 **직각**으로 만나게 끝접선을 옆선의 수직으로 잡는다.
@@ -544,11 +568,13 @@
     /* 앞 곡선 */
     var fNeck = splineSegs([f75, [f53[0] * 0.55, f75[1] * 0.55], f54],
                            endTan([1, 0], 1.0), endTan(V.sub(f54, f53), 1.0));
-    var f78 = [f51[0], f56[1] + (BL - f56[1]) / 3];   // [44] 56~77 의 3등분
-    var fArmGuide = [f78[0] + num(opt.frontArmGap, K.frontArmGap), f78[1]];
-    var fArm = splineSegs([f57, fArmGuide, f12],
-                          endTan(perpToward(fShU, f57, f12), CAL.armF.k0),
-                          endTan(V.sub(f12, fArmGuide), CAL.arm.k1));
+    /* [44] 78번 — 「56번에서 77번 사이를 3등분」. 도면에서 78 은 56 보다 **77 쪽**에
+       가깝다(56~77 의 약 2/3 지점). 1/3 로 읽으면 통과점이 어깨 바로 밑이라
+       앞 암홀이 어깨 끝에서 급하게 꺾인다. */
+    var f78 = [f51[0], (f56[1] + BL) / 2];            // [44] 접점 — 56~진동선의 2등분
+    /* [45] 「앞품 78번점과 암홀선이 0.3~0.5 떨어지거나 **붙게**」 — 붙는다는 건
+       암홀이 앞품선에 **접한다**는 뜻이다. 뒤와 같은 2도막 작도를 쓴다. */
+    var fArm = armhole2(f57, f51[0], f56[1], f12, BL, num(opt.frontArmGap, K.frontArmGap), CAL.armF);
     var fSide = splineSegs([f12, f15, f65],
                            endTan(V.sub(f15, f12), CAL.side.k0), endTan(V.sub(f65, f15), CAL.side.k1));
     var fSideDir = V.norm(V.sub(f65, f15));
