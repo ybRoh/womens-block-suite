@@ -108,14 +108,16 @@ E.SIZES.forEach(function (sz) {
   chk(Math.abs(g.SNPb[1] + dif) < 1e-6, '[11] 뒤 목옆점이 유차만큼 안 올라갔다');
   /* [23] 앞 목너비 = B/12 + 앞 옆목 파기 (도면 7.15 = 6.8 + 0.35) */
   chk(Math.abs(g.SNPf[0] - (m.B / 12 + K.frontNeckOut)) < 1e-6, '[23] 앞 목옆점 x 식이 안 맞는다');
-  /* [12] 2~21 = 어깨/2 + 다트분 */
-  chk(Math.abs(g.SPb[0] - (m.shoulderW / 2 + g.shExtra)) < 1e-6, '[12] 21번(어깨점 x) 식이 안 맞는다');
+  /* [12] 2~21 = 어깨/2 + 다트분 · + **어깨 늘림(패드분)** — 재킷 어깨는 몸보다 넓다(도면) */
+  chk(Math.abs(g.SPb[0] - (m.shoulderW / 2 + K.shoulderAdd + g.shExtra)) < 1e-6,
+      '[12] 21번(어깨점 x) 식이 안 맞는다');
   /* [23] 잘라 둔 뒤판을 대고 — 다트분을 뺀 어깨 길이가 앞뒤 같아야 한다 */
   chk(Math.abs((g.shLenBack - g.shExtra) - g.shLenFront) < 0.02,
       '[23] 어깨 짝 ' + (g.shLenBack - g.shExtra).toFixed(3) + ' ↔ ' + g.shLenFront.toFixed(3));
-  /* [23] 52번 — 앞 어깨점이 어깨너비/2 자리 부근에 와야 한다 */
-  chk(Math.abs(g.SPf[0] - m.shoulderW / 2) <= 1.5,
-      '[23] 52번 앞 어깨점 x ' + g.SPf[0].toFixed(2) + ' vs 어깨/2 ' + (m.shoulderW / 2).toFixed(2));
+  /* [23] 52번 — 앞 어깨점이 어깨너비/2 자리 부근. 재킷은 **패드분만큼 밖**이 정상이다 */
+  chk(Math.abs(g.SPf[0] - (m.shoulderW / 2 + K.shoulderAdd)) <= 1.5,
+      '[23] 52번 앞 어깨점 x ' + g.SPf[0].toFixed(2) + ' vs 어깨/2 + 패드분 ' +
+      (m.shoulderW / 2 + K.shoulderAdd).toFixed(2));
   /* [20] 유차 — 앞 옆선이 뒤보다 정확히 유차만큼 길게 제도된다 (다트 닫기 전) */
   var rawFront = U.sLen(g.fSideFull), rawBack = U.sLen(g.backSide);
   chk(Math.abs((rawFront - rawBack) - dif) < 0.35,
