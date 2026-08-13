@@ -86,10 +86,11 @@ E.SIZES.forEach(function (sz) {
   var bodyN = edgeLen(d, 'back', '뒷목둘레') + edgeLen(d, 'front', '고지선');
   row.push('카라 목붙임 ' + f(cN, 6) + '/' + f(bodyN, 6) + ' 바깥 ' + f(cO, 6));
   if (Math.abs(cN - bodyN) > 0.10) bad.push('카라 목붙임선 차 ' + (cN - bodyN).toFixed(3));
-  /* 꺾여 내려온 폭은 목보다 굵은 자리에 가 닿는다 — 바깥선이 더 길어야 눕는다.
+  /* 꺾여 내려온 폭은 목보다 굵은 자리에 가 닿는다 — 바깥선이 짧으면 목을 조인다.
+     도면(바이어스 언더칼라)의 늘림은 +0.24 로 작으니 하한만 건다.
      너무 길면(1.35 배 넘게) 피터팬처럼 퍼져 재킷 카라가 안 된다. */
-  if (cO <= cN + 0.5)
-    bad.push('카라 바깥선 ' + cO.toFixed(2) + ' 이 목붙임선 ' + cN.toFixed(2) + ' 보다 안 길다 — 안 눕는다');
+  if (cO < cN)
+    bad.push('카라 바깥선 ' + cO.toFixed(2) + ' < 목붙임선 ' + cN.toFixed(2) + ' — 목을 조인다');
   else if (cO / cN > 1.35)
     bad.push('카라 바깥선/목붙임선 ' + (cO / cN).toFixed(3) + ' — 너무 퍼졌다 (1.35 이하)');
   if (d.pieces.length !== 17) bad.push('조각 ' + d.pieces.length + '장 (17 이라야 한다)');
@@ -280,6 +281,23 @@ console.log('══════════════════════�
     ok('크기 ' + w[1], Math.abs(e.w - t.w) <= 5.0 && Math.abs(e.h - t.h) <= 5.0,
        f(e.w, 6) + '×' + f(e.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
        ' · 차 ' + f(e.w - t.w, 6) + ' / ' + f(e.h - t.h, 6), true);
+  });
+  /* 소매·카라 — bbox 는 조각이 기울어 있으면 못 쓴다(도면 작은소매는 눕혀 그렸다).
+     그래서 **둘레와 넓이**로 본다 — 회전·뒤집기와 무관한 값이다.
+     ⚠ 예전엔 §4 가 몸판 3장만 봤다. 그래서 작은소매가 도면보다 4 좁고
+       카라 바깥선이 2.1 짧은 걸 아무도 못 잡았다. */
+  function outLen(p) { var t = 0; for (var i = 1; i < p.outline.length; i++) t += V.dist(p.outline[i - 1], p.outline[i]); return t; }
+  function outArea(p) { var s = 0, o = p.outline; for (var i = 0; i < o.length - 1; i++) s += o[i][0] * o[i + 1][1] - o[i + 1][0] * o[i][1]; return Math.abs(s) / 2; }
+  function gLen(sub) { var t = 0; for (var i = 1; i < sub.length; i++) t += V.dist(sub[i - 1], sub[i]); return t; }
+  function gArea(sub) { var s = 0; for (var i = 0; i < sub.length - 1; i++) s += sub[i][0] * sub[i + 1][1] - sub[i + 1][0] * sub[i][1]; return Math.abs(s) / 2; }
+  [['sleeveBig', '큰소매', 'sleeveTop', 8.0, 120],
+   ['sleeveUnder', '작은소매', 'sleeveUnder', 8.0, 120],
+   ['collar', '카라', 'collar', 4.0, 30]].forEach(function (w) {
+    var e = P[w[0]], t = G[w[2]].subs[0];
+    var eL = outLen(e), tL = gLen(t), eA = outArea(e), tA = gArea(t);
+    ok('소매·카라 ' + w[1], Math.abs(eL - tL) <= w[3] && Math.abs(eA - tA) <= w[4],
+       '둘레 ' + f(eL, 6) + ' 도면 ' + f(tL, 6) + ' · 넓이 ' + f(eA, 7, 1) + ' 도면 ' + f(tA, 7, 1) +
+       ' · 차 ' + f(eL - tL, 5) + ' / ' + f(eA - tA, 6, 1), true);
   });
   ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
   ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
