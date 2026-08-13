@@ -306,7 +306,38 @@ console.log('══════════════════════�
        ' · 차 ' + f(eL - tL, 5) + ' / ' + f(eA - tA, 6, 1), true);
   });
   ok('여밈 겹침', Math.abs(K.overlap - 7.89) <= 0.2, f(K.overlap, 6) + '  도면 7.89', true);
-  ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.2, f(K.btnGapY, 6) + '  도면 9.80', true);
+  /* ★ 단추·단춧구멍 — K 값을 숫자와 견주는 건 검사가 아니다(같은 값을 두 번 적은 것).
+     **조각에 실제로 찍힌 자리**를 도면 표시와 맞춘다. 기준은 조각 좌상단 모서리
+     (도면 앞판은 x=0 이 여밈선 · y=0 이 조각 맨 위, 엔진도 bbox 로 같은 자리를 잡는다).
+     도면 표시: 단추는 십자 6개(중심 x 11.56 · y 27.50 / 37.02 / 46.83),
+               단춧구멍은 가로선 3개(x 1.98~4.25 · y 27.24 / 36.92 / 46.74). */
+  (function () {
+    var F = P.front, o = F.outline, i;
+    var x0 = Infinity, y0 = Infinity;
+    for (i = 0; i < o.length; i++) { if (o[i][0] < x0) x0 = o[i][0]; if (o[i][1] < y0) y0 = o[i][1]; }
+    function marks(lab) {
+      return (F.internal || []).filter(function (l) { return l.label === lab; })
+        .map(function (l) { return [l.pts[0][0] - x0, l.pts[0][1] - y0, l.pts[l.pts.length - 1][0] - x0]; })
+        .sort(function (a, b) { return a[1] - b[1]; });
+    }
+    var btn = marks('단추'), bh = marks('단춧구멍');
+    var GBTN = [[11.56, 27.50], [11.56, 37.02], [11.56, 46.83]];
+    var GBH  = [[2.16, 27.24], [2.09, 36.92], [1.98, 46.74]];
+    var bad = [], row = [];
+    if (btn.length !== 3 || bh.length !== 3) bad.push('단추/구멍 개수 ' + btn.length + '/' + bh.length);
+    else {
+      for (i = 0; i < 3; i++) {
+        var dx = btn[i][0] - GBTN[i][0], dy = btn[i][1] - GBTN[i][1];
+        var hx = Math.min(bh[i][0], bh[i][2]) - GBH[i][0], hy = bh[i][1] - GBH[i][1];
+        row.push(f(dx, 5) + '/' + f(dy, 5));
+        if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.6) bad.push((i + 1) + '번 단추 ' + dx.toFixed(2) + ' / ' + dy.toFixed(2));
+        if (Math.abs(hx) > 0.4 || Math.abs(hy) > 0.6) bad.push((i + 1) + '번 구멍 ' + hx.toFixed(2) + ' / ' + hy.toFixed(2));
+      }
+    }
+    ok('단추·단춧구멍 자리', !bad.length,
+       '도면과의 차 (x/y) ' + row.join(' · ') + (bad.length ? ' → ' + bad.join(' · ') : ''), true);
+  })();
+  ok('단추 세로 간격', Math.abs(K.btnGapY - 9.80) <= 0.35, f(K.btnGapY, 6) + '  도면 9.52~9.82', true);
   var names = d.pieces.map(function (p) { return p.name; }).join(' · ');
   ok('조각 구성', d.pieces.length === 17, '17장 — ' + names);
 })();
