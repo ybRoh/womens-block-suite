@@ -330,6 +330,14 @@
     cbSub        :  0.36,  // 뒤중심 길이 = 등길이 − 이 값 (허리~뒷목점)  [37.39]
     snpRise      :  2.79,  // 목옆점 — 뒷목선에서 올림   [40.18 − 37.39]
     backNeckAdd  :  0.15,  // 뒷목너비 = B/12 + 이 값    [7.70]
+    /* ★ 뒷목둘레는 **곡선**이다 — 직선 + 모서리가 아니다 (2026-08-13 사용자 지적).
+       처음에 DXF SPLINE 의 **제어점**을 그대로 읽어 (0,2.79)–(7.70,2.79)–(8.39,0)
+       꺾인 선으로 그렸다. 제어 다각형은 늘 실제 곡선보다 각져 보인다.
+       de Boor 로 평가한 실제 곡선을 재니 매끄러운 곡선이고, 현에서 **0.122 비율**
+       (1.08cm) 안으로 들어간다. 한복 저고리 뒷목선이 원래 그렇게 굽는다. */
+    bnpAdd       :  0.20,  // 뒤중심 목점 = 뒷목선 + 이 값  [2.99 − 2.79]
+    backNeckB : [[0.114,-0.0753],[0.257,-0.1081],[0.377,-0.1127],[0.474,-0.1063],
+                 [0.646,-0.0786],[0.779,-0.0459],[0.852,-0.0247]],
     shSlope      :  3.57,  // 어깨 기울기 — 목옆점에서 어깨점까지 내림  [3.57]
     shoulderSub  :  0.07,  // 어깨점 x = 어깨너비/2 − 이 값  [19.13]
     armDepthSub  :  1.71,  // 진동깊이 = B/4 − 이 값 (뒷목선에서 겨드랑까지)  [20.94]
@@ -338,27 +346,24 @@
     fSnpIn       : 13.90,  // 앞 목옆점 — **옆선에서** 안으로  [36.38 − 22.48]
     vNeckDrop    : 11.87,  // V 바닥 — 앞중심에서 위로 (허리 기준)  [11.87]
     vNeckIn      :  4.62,  // V 바닥 — 앞중심에서 안으로  [4.62]
-    /* 진동 곡선이 **현에서 안으로 들어가는 양**. 도면 실측점에서 역산했다:
-         뒤 — 현 어깨점(19.13,36.61)~겨드랑(23.64,16.45) · 곡선이 지나는 점 (15.76,27.42)
-              → 현에서 t 0.399 자리에 **5.29** 안쪽
-         앞 — 현 (33.20,35.50)~(37.91,16.44) · 곡선점 (29.90,26.58)
-              → t 0.400 자리에 **5.34** 안쪽
-       ⚠ 눈대중으로 2.4 쯤 넣었다가 진동이 도면보다 한참 얕게 나왔다 —
-         현에 내린 수선으로 재야 한다 (x 차 5.4 ≠ 수직거리).
-    ★ 들어가는 양은 **현 길이의 비율**로 둔다. 절대값으로 박으면 호수가 작아질수록
-         현이 짧아져 진동이 상대적으로 더 깊어진다 (44호 호/현 1.21 ↔ 88호 1.11).
-       ★ 앵커가 **두 개** 필요하다. 도면 프로파일을 재 보니 한복 진동은
-         t 0.4 에서 최대로 들어갔다가 **t 0.7 까지 평평하게 이어지다** 겨드랑에서
-         급히 되돌아온다. 한 점만 쓰면 그 평평한 구간이 2.4cm 안쪽으로 파인다
-         (도면 대조에서 뒷판 2.39 · 앞판 2.67 로 잡혔다).
-           뒤 — t 0.398 에 5.299 · t 0.704 에 5.071   (현 20.66)
-           앞 — t 0.401 에 5.341 · t 0.665 에 5.784   (현 19.63) */
-    bArmB1F      :  0.2565, bArmT1 : 0.398,
-    bArmB2F      :  0.2454, bArmT2 : 0.704,
-    bArmB3F      :  0.1982, bArmT3 : 0.871,
-    fArmB1F      :  0.2720, fArmT1 : 0.401,
-    fArmB2F      :  0.2944, fArmT2 : 0.665,
-    fArmB3F      :  0.2295, fArmT3 : 0.863,
+    /* ★ 진동 곡선이 **현에서 안으로 들어가는 양** — 앵커 7점을 **실제 곡선에서** 뽑았다.
+       ① 들어가는 양은 **현 길이의 비율**이다. 절대값으로 박으면 호수가 작아질수록
+          현이 짧아져 진동이 상대적으로 더 깊어진다 (44호 호/현 1.21 ↔ 88호 1.11).
+       ② ⚠ **제어점에서 재면 안 된다.** DXF SPLINE 의 코드 10 은 제어점이고,
+          제어 다각형은 오목한 구간에서 늘 실제 곡선 **바깥**에 있다 —
+          t 0.4 에서 제어점은 0.2565 인데 실제 곡선은 **0.1852** 다.
+          그 값으로 그렸더니 진동이 도면보다 깊고 각졌다
+          (2026-08-13 사용자 지적: 「도면 암홀은 부드러운데 조각은 둥글지 않다」).
+       ③ 앵커가 3점이면 t 0.5~0.75 의 완만한 구간을 못 따라간다 → **7점**.
+       de Boor 로 평가한 정답지 곡선에서 t 0.12~0.88 을 고르게 뽑은 값이다. */
+    /* 겨드랑 쪽 t 0.85~0.97 을 더 넣었다 — 없으면 진동이 겨드랑에서 **각지게 꺾인다**
+       (도면은 둥글게 이어진다). */
+    bArmB : [[0.130,0.0746],[0.260,0.1370],[0.381,0.1852],[0.510,0.2235],
+             [0.608,0.2411],[0.749,0.2412],[0.851,0.2075],[0.919,0.1550],[0.962,0.0982]],
+    /* ⚠ 앞 앵커는 **앞판 프레임(목옆점 y=0)** 에서 뽑아야 한다. 뒤 프레임 좌표로
+       뽑았더니 끝점이 1.1 어긋난 자리에서 재어 겨드랑 부근이 그만큼 벌어졌다. */
+    fArmB : [[0.123,0.0796],[0.259,0.1554],[0.382,0.2153],[0.506,0.2635],
+             [0.621,0.2899],[0.752,0.2806],[0.851,0.2307],[0.919,0.1603],[0.965,0.0838]],
     /* ── 치마 · 주름 ───────────────────────────────────────────────
        ★ 주름이 이 옷의 핵심이다. 도면에서 규칙을 읽었다:
          · 주름 하나가 **접히는 양** 3.85 · 치마에서 차지하는 폭 5.83
@@ -382,10 +387,17 @@
     cuffAt       :  0.521, // 수구 중심 — 소매 높이의 이 비율  [도면 19.33/37.11]
     /* 배래(소매 옆 곡선) — 도면 점열에서 잰 **현 대비 비율** 앵커.
        ⚠ 2점 스플라인에 장력만 주면 4.6cm 나 부푼다 (도면 대조에서 잡혔다). */
-    bareUp       : [[0.243, -0.0803], [0.648, 0.0492], [0.856, 0.0642]],  // 넓은자리 → 수구
-    bareLow      : [[0.162,  0.0436], [0.553, -0.0354]],                  // 수구 → 넓은자리
+    bareUp  : [[0.121,-0.0584],[0.247,-0.0775],[0.375,-0.0628],[0.496,-0.0191],
+               [0.621,0.0366],[0.748,0.0661],[0.881,0.0547]],   // 넓은자리 → 수구
+    bareLow : [[0.112,0.0015],[0.252,0.0053],[0.396,-0.0085],[0.481,-0.0218],
+               [0.628,-0.0506],[0.759,-0.0637],[0.880,-0.0553]], // 수구 → 넓은자리
     /* V 네크라인은 **곧은 직선이 아니라 살짝 굽는다** (현에서 0.02 비율 안쪽) */
-    vNeckBulge   : [[0.259, -0.0232], [0.545, -0.0195], [0.786, -0.0162]],
+    /* ★ 앞 목선은 **목옆점에서 앞중심까지 한 줄기 곡선**이다 — 도면이 그렇다.
+       V 바닥에서 꺾어 「섶선」을 따로 그으면 도면에 없는 계단이 생긴다
+       (2026-08-13 사용자 지적). V 바닥은 그 곡선 위의 **표시점**일 뿐이다. */
+    vNeckB : [[0.095,-0.0294],[0.216,-0.0453],[0.338,-0.0579],[0.461,-0.0706],
+              [0.579,-0.0828],[0.697,-0.0950],[0.805,-0.0920],[0.886,-0.0736],
+              [0.939,-0.0501],[0.974,-0.0249]],
     /* ── 깃 ───────────────────────────────────────────────────────── */
     collarW      :  4.50,  // 깃 너비  [1.15~5.65]
     collarRound  :  9.44,  // 깃 끝 둥글리기 시작 — 끝에서 이 거리  [9.44]
@@ -470,9 +482,10 @@
     var cbLen   = backLen - K.cbSub;                       // 허리~뒷목점
     var bTotal  = cbLen + snpRise;                         // 목옆점~허리 (조각 높이)
     var bNeckW  = B / 12 + num(opt.backNeckAdd, K.backNeckAdd);
-    var bSNP    = [bNeckW + 0.69, 0];                      // 목옆점 (뒷목 끝에서 살짝 밖)
-    var bNeck   = [bNeckW, snpRise];                       // 뒷목 옆 끝
-    var bBNP    = [0, snpRise];                            // 뒤중심 목점
+    var bSNP    = [bNeckW + 0.69, 0];                      // 목옆점
+    var bBNP    = [0, snpRise + num(opt.bnpAdd, K.bnpAdd)];  // 뒤중심 목점
+    /* 뒷목둘레 — 목옆점 → 뒤중심 목점. **곡선**이다 (도면 실측 앵커) */
+    var bNeckCv = armCurve(bSNP, bBNP, K.backNeckB);
     var bSP     = [shoulderW / 2 - K.shoulderSub, num(opt.shSlope, K.shSlope)];
     var armDepth= q - num(opt.armDepthSub, K.armDepthSub); // 뒷목선~겨드랑
     var bUY     = snpRise + armDepth;                      // 겨드랑 y
@@ -488,16 +501,15 @@
     var fU      = [fChestW, bUY];
     var fWaist  = [fWaistW, bTotal];
     var fCf     = [0, bTotal];                             // 앞중심 × 허리
-    var vBot    = [num(opt.vNeckIn, K.vNeckIn), bTotal - num(opt.vNeckDrop, K.vNeckDrop)];
-    var fCfTop  = [0, vBot[1] + 0.35];                     // 앞중심 위끝 (섶)
+    /* 앞중심 위끝 — 목선이 앞중심을 만나는 자리. V 바닥은 그 곡선 위의 표시점이다. */
+    var fCfTop  = [0, bTotal - num(opt.vNeckDrop, K.vNeckDrop)];
+    var vBot    = [num(opt.vNeckIn, K.vNeckIn), fCfTop[1] + 0.35];
 
-    /* V 네크라인 — 목옆점 → V 바닥. 도면은 살짝 굽어 있다 */
-    var vNeck = armCurve(fSNP, vBot, K.vNeckBulge);
+    /* V 네크라인 — 목옆점 → **앞중심**까지 한 줄기 곡선 (도면 앵커 10점) */
+    var vNeck = armCurve(fSNP, fCfTop, K.vNeckB);
     /* 진동 곡선 — 현에서 안으로 들어간다 (도면 실측 자리) */
-    var bArm = armCurve(bSP, bU, [[K.bArmT1, num(opt.bArmB1F, K.bArmB1F)],
-                                  [K.bArmT2, num(opt.bArmB2F, K.bArmB2F)], [K.bArmT3, K.bArmB3F]]);
-    var fArm = armCurve(fSP, fU, [[K.fArmT1, num(opt.fArmB1F, K.fArmB1F)],
-                                  [K.fArmT2, num(opt.fArmB2F, K.fArmB2F)], [K.fArmT3, K.fArmB3F]]);
+    var bArm = armCurve(bSP, bU, K.bArmB);
+    var fArm = armCurve(fSP, fU, K.fArmB);
 
     /* ───────── 치마 ───────── */
     var bPl = pleatPlan(bWaist[0], opt);                   // 뒷치마
@@ -512,7 +524,7 @@
       m: m, B: B, W: W, q: q, backLen: backLen, skirtLen: skirtLen,
       shoulderW: shoulderW, sleeveLen: sleeveLen, collarLen: collarLen,
       cbLen: cbLen, bTotal: bTotal, armDepth: armDepth, snpRise: snpRise,
-      bNeckW: bNeckW, bSNP: bSNP, bNeck: bNeck, bBNP: bBNP, bSP: bSP,
+      bNeckW: bNeckW, bSNP: bSNP, bBNP: bBNP, bSP: bSP, bNeckCv: bNeckCv,
       bU: bU, bWaist: bWaist, bHem: bHem, bArm: bArm,
       fWaistW: fWaistW, fChestW: fChestW, fSNP: fSNP, fSP: fSP, fU: fU,
       fWaist: fWaist, fCf: fCf, vBot: vBot, fCfTop: fCfTop, fArm: fArm, vNeck: vNeck,
@@ -1064,13 +1076,13 @@
       { name: '옆선',     role: 'side',     segs: lineSegs(g.bU, g.bWaist) },
       { name: '허리선',   role: 'hem',      segs: lineSegs(g.bWaist, g.bHem) },
       { name: '뒤중심',   role: 'fold',     segs: lineSegs(g.bHem, g.bBNP) },
-      { name: '뒷목',     role: 'neck',     segs: lineSegs(g.bBNP, g.bNeck, g.bSNP) }
+      { name: '뒷목',     role: 'neck',     segs: revSegs(g.bNeckCv) }
     ], [[1.8, g.snpRise + 2.0], [1.8, g.bTotal - 2.0]],
       [{ p: cp(g.bSNP), angle: 90, label: '목옆점' },
        { p: cp(g.bU), angle: 180, label: '겨드랑' },
        { p: [g.bWaist[0] / 2, g.bTotal], angle: 270, label: '허리 중간' }],
       [L('blB', 'dashed', [[0.5, g.bU[1]], [g.bU[0] - 0.5, g.bU[1]]], '진동선'),
-       L('nkB', 'dashed', [[0, g.snpRise], [g.bNeck[0], g.snpRise]], '뒷목선')], 1));
+       L('nkB', 'dashed', [[0, g.snpRise], [g.bNeckW, g.snpRise]], '뒷목선(기준)')], 1));
 
     /* ══ ② 앞판 — **V 네크라인 변형**. 앞중심 → V 바닥 → 목옆점 한 직선 ══ */
     pieces.push(mk('front', '앞판', [
@@ -1079,7 +1091,6 @@
       { name: '옆선',     role: 'side',     segs: lineSegs(g.fU, g.fWaist) },
       { name: '허리선',   role: 'hem',      segs: lineSegs(g.fWaist, g.fCf) },
       { name: '앞중심',   role: 'center',   segs: lineSegs(g.fCf, g.fCfTop) },
-      { name: '섶선',     role: 'center',   segs: lineSegs(g.fCfTop, g.vBot) },
       { name: 'V 목선',   role: 'neck',     segs: revSegs(g.vNeck) }
     ], [[g.fWaistW - 3.0, g.fSP[1] + 2.0], [g.fWaistW - 3.0, g.bTotal - 2.0]],
       [{ p: cp(g.fSNP), angle: 90, label: '목옆점' },
@@ -1221,9 +1232,9 @@
         shoulderEase: 0,
         armholeBack: r4(SL2(g.bArm)), armholeFront: r4(SL2(g.fArm)),
         armholeTotal: r4(SL2(g.bArm) + SL2(g.fArm)),
-        neckBack: r4(g.bNeckW + V.dist(g.bNeck, g.bSNP)),
-        neckFront: r4(V.dist(g.vBot, g.fSNP)),
-        neckTotal: r4(g.bNeckW + V.dist(g.bNeck, g.bSNP) + V.dist(g.vBot, g.fSNP)),
+        neckBack: r4(sLen(g.bNeckCv)),
+        neckFront: r4(sLen(g.vNeck)),
+        neckTotal: r4(sLen(g.bNeckCv) + sLen(g.vNeck)),
         sideBack: r4(V.dist(g.bU, g.bWaist)), sideFront: r4(V.dist(g.fU, g.fWaist)),
         sleeveLen: r4(g.sleeveLen), sleeveAH: r4(g.sleeveAH), cuffW: r4(g.cuffW),
         collarLen: r4(g.collarLen),
@@ -1245,7 +1256,8 @@
   function formulaNotes(m, g) {
     return [
       FN('cb',    '뒤중심',   '등길이 − ' + f1(K.cbSub) + ' (허리~뒷목점)', g.cbLen, 'back', [1.2, g.bTotal * 0.5]),
-      FN('bneck', '뒷목너비', 'B/12 + ' + f1(K.backNeckAdd), g.bNeckW, 'back', [g.bNeckW * 0.5, g.snpRise + 1.4]),
+      FN('bneck', '뒷목둘레', 'B/12 + ' + f1(K.backNeckAdd) + ' · **곡선**(현에서 0.122 안쪽)',
+                  sLen(g.bNeckCv), 'back', [g.bNeckW * 0.5, g.snpRise + 1.6]),
       FN('bsh',   '어깨선',   '어깨점 x = 어깨너비/2 · 기울기 ' + f1(K.shSlope), g.shLenBack, 'back',
                   [(g.bSNP[0] + g.bSP[0]) / 2, (g.bSNP[1] + g.bSP[1]) / 2 + 1.2]),
       FN('bar',   '진동깊이', 'B/4 − ' + f1(K.armDepthSub) + ' (뒷목선에서)', g.armDepth, 'back',
@@ -1253,8 +1265,8 @@
       FN('bw',    '뒤 허리폭', 'B/4 + ' + f1(K.bWaistAdd), g.bWaist[0], 'back', [g.bWaist[0] * 0.5, g.bTotal - 1.4]),
       FN('fw',    '앞 허리폭', 'B/4 + **여밈분** ' + f1(K.frontWrap), g.fWaist[0], 'front',
                   [g.fWaist[0] * 0.5, g.bTotal - 1.4]),
-      FN('vn',    'V 네크라인', '앞중심 위 ' + f1(K.vNeckDrop) + ' · 들임 ' + f1(K.vNeckIn) + ' → 목옆점 직선',
-                  V.dist(g.vBot, g.fSNP), 'front', [(g.vBot[0] + g.fSNP[0]) / 2 - 3.0, (g.vBot[1] + g.fSNP[1]) / 2]),
+      FN('vn',    'V 네크라인', '앞중심 위 ' + f1(K.vNeckDrop) + ' → 목옆점까지 **한 줄기 곡선**',
+                  sLen(g.vNeck), 'front', [(g.vBot[0] + g.fSNP[0]) / 2 - 3.0, (g.vBot[1] + g.fSNP[1]) / 2]),
       FN('bpl',   '뒷치마 주름', '주름분 ' + f1(K.pleatDepth) + ' × ' + g.bPleat.n + '개 · 간격 ' + f1(K.pleatStep),
                   g.bPleat.skirtW, 'backSkirt', [g.bPleat.skirtW * 0.5, 8.0]),
       FN('fpl',   '앞치마 주름', '주름분 ' + f1(K.pleatDepth) + ' × ' + g.fPleat.n + '개 · 간격 ' + f1(K.pleatStep),

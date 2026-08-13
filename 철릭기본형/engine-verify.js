@@ -68,8 +68,9 @@ console.log('══════════════════════�
      '9장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
   /* ★ **외곽선 전체를 도면과 겹쳐 잰다** — bbox 만 맞고 모양이 다를 수 있다.
      정답지의 SPLINE 은 제어점이 아니라 **de Boor 로 평가한 실제 곡선**이다.
-     ⚠ 그 평가가 **날카로운 모서리를 둥글린다** (뒷목·V 바닥). 그래서 모서리 부근에서
-       1.5 쯤 벌어지는 것은 정상이다 — 2.0 을 넘으면 모양이 다른 것이다. */
+     곡선 앵커를 **실제 곡선에서 촘촘히** 뽑은 뒤로 전 조각이 **1.0 이내**로 들어왔다
+     (뒷판 0.09 · 앞판 0.28 · 소매 0.52 · 깃 0.48 · 앞치마 0.86 · 뒷치마 0.08).
+     ⚠ 상한을 1.0 으로 죈다 — 곡선을 건드리다 각지면 여기서 바로 걸린다. */
   (function () {
     function norm(pts) {
       var mnx = Math.min.apply(null, pts.map(function (q) { return q[0]; }));
@@ -95,7 +96,7 @@ console.log('══════════════════════�
     ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
       var a = norm(P[k].outline), b = norm(GT.pieces[k].outline);
       var e = Math.max(dev(a, b), dev(b, a));
-      ok('외곽선 ' + k, e <= 2.0, '최대 편차 ' + f(e, 5) + ' cm');
+      ok('외곽선 ' + k, e <= 1.0, '최대 편차 ' + f(e, 5) + ' cm');
     });
   })();
 })();
