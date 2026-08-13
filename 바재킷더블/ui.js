@@ -61,7 +61,7 @@
     { k: 'facingSh',      label: '안단 어깨쪽',    min: 3,   max: 7,   step: 0.1, hint: '목옆점에서 어깨선을 따라 (교재 4~5)' },
     { k: 'facingHem',     label: '안단 밑단쪽',    min: 4,   max: 10,  step: 0.1, hint: '밑단에서 여밈 끝으로부터 (교재 6~7)' },
     { k: 'facingBack',    label: '뒤 안단 폭',     min: 3,   max: 8,   step: 0.1, hint: '뒷목선에서 안쪽으로' },
-    { k: 'sleeveLenAdd',  label: '소매길이 가감',  min: -8,  max: 8,   step: 0.5, hint: '호수별 기본(60 + 1.0/호수)에 더한다' },
+    { k: 'sleeveLenAdd',  label: '소매길이 가감',  min: -8,  max: 8,   step: 0.5, hint: '호수별 기본(**도면** 57.23 + 1.0/호수)에 더한다' },
     { k: 'cuffAdd',       label: '소맷부리 가감',  min: -4,  max: 6,   step: 0.5, hint: '호수별 기본 소맷부리 둘레에 더한다' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다.
