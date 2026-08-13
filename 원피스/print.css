@@ -1,0 +1,123 @@
+/* ============================================================================
+ * print.css — 기본 무다트 원형 1:1 출력용 규칙
+ * 출력팀 / SPEC.md §6
+ *
+ * 1:1 을 지키는 핵심 3가지
+ *   1) @page margin:0 + 페이지 크기 = 용지 실치수  → 브라우저가 축소하지 않음
+ *   2) .ndp-page 는 용지와 같은 mm 크기 + overflow:hidden → 넘침으로 인한 빈 페이지 방지
+ *   3) svg 는 width/height 를 mm 로 절대 지정하고 position:absolute 로 고정
+ *      (부모 폭에 맞춰 늘어나는 것을 원천 차단)
+ *
+ * 롤지 모드는 용지 크기가 가변이라 @page size 를 JS 가 <style id="ndp-page-size">
+ * 로 덮어씁니다 (NoDartPrint.applyPageCss).
+ * ==========================================================================*/
+
+/* ── 용지 ─────────────────────────────────────────────────────────────── */
+@page {
+  size: 210mm 297mm;   /* A4 세로. 'A4 portrait' 대신 실치수로 못 박음 */
+  margin: 0;
+}
+
+/* ── 인쇄 영역 (화면에서는 숨김) ───────────────────────────────────────── */
+#ndp-print-area { display: none; }
+
+.ndp-page {
+  position: relative;
+  overflow: hidden;          /* 0.1mm 반올림 넘침이 빈 페이지를 만들지 않게 */
+  background: #fff;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  /* 폭·높이는 JS 가 인라인 스타일로 mm 지정 (A4 210×296.9 / 롤지 가변) */
+}
+
+.ndp-page > svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  /* width/height 는 svg 자체 속성(mm)을 그대로 쓴다.
+     여기서 100% 같은 상대값을 주면 1:1 이 깨진다. */
+  max-width: none;
+  max-height: none;
+}
+
+/* ── 인쇄 시 ──────────────────────────────────────────────────────────── */
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    /* 프린터가 색을 날리지 않도록 (모눈·안내선 유지) */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 앱 UI 전부 숨기고 인쇄 영역만 */
+  body > *:not(#ndp-print-area) { display: none !important; }
+  #ndp-print-area { display: block !important; }
+
+  .ndp-page {
+    display: block;
+    break-after: page;
+    page-break-after: always;   /* 구형 엔진 대응 */
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ndp-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* 화면 전용 요소는 인쇄에서 제거 */
+  .ndp-screen-only { display: none !important; }
+}
+
+/* ── 화면(미리보기) 쪽 보조 스타일 ─────────────────────────────────────── */
+.ndp-warn {
+  margin: 8px 0;
+  padding: 9px 11px;
+  border: 1px solid #e6c9c9;
+  border-left: 4px solid #c0392b;
+  border-radius: 6px;
+  background: #fdf6f5;
+  color: #7d2a20;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.ndp-warn b { color: #a3271b; }
+
+.ndp-preview {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid #e3e3e6;
+  border-radius: 8px;
+}
+
+.ndp-info {
+  font-size: 11.5px;
+  color: #667;
+  line-height: 1.7;
+  margin-top: 6px;
+}
+.ndp-info code {
+  background: #f2f4f7;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* 화면에서 인쇄 페이지를 미리 보고 싶을 때 붙이는 클래스 */
+#ndp-print-area.ndp-show {
+  display: block;
+  background: #6b7280;
+  padding: 14px;
+}
+#ndp-print-area.ndp-show .ndp-page {
+  margin: 0 auto 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+}
