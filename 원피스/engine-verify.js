@@ -364,6 +364,17 @@ E.SIZES.forEach(function (sz) {
     if (Math.abs(s.p14[1] - s.elY) > 0.02) bad.push('소매[14] 14번이 EL 위가 아니다');
   })();
 
+  /* ★ 앞목선은 **둥근 목선**이다 — 앞중심 쪽이 한참 평평하다가 목옆점에서 확 오른다.
+     통과점을 0.62 로 두었더니 평평 구간이 목너비의 24% 뿐이라 사선처럼 보였다
+     (사용자가 도면 위에 곡선을 그려 보내 발견 · 2026-08-14). 0.80 이면 57%. */
+  (function () {
+    var q = U.sampleSegs(g.fNeck, 0.02), flat = 0;
+    q.forEach(function (x) { if (Math.abs(x[1] - g.f75[1]) <= 0.5) flat = Math.max(flat, x[0]); });
+    var ratio = flat / g.f53[0];
+    if (ratio < 0.45)
+      bad.push('앞목선 평평 구간 ' + (ratio * 100).toFixed(0) + '% — 45% 이상이라야 둥근 목선이다');
+  })();
+
   /* [41] 74 = 66 + (73~66) — 밑단 다트 다리가 66번 기준 대칭 */
   if (Math.abs(Math.abs(g.f73[0] - g.f66[0]) - Math.abs(g.f74[0] - g.f66[0])) > 0.02)
     bad.push('[41] 73~66 ≠ 66~74');
@@ -466,7 +477,9 @@ E.SIZES.forEach(function (sz) {
    [s.capF,  '앞 소매산', 0.70, 1, 180, 6, 180, 6],
    [s.capB,  '뒤 소매산', 0.70, 1, 180, 6, 180, 6],
    [g.bNeck, '뒷목',      0.70, 1, null, 0, shoulderB - 90, 15],
-   [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90, 15]
+   /* 앞목선 끝접선은 **어깨선 직각이 아니다** — 원문 [42] 의 76→54 보조선에 접한다
+      (K.neckEndMix 0.70 만큼 세로 쪽으로 기울어 −83° 근처). 뒤는 직각 그대로. */
+   [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90 - 16, 8]
   ].forEach(function (r) {
     var x = shapeOf(r[0]), nm = r[1];
     if (x.maxK > r[2]) bad.push(nm + ' 최대곡률 ' + x.maxK.toFixed(2) + ' > ' + r[2] +
