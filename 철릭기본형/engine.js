@@ -372,9 +372,15 @@
          · 치마폭 = 허리폭 + n × 3.85
        도면 검산 — 뒤: n 10 · 22.39 + 10×3.85 = 60.9 [60.81]
                    앞: n 17 · 36.38 + 17×3.85 = 101.8 [102.69] */
-    pleatDepth   :  3.85,  // 주름분 (접히는 양)
-    pleatStep    :  5.83,  // 주름 간격 (치마에서 차지하는 폭)
-    pleatEdge    :  2.50,  // 양끝 여백 — 주름을 두지 않는 폭
+    /* ★ 주름분은 **앞뒤가 다르다.** 주름 표시 폭(3.85) 하나로 두었더니 뒷치마는
+       +0.08 로 맞는데 앞치마가 −0.86 어긋났다. 도면에서 역산하면
+         뒤 (60.815 − 22.39)/10 = **3.8425**   앞 (102.694 − 36.38)/17 = **3.9008**
+       치마폭 = 허리폭 + 개수 × 주름분 이므로 앞뒤를 따로 두어야 둘 다 맞는다. */
+    pleatDepthB  :  3.8425, // 뒤 주름분 (접히는 양)
+    pleatDepthF  :  3.9008, // 앞 주름분
+    pleatStep    :  5.83,  // 주름 간격 (치마에서 차지하는 폭) — 앞뒤 같다 [58.3mm]
+    /* 여백 3.0 이면 앞뒤 모두 도면과 같은 개수가 나온다 (뒤 10 · 앞 17) */
+    pleatEdge    :  3.00,  // 양끝 여백 — 주름을 두지 않는 폭
     pleatMarkH   :  5.00,  // 주름 표시 높이 (제도선)
     /* ── 소매 (두리소매) ───────────────────────────────────────────
        진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다. */
@@ -470,8 +476,8 @@
   }
 
   /** 주름 배분 — 허리폭에서 개수를 정하고 치마폭을 되돌려 준다 */
-  function pleatPlan(waistW, opt) {
-    var dep = num(opt.pleatDepth, K.pleatDepth), step = num(opt.pleatStep, K.pleatStep);
+  function pleatPlan(waistW, opt, depth) {
+    var dep = depth, step = num(opt.pleatStep, K.pleatStep);
     var edge = num(opt.pleatEdge, K.pleatEdge);
     var show = Math.max(0.3, step - dep);                 // 허리에서 보이는 폭
     var n = Math.max(1, Math.round((waistW - edge) / show));
@@ -524,8 +530,8 @@
     var fArm = armCurve(fSP, fU, K.fArmB);
 
     /* ───────── 치마 ───────── */
-    var bPl = pleatPlan(bWaist[0], opt);                   // 뒷치마
-    var fPl = pleatPlan(fWaist[0], opt);                   // 앞치마
+    var bPl = pleatPlan(bWaist[0], opt, num(opt.pleatDepthB, K.pleatDepthB));  // 뒷치마
+    var fPl = pleatPlan(fWaist[0], opt, num(opt.pleatDepthF, K.pleatDepthF));  // 앞치마
 
     /* ───────── 소매 ───────── */
     var ah   = num(opt.sleeveAH, K.sleeveAH);
@@ -1239,6 +1245,7 @@
         backSkirtW: r4(g.bPleat.skirtW), frontSkirtW: r4(g.fPleat.skirtW),
         backPleats: g.bPleat.n, frontPleats: g.fPleat.n,
         pleatDepth: r4(g.bPleat.depth), pleatStep: r4(g.bPleat.step),
+        pleatDepthBack: r4(g.bPleat.depth), pleatDepthFront: r4(g.fPleat.depth),
         shoulderBack: r4(g.shLenBack), shoulderFront: r4(g.shLenFront),
         shoulderBackSewn: r4(g.shLenBack), shoulderFrontSewn: r4(g.shLenFront),
         shoulderEase: 0,
@@ -1279,9 +1286,9 @@
                   [g.fWaist[0] * 0.5, g.bTotal - 1.4]),
       FN('vn',    'V 네크라인', '앞중심 위 ' + f1(K.vNeckDrop) + ' → 목옆점까지 **한 줄기 곡선**',
                   sLen(g.vNeck), 'front', [(g.vBot[0] + g.fSNP[0]) / 2 - 3.0, (g.vBot[1] + g.fSNP[1]) / 2]),
-      FN('bpl',   '뒷치마 주름', '주름분 ' + f1(K.pleatDepth) + ' × ' + g.bPleat.n + '개 · 간격 ' + f1(K.pleatStep),
+      FN('bpl',   '뒷치마 주름', '주름분 ' + f1(K.pleatDepthB) + ' × ' + g.bPleat.n + '개 · 간격 ' + f1(K.pleatStep),
                   g.bPleat.skirtW, 'backSkirt', [g.bPleat.skirtW * 0.5, 8.0]),
-      FN('fpl',   '앞치마 주름', '주름분 ' + f1(K.pleatDepth) + ' × ' + g.fPleat.n + '개 · 간격 ' + f1(K.pleatStep),
+      FN('fpl',   '앞치마 주름', '주름분 ' + f1(K.pleatDepthF) + ' × ' + g.fPleat.n + '개 · 간격 ' + f1(K.pleatStep),
                   g.fPleat.skirtW, 'frontSkirt', [g.fPleat.skirtW * 0.5, 8.0]),
       FN('slv',   '소매',     '길이 = 소매길이 · 진동 ' + f1(K.sleeveAH) + ' · 가운데 + ' + f1(K.sleeveWide),
                   g.sleeveLen, 'sleeve', [g.sleeveLen * 0.5, g.sleeveWideY * 0.5]),

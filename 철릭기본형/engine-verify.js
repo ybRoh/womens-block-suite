@@ -58,9 +58,13 @@ console.log('══════════════════════�
      M.backPleats + '개 · 폭 ' + f(M.backSkirtW, 6) + '  도면 ' + GT.pleat.back.n + '개 · ' + f(GT.pleat.back.skirtW, 6));
   ok('앞치마 주름 개수', M.frontPleats === GT.pleat.front.n,
      M.frontPleats + '개 · 폭 ' + f(M.frontSkirtW, 6) + '  도면 ' + GT.pleat.front.n + '개 · ' + f(GT.pleat.front.skirtW, 6));
-  ok('주름분 · 간격', Math.abs(K.pleatDepth - GT.pleat.depth) < 1e-9 &&
-     Math.abs(K.pleatStep - GT.pleat.step) < 1e-9,
-     f(K.pleatDepth, 5) + ' / ' + f(K.pleatStep, 5) + '  도면 ' + GT.pleat.depth + ' / ' + GT.pleat.step);
+  /* ★ 주름분은 **앞뒤가 다르다** — 치마폭 = 허리폭 + 개수 × 주름분 으로 역산한 값이다 */
+  ok('주름분 뒤/앞', Math.abs(K.pleatDepthB - GT.pleat.depthBack) < 5e-4 &&
+     Math.abs(K.pleatDepthF - GT.pleat.depthFront) < 5e-4,
+     f(K.pleatDepthB, 6, 4) + ' / ' + f(K.pleatDepthF, 6, 4) +
+     '  도면 ' + GT.pleat.depthBack + ' / ' + GT.pleat.depthFront);
+  ok('주름 간격', Math.abs(K.pleatStep - GT.pleat.step) < 1e-9,
+     f(K.pleatStep, 5) + '  도면 ' + GT.pleat.step);
   ok('소매 진동 · 수구', Math.abs(g.sleeveAH - GT.landmark['긴소매']['진동']) <= 0.05 &&
      Math.abs(g.cuffW - GT.landmark['긴소매']['수구']) <= 0.05,
      f(g.sleeveAH, 6) + ' / ' + f(g.cuffW, 5) + '  도면 ' + GT.landmark['긴소매']['진동'] + ' / ' + GT.landmark['긴소매']['수구']);
@@ -68,9 +72,10 @@ console.log('══════════════════════�
      '9장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
   /* ★ **외곽선 전체를 도면과 겹쳐 잰다** — bbox 만 맞고 모양이 다를 수 있다.
      정답지의 SPLINE 은 제어점이 아니라 **de Boor 로 평가한 실제 곡선**이다.
-     곡선 앵커를 **실제 곡선에서 촘촘히** 뽑은 뒤로 전 조각이 **1.0 이내**로 들어왔다
-     (뒷판 0.09 · 앞판 0.28 · 소매 0.52 · 깃 0.48 · 앞치마 0.86 · 뒷치마 0.08).
-     ⚠ 상한을 1.0 으로 죈다 — 곡선을 건드리다 각지면 여기서 바로 걸린다. */
+     곡선 앵커를 **실제 곡선에서 촘촘히** 뽑고 주름분을 앞뒤로 나눈 뒤로
+     전 조각이 **0.35 이내**로 들어왔다
+     (뒷판 0.09 · 앞판 0.28 · 소매 0.32 · 깃 0.08 · 앞치마 0.04 · 뒷치마 0.04).
+     ⚠ 상한을 0.4 로 죈다 — 곡선을 건드리다 각지면 여기서 바로 걸린다. */
   (function () {
     function norm(pts) {
       var mnx = Math.min.apply(null, pts.map(function (q) { return q[0]; }));
@@ -96,7 +101,7 @@ console.log('══════════════════════�
     ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
       var a = norm(P[k].outline), b = norm(GT.pieces[k].outline);
       var e = Math.max(dev(a, b), dev(b, a));
-      ok('외곽선 ' + k, e <= 1.0, '최대 편차 ' + f(e, 5) + ' cm');
+      ok('외곽선 ' + k, e <= 0.4, '최대 편차 ' + f(e, 5) + ' cm');
     });
   })();
 })();
@@ -111,8 +116,9 @@ E.SIZES.forEach(function (sz) {
   var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), M = d.measures, bad = [];
   function chk(c, msg) { if (!c) bad.push(msg); }
   /* 주름을 접은 뒤 치마 허리폭 = 몸판 허리폭 */
-  var bFold = M.backSkirtW - M.backPleats * M.pleatDepth;
-  var fFold = M.frontSkirtW - M.frontPleats * M.pleatDepth;
+  /* ⚠ 주름분은 **앞뒤가 다르다** — 한쪽 값으로 둘 다 검사하면 앞이 늘 틀린 것처럼 보인다 */
+  var bFold = M.backSkirtW - M.backPleats * M.pleatDepthBack;
+  var fFold = M.frontSkirtW - M.frontPleats * M.pleatDepthFront;
   chk(Math.abs(bFold - M.backWaistW) < 0.05, '뒷치마 접은 뒤 ' + bFold.toFixed(2) + ' ≠ 허리 ' + M.backWaistW);
   chk(Math.abs(fFold - M.frontWaistW) < 0.05, '앞치마 접은 뒤 ' + fFold.toFixed(2) + ' ≠ 허리 ' + M.frontWaistW);
   /* 어깨는 앞뒤가 같아야 꿰맨다 */
