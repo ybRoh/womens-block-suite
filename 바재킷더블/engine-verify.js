@@ -297,14 +297,28 @@ console.log('══════════════════════�
   function outArea(p) { var s = 0, o = p.outline; for (var i = 0; i < o.length - 1; i++) s += o[i][0] * o[i + 1][1] - o[i + 1][0] * o[i][1]; return Math.abs(s) / 2; }
   function gLen(sub) { var t = 0; for (var i = 1; i < sub.length; i++) t += V.dist(sub[i - 1], sub[i]); return t; }
   function gArea(sub) { var s = 0; for (var i = 0; i < sub.length - 1; i++) s += sub[i][0] * sub[i + 1][1] - sub[i + 1][0] * sub[i][1]; return Math.abs(s) / 2; }
-  [['sleeveBig', '큰소매', 'sleeveTop', 8.0, 120],
-   ['sleeveUnder', '작은소매', 'sleeveUnder', 8.0, 120],
+  /* ⚠ 소매는 **트임 덧단 처리가 다르다** — 도면은 덧단을 조각 밖에 따로 그려 놓았고
+     (subs[1]) 엔진은 조각 외곽선에 넣는다. 그대로 견주면 넓이가 도면만 덧단만큼
+     작게 나온다(큰 32 · 작은 56). 그래서 소매만 **도면 넓이에 덧단을 더해** 맞춘다.
+     둘레는 트임을 도는 만큼 엔진이 더 길다 — 허용을 그만큼 넉넉히 둔다. */
+  [['sleeveBig', '큰소매', 'sleeveTop', 16.0, 70, 1],
+   ['sleeveUnder', '작은소매', 'sleeveUnder', 16.0, 70, 1],
    ['collar', '카라', 'collar', 4.0, 30],
    /* 주머니 — 도면 조각은 모서리가 둥글어 둘레가 우리보다 짧다. 넓이를 본다. */
    ['flap', '주머니 플랩', 'flap', 1.5, 3],
    ['pocketBag', '주머니감', 'pocketBag', 1.5, 5]].forEach(function (w) {
     var e = P[w[0]], t = G[w[2]].subs[0];
     var eL = outLen(e), tL = gLen(t), eA = outArea(e), tA = gArea(t);
+    /* 도면의 트임 덧단을 더한다. 덧단은 **열린 경로**로 그려져 있어(마지막 점이
+       첫 점이 아니다) 닫아 놓고 재야 한다 — gArea 를 그냥 쓰면 값이 5배로 튄다. */
+    if (w[5]) {
+      var vs = G[w[2]].subs[w[5]], va = 0;
+      for (var vi = 0; vi < vs.length; vi++) {
+        var vj = (vi + 1) % vs.length;
+        va += vs[vi][0] * vs[vj][1] - vs[vj][0] * vs[vi][1];
+      }
+      tA += Math.abs(va) / 2;
+    }
     ok('소매·카라 ' + w[1], Math.abs(eL - tL) <= w[3] && Math.abs(eA - tA) <= w[4],
        '둘레 ' + f(eL, 6) + ' 도면 ' + f(tL, 6) + ' · 넓이 ' + f(eA, 7, 1) + ' 도면 ' + f(tA, 7, 1) +
        ' · 차 ' + f(eL - tL, 5) + ' / ' + f(eA - tA, 6, 1), true);

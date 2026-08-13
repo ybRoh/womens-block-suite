@@ -498,7 +498,11 @@
        도면 밑단 몫(큰 14.24 / 작 11.16)에 맞춰 다시 잡았다 [원형2 6.25]. */
     twoFrontHemIn  : 9.1, twoFrontElbowIn: 1.44,
     twoInsetY      : 20.8,
-    ventW          : 2.0, ventWBig : 2.174, ventLen : 9.0, ventMitre : 2.0,
+    /* ★ 소매 트임 — **도면 실측**. 도면은 트임 덧단을 조각 **밖에 따로** 그려 두었다
+       (큰소매 10.37 × 3.03~3.12 · 작은소매 10.52 × 5.33~5.41).
+       원형2 이식판은 9.0 × 2.0/2.174 라 덧단이 좁고 짧았다.
+       작은소매 덧단이 큰소매보다 넓은 건 큰소매가 그 위를 덮기 때문이다. */
+    ventW          : 5.37, ventWBig : 3.08, ventLen : 10.45, ventMitre : 2.0,
     sleeveLenAdd   : 0,        // 소매길이 가감 (기본 = 호수별 57.23 + 1.0/호수 · 도면값)
     cuffAdd        : 0,        // 소맷부리 둘레 가감
     /* ── 밑단 트임 (벤트) — 교재 밖 · 테일러드 재킷 관례 ─────────────
@@ -2517,8 +2521,9 @@
        (부푼 양을 줄이면 곡선이 짧아진다 — 단조라 이분법으로 찾는다) */
     var undBack = mkSeam(undHemF, splitU, +1);   // 작은소매는 반대쪽(앞)으로 부푼다 — 큰소매의 거울
     /* 트임 — 두 조각 모두 절개선 아래 9 를 바깥으로 2.2 내민다 */
-    var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig));      // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
-    var ventUnd = ventOf(undBack, [backOutX, elbowY], num(opt.ventWUnd, K.ventW));   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
+    var vLn = num(opt.ventLen, K.ventLen);
+    var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig), vLn);   // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
+    var ventUnd = ventOf(undBack, [backOutX, elbowY], num(opt.ventWUnd, K.ventW), vLn);   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
 
     var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
       endTan([0, 1], CAL.twoFront.k0), null);
