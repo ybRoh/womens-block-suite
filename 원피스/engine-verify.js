@@ -187,7 +187,9 @@ E.SIZES.forEach(function (sz) {
    ['[23]', g.bPrinOut, g.p29, 0.25, '30-29-33 이 29번을 지난다'],
    ['[24]', g.bPrinOut, g.p36, 0.15, '다트가 36번(다트 끝)을 지난다'],
    ['[41]', g.fPrinOut, g.f70, 0.25, '앞 절개선이 70번을 지난다'],
-   ['[28]', g.bHem, g.p43, 0.60, '밑단이 43번 근처를 지난다(44번에 곡자)'],
+   /* [28] 은 43번(기준선 11~40 의 3등분점)이 **곡선 위 점인지 기준선 위 표시인지**
+      도면 해상도로 확정이 안 됐다. 확실한 것만 잰다 — 밑단이 현에서 실제로 휘는가.
+      아래 hemBow 검사가 그것이고, 43 통과 여부는 [미확정] 으로 남긴다. */
    ['소매[7]', s.capF, s.p18, 0.60, '앞 소매산이 18번 근처'],
    ['소매[7]', s.capF, s.p17, 0.60, '앞 소매산이 17번 근처'],
    ['소매[8]', s.capB, s.p21, 0.60, '뒤 소매산이 21번 근처']
@@ -208,14 +210,27 @@ E.SIZES.forEach(function (sz) {
     if (Math.abs(r[1] - r[2]) > r[3])
       bad.push(r[0] + ' ' + r[4] + ' — ' + (+r[1]).toFixed(2) + ' ≠ ' + (+r[2]).toFixed(2));
   });
-  /* ⚠ 미해결 — 원문 [15] ■ : 뒤 솔기 = 앞 솔기 + 0.5 */
-  var seamGap = s.seamLenB - s.seamLenF;
-  if (Math.abs(seamGap - K.sleeveEase) > 0.1)
-    soft.push('소매[15] ■ 뒤 솔기 = 앞 솔기 + ' + K.sleeveEase + ' — 실제 차 ' + seamGap.toFixed(3) +
-              ' (22·23·24 자리를 다시 읽어야 한다)');
+  /* [28] 「44번에 곡자를 대고 밑단」 — 밑단이 현(11~40)에서 실제로 휘어야 한다.
+     통과점을 현 위에 두면 31cm 구간에서 0.17 밖에 안 휘어 직선처럼 보인다(사용자 지적). */
+  [['뒤', g.bHem, g.p11, g.p40], ['앞', g.fHem, g.f64, g.f65]].forEach(function (r) {
+    var q = U.sampleSegs(r[1], 0.02), d = V.sub(r[3], r[2]), L = Math.hypot(d[0], d[1]), mx = 0;
+    q.forEach(function (x) {
+      mx = Math.max(mx, Math.abs((x[0] - r[2][0]) * d[1] - (x[1] - r[2][1]) * d[0]) / L);
+    });
+    if (mx < 0.4 || mx > 1.4) bad.push('[28] ' + r[0] + ' 밑단 휨 ' + mx.toFixed(2) + ' (0.4~1.4 라야 곡선이다)');
+  });
+  /* 소매 [15] ■ — **너치 위치** 규칙이다 (도면 「앞쪽 ■ +0.5(이세분)」).
+     솔기 길이 조건이 아니다: [10][11] 로 22·23·24 를 잡으면 앞뒤 가로 span 이 둘 다
+     Lrest/2 라 두 솔기가 수학적으로 같아진다. 그 사실도 함께 검사한다. */
+  if (Math.abs((s.markAtF - s.markAtB) - K.sleeveEase) > 0.01)
+    bad.push('소매[15] ■ 앞이 뒤보다 ' + K.sleeveEase + ' 나가야 한다 — 실제 ' +
+             (s.markAtF - s.markAtB).toFixed(3));
+  if (Math.abs(s.seamLenB - s.seamLenF) > 0.02)
+    bad.push('소매 앞뒤 솔기가 다르다 ' + s.seamLenF.toFixed(3) + '↔' + s.seamLenB.toFixed(3) +
+             ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (15 - bad.length - soft.length) + '/15' +
+    '원문 점 통과 ' + (16 - bad.length - soft.length) + '/16' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
