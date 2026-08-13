@@ -1692,6 +1692,24 @@
       var fcLine = splineSegs([fcH, fcM, fcA],
         endTan([0, -1], 1.0), endTan(V.sub(fcA, fcM), 1.0));
       fcLineG = fcLine; fcAG = fcA;
+      /* ★ 안단은 **라펠을 덮어야** 한다 — 꺾임선보다 몸 안쪽에 있어야 뒤집었을 때
+         라펠 겉면이 안단이 된다. 밖으로 나가면 라펠 안쪽이 겉감이라 못 쓴다.
+         주석에는 늘 적혀 있었지만 **재는 곳이 없었다** — `facingRoll` 을 0 이나
+         음수로 놓아도 아무 경고가 안 떴다. 꺾임선 구간에서 가장 얕은 자리를 잰다. */
+      (function () {
+        var rA = g.breakPt, rB = g.rollOn;
+        var rl = V.dist(rA, rB); if (rl < 1e-6) return;
+        var n = V.norm(V.sub(rB, rA)), worst = Infinity;
+        sampleSegs(fcLine, 0.3).forEach(function (q) {
+          var t = (q[0] - rA[0]) * n[0] + (q[1] - rA[1]) * n[1];
+          if (t < 0 || t > rl) return;                       // 꺾임선이 있는 높이만 본다
+          var fx = rA[0] + n[0] * t, fy = rA[1] + n[1] * t;
+          var dd = (q[0] - fx) * inward[0] + (q[1] - fy) * inward[1];
+          if (dd < worst) worst = dd;
+        });
+        if (worst < 0.5)
+          facingWarn.push('안단선이 꺾임선보다 ' + r4(worst) + ' 밖에 안 들어간다 — 라펠 안쪽이 겉감이 된다 (0.5 이상이라야 한다)');
+      })();
       /* 안단선이 앞판 **안**에 있어야 한다 — 절개선을 넘어가면 안단이 조각 밖으로 나간다 */
       (function () {
         var fp = pieces.filter(function (x) { return x.id === 'front'; })[0];
