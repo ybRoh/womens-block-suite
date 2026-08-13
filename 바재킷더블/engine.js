@@ -472,6 +472,7 @@
     capPad         : 1.9,
     capApexShift   : 0.6,      // 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
     capBulge       : 0.5,      // 곡선 통과점 = 대각선 발점 ↔ 마크 사이 비율 [0.500~0.512]
+    capTopDiv      : 8,        // 소매산 상단 마크 = 중심에서 AH/이 값
     capReduce      : 0,        // 소매산 대각선에서 뺄 양 (0 = 암홀 길이 그대로)
     twoMarkBotB    : 4.5,      // 뒤 하단 마크 — 고정 4.5 (AH/12+0.6 아님)
     armNotchDiv    : 3,
@@ -2345,7 +2346,7 @@
     ];
   }
 
-  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn, padIn, botBIn) {
+  function capGeom(AH, AHb, AHf, capReduce, apexShift, capHIn, padIn, botBIn, bulgeIn, topDivIn) {
     var capH = (capHIn === undefined) ? AH / 4 + 2 : capHIn;   // ★ 이 모듈은 AH/3 + 패드분
     /* ★ AH 대각선은 **상단선이 아니라 패드점 (0, 패드분) 에서** 내린다 — 정답지 확인.
        패드분은 소매산을 위로 밀어 올릴 뿐 대각선(=암홀 길이)의 수직변이 아니다.
@@ -2357,7 +2358,8 @@
     var apex = [apexShift, 0], bicepB = [-halfB, capH], bicepF = [halfF, capH];
 
     // 마크 — 상단은 중심선 상단점에서 수평 AH/8, 하단은 소매폭 끝에서 안쪽으로
-    var markTopB = [-AH / 8, 0], markTopF = [AH / 8, 0];
+    var topDiv = (topDivIn === undefined) ? 8 : topDivIn;
+    var markTopB = [-AH / topDiv, 0], markTopF = [AH / topDiv, 0];
     /* 뒤 하단 마크는 **고정 4.5** — 정답지 실측 4.5000 (AH/12+0.6 = 4.41 이 아니다) */
     var markBotB = [-halfB + (botBIn === undefined ? AH / 12 + 0.6 : botBIn), capH];
     var markBotF = [halfF - AH / 8, capH];
@@ -2377,7 +2379,8 @@
     }
     var fTB = footFromOrg(bicepB, markTopB), fBB = footFromOrg(bicepB, markBotB);
     var fTF = footFromOrg(bicepF, markTopF), fBF = footFromOrg(bicepF, markBotF);
-    var mixP = function (f, mk) { return _lerp(f.foot, mk, K.capBulge); };
+    var bulge = (bulgeIn === undefined) ? K.capBulge : bulgeIn;
+    var mixP = function (f, mk) { return _lerp(f.foot, mk, bulge); };
     var pTB = mixP(fTB, markTopB), pBB = mixP(fBB, markBotB);
     var pTF = mixP(fTF, markTopF), pBF = mixP(fBF, markBotF);
 
@@ -2421,7 +2424,8 @@
        capGeom 안에 하드코딩돼 있던 것을 파라미터로 뺐다. */
     var capH2 = AH / num(opt.capHeightDiv, K.capHeightDiv) + num(opt.capPad, K.capPad);
     var pad2 = num(opt.capPad, K.capPad);
-    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2, pad2, K.twoMarkBotB);
+    var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2, pad2,
+      num(opt.twoMarkBotB, K.twoMarkBotB), num(opt.capBulge, K.capBulge), num(opt.capTopDiv, K.capTopDiv));
     var halfB = cg.halfB, halfF = cg.halfF;
     /* 길이 골격은 **패드점 기준** — 정답지: 팔꿈치 33.5 = 1 + 60/2 + 2.5 · 부리 61.0 = 1 + 60 */
     var elbowY = pad2 + sleeveLen / 2 + K.elbowAdd;
