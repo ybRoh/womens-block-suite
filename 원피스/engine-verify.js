@@ -255,6 +255,35 @@ E.SIZES.forEach(function (sz) {
         bad.push('[40] ' + r[0] + ' 71번 편차 ' + dev.toFixed(3) + ' (원문 +0.3 밖으로)');
     });
   })();
+  /* ★ 소매산 **편차 프로파일** — 도면에서 확실히 읽히는 것은 「부호」다.
+       앞: 진동 쪽 **오목(−)** → 17번에서 0 교차 → 정점 쪽 **볼록(+)**
+       뒤: 진동 쪽 **볼록(+)** → 21번에서 0 교차 → 정점 쪽 **오목(−)**  (앞뒤가 반대)
+     크기(최대 부풀림)는 도면 해상도로 확정이 안 된다 — 부호와 교차 위치만 잠근다. */
+  [['앞 소매산', s.capF, s.p5, s.p6, s.p17, -1],
+   ['뒤 소매산', s.capB, s.p7, s.p6, s.p21, +1]].forEach(function (r) {
+    var A = r[2], Bp = r[3], d = V.sub(Bp, A), L = Math.hypot(d[0], d[1]);
+    function devAt(t) {
+      var y = A[1] + (Bp[1] - A[1]) * t, q = U.sampleSegs(r[1], 0.02), b = null;
+      q.forEach(function (x) { if (!b || Math.abs(x[1] - y) < Math.abs(b[1] - y)) b = x; });
+      return ((b[0] - A[0]) * d[1] - (b[1] - A[1]) * d[0]) / L;
+    }
+    if (devAt(0.2) * r[5] <= 0.15) bad.push(r[0] + ' 진동 쪽 부호가 다르다 (' + devAt(0.2).toFixed(2) + ')');
+    if (devAt(0.8) * r[5] >= -0.15) bad.push(r[0] + ' 정점 쪽 부호가 다르다 (' + devAt(0.8).toFixed(2) + ')');
+    /* 0 교차가 통과점(17·21) 자리인가 */
+    var tm = (r[4][1] - A[1]) / (Bp[1] - A[1]), lo = 0, hi = 1, i;
+    for (i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (devAt(mid) * r[5] > 0) lo = mid; else hi = mid; }
+    if (Math.abs((lo + hi) / 2 - tm) > 0.10)
+      bad.push(r[0] + ' 0 교차가 t=' + ((lo + hi) / 2).toFixed(2) + ' — 통과점은 t=' + tm.toFixed(2));
+  });
+  /* 정점에서 앞뒤가 매끄럽게 이어지는가 (뾰족하면 안 된다) */
+  (function () {
+    var f = U.sampleSegs(s.capF, 0.02), b2 = U.sampleSegs(s.capB, 0.02);
+    var t1 = V.sub(f[f.length - 1], f[f.length - 6]), t2 = V.sub(b2[5], b2[0]);
+    var n1 = Math.hypot(t1[0], t1[1]), n2 = Math.hypot(t2[0], t2[1]);
+    var a = Math.acos(Math.max(-1, Math.min(1, (t1[0] * t2[0] + t1[1] * t2[1]) / (n1 * n2)))) * 180 / Math.PI;
+    if (a > 6) bad.push('소매산 정점 꺾임 ' + a.toFixed(1) + '° (6° 이내라야 한다)');
+  })();
+
   /* [41] 74 = 66 + (73~66) — 밑단 다트 다리가 66번 기준 대칭 */
   if (Math.abs(Math.abs(g.f73[0] - g.f66[0]) - Math.abs(g.f74[0] - g.f66[0])) > 0.02)
     bad.push('[41] 73~66 ≠ 66~74');
@@ -292,7 +321,7 @@ E.SIZES.forEach(function (sz) {
              ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (68 - bad.length - soft.length) + '/68' +
+    '원문 점 통과 ' + (75 - bad.length - soft.length) + '/75' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
