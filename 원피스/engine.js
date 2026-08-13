@@ -349,6 +349,7 @@
     frontArmIn  : 0.3,    // 앞 암홀 보조 (0.3) [40]
     frontArmAt  : 0.45,   // 78번 자리 — 56 에서 진동선까지의 비율 [44]
     frontArmPerp: 0.55,   // 앞 암홀 출발 접선 — 1 이면 어깨에 직각(각짐) · 0 이면 통과점 직행
+    frontPrinOut: 0.3,    // [40] 58~70 구간이 71번에서 밖으로 부푸는 양
     frontArmGap : 0.4,    // 앞 암홀이 78번에서 떨어지는 양 (0.3~0.5) [45]
     /* ── 소매 ──────────────────────────────────────────────────── */
     capDiv      : 3,      // 소매산 = AH / 이 값 (capFromAH 를 켰을 때만)
@@ -759,13 +760,23 @@
                               endTan(V.sub(p29, p30), CAL.princess.k0), endTan(V.sub(p39h, p36), CAL.princess.k1));
     /* 앞은 어깨 다트가 없다 — 58번 한 점에서 갈라진다 [39][41] */
     var f70 = _lerp(f59, f60, 0.5);
+    /* ★ [40] 「70-58 선을 3등분하여 71·72번 → **71번에서 0.3 나간 곳**에 곡자를 대고
+       72번을 향해」 — 58~70 구간은 **밖으로(암홀 쪽) 0.3 부푼다.**
+       이 규칙을 안 넣었더니 스플라인이 반대로 **−0.385 안쪽으로** 처졌다
+       (도면 대조 2026-08-14). 통과점을 넣어 바로잡는다. */
+    var f7d = V.sub(f70, f58), f7L = Math.hypot(f7d[0], f7d[1]);
+    var f7n = [f7d[1] / f7L, -f7d[0] / f7L];              // 밖(암홀) 쪽 법선
+    var f71 = _lerp(f58, f70, 1 / 3);
+    var f71o = [f71[0] + f7n[0] * num(opt.frontPrinOut, K.frontPrinOut),
+                f71[1] + f7n[1] * num(opt.frontPrinOut, K.frontPrinOut)];
+    var f72 = _lerp(f58, f70, 2 / 3);
     /* ⚠ 다트 다리는 다트 끝(36·67번)에서 **교차한다** — 허리에서 안쪽이던 다리가
        밑단에서는 바깥으로 간다(원문 [24] 「36번에서 직선으로 내려」). 조각 경계는
        원문이 선을 그은 짝이 아니라 **끝까지 안쪽에 남는 쪽**으로 잡아야 한다.
        앞을 74번(바깥)으로 잡았더니 앞 중심판과 옆판의 밑단이 5.9~13.6 겹쳤다. */
-    var fPrinIn  = splineSegs([f58, f70, f68, f67, f73h],
+    var fPrinIn  = splineSegs([f58, f71o, f70, f68, f67, f73h],
                               endTan(V.sub(f70, f58), CAL.princess.k0), endTan(V.sub(f73h, f67), CAL.princess.k1));
-    var fPrinOut = splineSegs([f58, f70, f69, f67, f74h],
+    var fPrinOut = splineSegs([f58, f71o, f70, f69, f67, f74h],
                               endTan(V.sub(f70, f58), CAL.princess.k0), endTan(V.sub(f74h, f67), CAL.princess.k1));
 
     var ahBack = polyLen(sampleSegs(bArm, 0.02));
@@ -795,7 +806,7 @@
       f6: f6, f7: f7, f12: f12, f15: f15, f16: f16, f17: f17, f18: f18,
       f48: f48, f51: f51, f52: f52, f53: f53, f54: f54, f56: f56, f57: f57,
       f58: f58, f59: f59, f60: f60, f63: f63, f64: f64, f65: f65, f66: f66,
-      f67: f67, f68: f68, f69: f69, f73: f73, f74: f74, f75: f75, f78: f78,
+      f67: f67, f68: f68, f69: f69, f71: f71, f71o: f71o, f72: f72, f73: f73, f74: f74, f75: f75, f78: f78,
       fwTopY: f54[1] + (f51[0] - f54[0]) / Math.max(f57[0] - f54[0], 1e-6) * (f57[1] - f54[1]),
       fNeck: fNeck, fArm: fArm, fSide: fSide, fHem: fHem,
       shLenFront: V.dist(f54, f57), frontDart: fDart, fOpen: fOpen,

@@ -171,7 +171,7 @@ E.SIZES.forEach(function (sz) {
  *    · 수치가 붙은 것(0.3~0.5 · 1)  → 그 범위
  * ══════════════════════════════════════════════════════════════════ */
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 3-B. 원문 준수 — 곡선이 원문이 시킨 점을 지나는가');
+console.log(' 3-B. 원문 준수 — 번호점 좌표 45개 + 곡선이 지나야 할 점');
 console.log('════════════════════════════════════════════════════════════');
 function nearest(segs, P) {
   var q = U.sampleSegs(segs, 0.02), b = 1e9;
@@ -197,6 +197,68 @@ E.SIZES.forEach(function (sz) {
     var d = nearest(r[1], r[2]);
     if (d > r[3]) (r[3] >= 0.5 ? soft : bad).push(r[0] + ' ' + r[4] + ' — 실제 ' + d.toFixed(2));
   });
+  /* ★ 번호점 좌표 전수 대조 (2026-08-14 · 도면 docs/img/원피스-뒤판·앞판-도면.png)
+     사용자 지적 「앞판 뒷판 도면도 다시 대조해서 검증해줘」 로 한 번에 훑었다.
+     뒤판 19개 · 앞판 12개 전부 식과 일치했고, 아래 두 건이 새로 잡혔다:
+       · [40] 앞 절개선이 71번에서 **0.3 밖으로** 부풀어야 하는데 0.385 **안으로** 처져 있었다
+       · [43] 77번(54 직각선 ∩ 앞품선)은 도면으로 위치 확정이 안 돼 [미확정] 로 둔다 */
+  /* ⚠ 기대값에 K 를 쓰면 **자기만족 검사**가 된다 — K 를 고치면 기대값도 따라간다.
+     실제로 K.frontPrinOut 을 0.3 → 0 으로 되돌렸는데도 45/45 가 그대로 떴다
+     (2026-08-14). 원문이 **하나로 못 박은 값은 리터럴**로 쓰고, 「2~2.5」처럼 폭을
+     준 것만 K 를 쓰되 그 K 가 범위 안인지 따로 본다. */
+  var B = m.B, 유B = m['유B'], W = m.W, H = m.H, cb = g.cbIn, 유차 = g['유차'];
+  [['waistEase', K.waistEase, 1.5, 1.5], ['hipEase', K.hipEase, 1.0, 1.0],
+   ['backDart', K.backDart, 2.0, 2.5], ['princessOut', K.princessOut, 2.0, 2.5],
+   ['dartFromCB', K.dartFromCB, 8.0, 9.0], ['dartTipUp', K.dartTipUp, 5.0, 5.0],
+   ['bpOut', K.bpOut, 1.5, 2.0], ['neckDrop1', K.neckDrop1, 1.0, 1.0],
+   ['frontShDrop', K.frontShDrop, 4.8, 4.8], ['neckDeepAdd', K.neckDeepAdd, 0.5, 0.5],
+   ['frontDrop', K.frontDrop, 2.0, 2.0], ['frontPrinOut', K.frontPrinOut, 0.3, 0.3],
+   ['armFromBW', K.armFromBW, 1.0, 1.0], ['frontArmGap', K.frontArmGap, 0.3, 0.5],
+   ['cbIn', g.cbIn, 1.5, 1.5], ['shDrop', K.shDrop, 2.0, 2.0], ['shDart', K.shDart, 1.5, 1.5],
+   ['sleeveEase', K.sleeveEase, 0.5, 0.5], ['capFrontOut', K.capFrontOut, 4.5, 4.5],
+   ['capBackIn', K.capBackIn, 4.0, 4.0], ['capFrontIn', K.capFrontIn, 4.5, 5.0],
+   ['capBackOut', K.capBackOut, 4.5, 5.0], ['cuffW', K.cuffW, 24, 24]
+  ].forEach(function (r) {
+    if (!(r[1] >= r[2] - 1e-9 && r[1] <= r[3] + 1e-9))
+      bad.push('K.' + r[0] + ' = ' + r[1] + ' — 원문은 ' +
+               (r[2] === r[3] ? String(r[2]) : r[2] + '~' + r[3]));
+  });
+  [['11', g.p11, [cb, g.LEN]], ['10', g.p10, [cb, g.HL]], ['9', g.p9, [cb, g.WL]],
+   ['12', g.p12, [유B / 4 + 1.5, g.BL]], ['19', g.p19, [B / 12, 0]], ['20', g.p20, [B / 12, -유차]],
+   ['21', g.p21, [m.shoulderW / 2, 0]],
+   ['15', g.p15, [cb + W / 4 + 1.5 + K.backDart, g.WL]],
+   ['17', g.p17, [cb + H / 4 + 1.0, g.HL]], ['18', g.p18, [cb + H / 4 + 1.0, g.LEN]],
+   ['26', g.p26, [g.p25[0] + m.backW / 2, g.BL]],
+   ['28', g.p28, [(g.p25[0] + g.p26[0]) / 2, g.BL]], ['29', g.p29, [g.p28[0] + K.princessOut, g.BL]],
+   ['32', g.p32, [cb + K.dartFromCB, g.WL]], ['33', g.p33, [g.p32[0] + K.backDart, g.WL]],
+   ['36', g.p36, [(g.p32[0] + g.p33[0]) / 2, g.HL - 5]],
+   ['f12', g.f12, [유B / 4 + 1.5, g.BL]], ['f51', g.f51, [m.frontW / 2, g.BL]],
+   ['f53', g.f53, [B / 12, 0]], ['f54', g.f54, [B / 12, 1.0]],
+   ['f56', g.f56, [m.frontW / 2, 4.8]],
+   ['f59(BP)', g.f59, [m.bustW / 2, m.bustLen]], ['f60', g.f60, [m.bustW / 2 + K.bpOut, m.bustLen]],
+   ['f75', g.f75, [0, B / 12 + 0.5]], ['f64', g.f64, [0, g.LEN + 2.0]],
+   ['f15', g.f15, [W / 4 + 1.5 + K.frontDart, g.WL]]
+  ].forEach(function (r) {
+    if (V.dist(r[1], r[2]) > 0.02)
+      bad.push(r[0] + '번 ' + r[1].map(function (v) { return v.toFixed(2); }).join(',') +
+               ' ≠ 식 ' + r[2].map(function (v) { return v.toFixed(2); }).join(','));
+  });
+  /* [40] 앞 절개선 — 71번에서 0.3 밖으로 (안으로 처지면 부호가 뒤집힌다) */
+  (function () {
+    var A = g.f58, Bp = g.f70, d = V.sub(Bp, A), L = Math.hypot(d[0], d[1]);
+    var y71 = A[1] + (Bp[1] - A[1]) / 3;
+    [['앞 절개선(밖)', g.fPrinOut], ['앞 절개선(안)', g.fPrinIn]].forEach(function (r) {
+      var q = U.sampleSegs(r[1], 0.01), b = null;
+      q.forEach(function (x) { if (!b || Math.abs(x[1] - y71) < Math.abs(b[1] - y71)) b = x; });
+      var dev = ((b[0] - A[0]) * d[1] - (b[1] - A[1]) * d[0]) / L;
+      if (Math.abs(dev - 0.3) > 0.06)
+        bad.push('[40] ' + r[0] + ' 71번 편차 ' + dev.toFixed(3) + ' (원문 +0.3 밖으로)');
+    });
+  })();
+  /* [41] 74 = 66 + (73~66) — 밑단 다트 다리가 66번 기준 대칭 */
+  if (Math.abs(Math.abs(g.f73[0] - g.f66[0]) - Math.abs(g.f74[0] - g.f66[0])) > 0.02)
+    bad.push('[41] 73~66 ≠ 66~74');
+
   /* 좌표로 정해진 점 — 원문 식 그대로인지 */
   var chk = [
     ['소매[5]', s.p9[0], -1.5, 0.01, '9번 = 6번에서 1.5 앞'],
@@ -222,15 +284,15 @@ E.SIZES.forEach(function (sz) {
   /* 소매 [15] ■ — **너치 위치** 규칙이다 (도면 「앞쪽 ■ +0.5(이세분)」).
      솔기 길이 조건이 아니다: [10][11] 로 22·23·24 를 잡으면 앞뒤 가로 span 이 둘 다
      Lrest/2 라 두 솔기가 수학적으로 같아진다. 그 사실도 함께 검사한다. */
-  if (Math.abs((s.markAtF - s.markAtB) - K.sleeveEase) > 0.01)
-    bad.push('소매[15] ■ 앞이 뒤보다 ' + K.sleeveEase + ' 나가야 한다 — 실제 ' +
+  if (Math.abs((s.markAtF - s.markAtB) - 0.5) > 0.01)
+    bad.push('소매[15] ■ 앞이 뒤보다 0.5 나가야 한다 — 실제 ' +
              (s.markAtF - s.markAtB).toFixed(3));
   if (Math.abs(s.seamLenB - s.seamLenF) > 0.02)
     bad.push('소매 앞뒤 솔기가 다르다 ' + s.seamLenF.toFixed(3) + '↔' + s.seamLenB.toFixed(3) +
              ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (16 - bad.length - soft.length) + '/16' +
+    '원문 점 통과 ' + (68 - bad.length - soft.length) + '/68' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
