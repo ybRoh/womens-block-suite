@@ -158,9 +158,199 @@ E.SIZES.forEach(function (sz) {
     (bad.length ? '\n      → ' + bad.join(' · ') : ''));
 });
 
-/* ══ 4. 도면 대조 (soft) — 원문 55 Size 그림에서 읽은 값 ═══════════════ */
+/* ══ 3-B. 원문 준수 — 「어느 점을 지나라」를 곡선에서 실제로 잰다 ═════════
+ *
+ *  ★ 사용자 지적 (2026-08-14): 「이미지로 준 제도법을 준수했나? QA팀은 이 제도법대로
+ *    그렸는지 검증했나?」 — **안 했다.** §1 은 원문에서 **숫자 8개**만 봤다.
+ *    「16번에 곡자를 대고 15번과 연결」, 「41번이 맞닿을 정도로」, 「29번을 향하여」처럼
+ *    **곡선이 어느 점을 지나는가**는 하나도 재지 않았다. 여기서 전부 잰다.
+ *
+ *  통과 기준은 원문이 준 말 그대로다:
+ *    · 「지나간다 · 연결한다」 → 0.15 이내
+ *    · 「맞닿을 정도로 · 붙게」 → 0.25 이내
+ *    · 수치가 붙은 것(0.3~0.5 · 1)  → 그 범위
+ * ══════════════════════════════════════════════════════════════════ */
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 4. 도면 대조 (soft) — 원문 55 Size · 정답지가 없어 참고만 한다');
+console.log(' 3-B. 원문 준수 — 곡선이 원문이 시킨 점을 지나는가');
+console.log('════════════════════════════════════════════════════════════');
+function nearest(segs, P) {
+  var q = U.sampleSegs(segs, 0.02), b = 1e9;
+  q.forEach(function (x) { b = Math.min(b, V.dist(x, P)); });
+  return b;
+}
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz), g = E.geom(m);
+  var s = E.draftDress(m, { seam: E.SEAM_DEFAULT }).sleeve, bad = [], soft = [];
+  /* [단계, 곡선, 지나야 할 점, 허용, 설명] */
+  [['[26]', g.bNeck, g.p41, 0.25, '뒷목선이 41번에 맞닿는다'],
+   ['[21]', g.bPrinIn, g.p29, 0.25, '뒤 절개선이 29번을 지난다'],
+   ['[23]', g.bPrinOut, g.p29, 0.25, '30-29-33 이 29번을 지난다'],
+   ['[24]', g.bPrinOut, g.p36, 0.15, '다트가 36번(다트 끝)을 지난다'],
+   ['[41]', g.fPrinOut, g.f70, 0.25, '앞 절개선이 70번을 지난다'],
+   ['[28]', g.bHem, g.p43, 0.60, '밑단이 43번 근처를 지난다(44번에 곡자)'],
+   ['소매[7]', s.capF, s.p18, 0.60, '앞 소매산이 18번 근처'],
+   ['소매[7]', s.capF, s.p17, 0.60, '앞 소매산이 17번 근처'],
+   ['소매[8]', s.capB, s.p21, 0.60, '뒤 소매산이 21번 근처']
+  ].forEach(function (r) {
+    var d = nearest(r[1], r[2]);
+    if (d > r[3]) (r[3] >= 0.5 ? soft : bad).push(r[0] + ' ' + r[4] + ' — 실제 ' + d.toFixed(2));
+  });
+  /* 좌표로 정해진 점 — 원문 식 그대로인지 */
+  var chk = [
+    ['소매[5]', s.p9[0], -1.5, 0.01, '9번 = 6번에서 1.5 앞'],
+    ['소매[15]', s.p26[0] - s.p10[0], -1.25, 0.01, '26번 = 10번에서 1.25 안쪽'],
+    ['소매[6]', s.elY, (s.h + s.len) / 2 - 2.25, 0.01, 'EL = 12번에서 2.25 위'],
+    ['[20]', g.p36[1], g.HL - 5, 0.01, '36번 = H선에서 5 위'],
+    ['[42]', g.f75[1], m.B / 12 + 0.5, 0.01, '앞목 깊이 = B/12 + 0.5'],
+    ['[31]', g.f53[0], m.B / 12, 0.01, '앞목 너비 = B/12']
+  ];
+  chk.forEach(function (r) {
+    if (Math.abs(r[1] - r[2]) > r[3])
+      bad.push(r[0] + ' ' + r[4] + ' — ' + (+r[1]).toFixed(2) + ' ≠ ' + (+r[2]).toFixed(2));
+  });
+  /* ⚠ 미해결 — 원문 [15] ■ : 뒤 솔기 = 앞 솔기 + 0.5 */
+  var seamGap = s.seamLenB - s.seamLenF;
+  if (Math.abs(seamGap - K.sleeveEase) > 0.1)
+    soft.push('소매[15] ■ 뒤 솔기 = 앞 솔기 + ' + K.sleeveEase + ' — 실제 차 ' + seamGap.toFixed(3) +
+              ' (22·23·24 자리를 다시 읽어야 한다)');
+  if (bad.length) fails++; else if (soft.length) warns++;
+  console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
+    '원문 점 통과 ' + (15 - bad.length - soft.length) + '/15' +
+    (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
+    (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
+});
+
+/* ══ 4. 곡선 모양 검사 — 길이가 아니라 **생김새**를 잰다 ═══════════════
+ *
+ *  ★ 이 검사가 없어서 두 번 놓쳤다 (2026-08-14 사용자 지적):
+ *    · 소매산 — 이세 1.83 · 소매통 33.5 로 **길이는 다 맞는데** 정수리가 평평하고
+ *      뒤쪽에 각이 졌다. 원문 점을 그대로 스플라인에 꿴 탓이다.
+ *    · 앞목   — 끝접선을 (0,1) 로 줘서 목옆점 앞에서 **되돌아 나갔다**.
+ *      총회전 201°(정상 ~95°) · 최대곡률 3.19(반지름 0.31cm) 였는데 길이 검사는 통과.
+ *
+ *  재는 것 셋:
+ *    ① 최대곡률  — 스파이크가 곧 「각」이다. 반지름 1cm 보다 급하면 사람 몸에 없는 선이다
+ *    ② 변곡 횟수 — 곡률 부호가 몇 번 바뀌나. 물결치면 늘어난다
+ *    ③ 끝접선    — 도면의 직각 표시(어깨 끝·목옆점)와 수평 도착(겨드랑·소매산)을 확인
+ * ══════════════════════════════════════════════════════════════════ */
+function shapeOf(segs) {
+  var p = U.sampleSegs(segs, 0.05), ang = [], ds = [], i;
+  for (i = 1; i < p.length; i++) {
+    var d = V.sub(p[i], p[i - 1]);
+    ang.push(Math.atan2(d[1], d[0])); ds.push(Math.hypot(d[0], d[1]));
+  }
+  var k = [], turn = 0;
+  for (i = 1; i < ang.length; i++) {
+    var da = ang[i] - ang[i - 1];
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    k.push(da / (((ds[i] + ds[i - 1]) / 2) || 1e-9)); turn += Math.abs(da);
+  }
+  /* 표본 잡음을 없애려고 창 6 으로 민다 — 안 밀면 끝점마다 가짜 변곡이 잡힌다 */
+  var sm = [], W = 6, mx = 0;
+  for (i = 0; i < k.length; i++) {
+    var a = 0, c = 0;
+    for (var j = Math.max(0, i - W); j < Math.min(k.length, i + W + 1); j++) { a += k[j]; c++; }
+    sm.push(a / c); mx = Math.max(mx, Math.abs(a / c));
+  }
+  /* 변곡은 **의미 있는 곡률**에서만 센다 — 반지름 12cm 보다 평평하면 직선으로 본다 */
+  var lim = Math.max(0.08, mx * 0.10), infl = 0, prev = 0;
+  sm.forEach(function (v) {
+    var sg = v > lim ? 1 : (v < -lim ? -1 : 0);
+    if (sg && prev && sg !== prev) infl++;
+    if (sg) prev = sg;
+  });
+  var deg = function (r) { return r * 180 / Math.PI; };
+  return { maxK: mx, infl: infl, turn: deg(turn), t0: deg(ang[0]), t1: deg(ang[ang.length - 1]) };
+}
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 4. 곡선 모양 — 최대곡률 · 변곡 · 끝접선 (길이로는 안 잡히는 것)');
+console.log('════════════════════════════════════════════════════════════');
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz), g = E.geom(m), s = E.draftDress(m, { seam: E.SEAM_DEFAULT }).sleeve, bad = [];
+  /* [곡선, 이름, 최대곡률 상한, 변곡 상한, 시작접선 기대·허용, 끝접선 기대·허용] */
+  var shoulderB = Math.atan2(g.p23[1] - g.p20[1], g.p23[0] - g.p20[0]) * 180 / Math.PI;
+  var shoulderF = Math.atan2(g.f57[1] - g.f54[1], g.f57[0] - g.f54[0]) * 180 / Math.PI;
+  [[g.bArm,  '뒤 암홀',   0.45, 1, shoulderB + 90, 12, 0, 6],
+   [g.fArm,  '앞 암홀',   0.45, 1, shoulderF + 90, 12, 0, 6],
+   [s.capF,  '앞 소매산', 0.60, 1, 0, 6, 0, 6],     // 양 끝 수평 — 정답지 작도
+   [s.capB,  '뒤 소매산', 0.60, 1, 0, 6, 0, 6],
+   [g.bNeck, '뒷목',      0.70, 1, null, 0, shoulderB - 90, 15],
+   [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90, 15]
+  ].forEach(function (r) {
+    var x = shapeOf(r[0]), nm = r[1];
+    if (x.maxK > r[2]) bad.push(nm + ' 최대곡률 ' + x.maxK.toFixed(2) + ' > ' + r[2] +
+                                ' (반지름 ' + (1 / x.maxK).toFixed(1) + 'cm — 각이 졌다)');
+    if (x.infl > r[3]) bad.push(nm + ' 변곡 ' + x.infl + ' > ' + r[3] + ' (물결친다)');
+    function angChk(got, want, tol, label) {
+      if (want === null) return;
+      var d = ((got - want + 540) % 360) - 180;
+      if (Math.abs(d) > tol) bad.push(nm + ' ' + label + ' ' + got.toFixed(1) + '° (기대 ' +
+                                      want.toFixed(1) + '° ± ' + tol + ')');
+    }
+    angChk(x.t0, r[4], r[5], '시작접선');
+    angChk(x.t1, r[6], r[7], '끝접선');
+  });
+  if (bad.length) fails++;
+  var sh = shapeOf(g.bArm), sf = shapeOf(g.fArm), sc = shapeOf(s.capF);
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+    '뒤암홀 곡률 ' + f(sh.maxK, 5) + ' 변곡 ' + sh.infl +
+    ' · 앞암홀 ' + f(sf.maxK, 5) + '/' + sf.infl +
+    ' · 앞소매산 ' + f(sc.maxK, 5) + '/' + sc.infl + ' 끝접선 ' + f(sc.t1, 5) + '°' +
+    (bad.length ? '\n      → ' + bad.join('\n      → ') : ''));
+});
+
+/* ══ 5. 두 장 소매 — 자르기 전과 같은 소매인가 ═════════════════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 5. 두 장 소매 — 짝 길이는 작도로 보장된다 (대칭 · 평행이동)');
+console.log('════════════════════════════════════════════════════════════');
+console.log('   ※ 원문에는 한 장 소매 도면뿐이다. 두 장은 이 스위트의 정답지 모듈');
+console.log('     (숙녀복기본원형1·2)에서 검증된 작도를 따른다.');
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz), g = E.geom(m), bad = [];
+  var d1 = E.draftDress(m, { seam: E.SEAM_DEFAULT, sleeveType: 'one' });
+  var d2 = E.draftDress(m, { seam: E.SEAM_DEFAULT, sleeveType: 'two' });
+  var x = d2.two, one = d1.sleeve;
+
+  if (!x) { bad.push('두 장 소매가 안 나왔다'); }
+  else {
+    /* 짝 — 작도로 보장되므로 0.02 로 조인다. 벌어지면 작도가 무너진 것이다 */
+    if (Math.abs(x.seamLenBig - x.seamLenUnd) > 0.02)
+      bad.push('절개선 짝 ' + x.seamLenBig.toFixed(3) + '↔' + x.seamLenUnd.toFixed(3));
+    if (Math.abs(x.frontLenBig - x.frontLenUnd) > 0.02)
+      bad.push('앞 솔기 짝 ' + x.frontLenBig.toFixed(3) + '↔' + x.frontLenUnd.toFixed(3));
+    /* ★ 자른다고 소매가 달라지면 안 된다 */
+    if (Math.abs((x.cuffBig + x.cuffUnd) - one.cuffW) > 0.02)
+      bad.push('부리 합 ' + (x.cuffBig + x.cuffUnd).toFixed(3) + ' ≠ 소매부리 ' + one.cuffW);
+    var capTot = x.capLenBig + x.capLenUnd, easeTot = capTot - g.AH;
+    if (Math.abs(capTot - one.capLen) > 0.05)
+      bad.push('소매산 합 ' + capTot.toFixed(3) + ' ≠ 한 장 ' + one.capLen.toFixed(3));
+    if (easeTot < 1.0 || easeTot > 2.6) bad.push('두 장 이세 ' + easeTot.toFixed(2) + ' (원문 1.5~2)');
+    /* 작은소매가 큰소매보다 좁아야 한다 — 뒤집히면 절개점이 잘못 잡힌 것이다 */
+    if (x.cuffUnd >= x.cuffBig) bad.push('작은소매 부리 ' + x.cuffUnd.toFixed(2) + ' ≥ 큰소매 ' + x.cuffBig.toFixed(2));
+    /* 조각 수 — 소매 1장이 2장으로 */
+    if (d2.pieces.length !== d1.pieces.length + 1) bad.push('조각 수 ' + d2.pieces.length);
+    if (d2.warnings.length) bad.push('경고 ' + d2.warnings.join(' · '));
+    /* 모양도 본다 — 절개선이 각지거나 물결치면 안 된다 (§4 와 같은 잣대) */
+    [[x.bigSeam, '큰소매 절개선'], [x.undSeam, '작은소매 절개선'],
+     [x.bigFront, '큰소매 앞 밑선']].forEach(function (r) {
+      var q = shapeOf(r[0]);
+      if (q.maxK > 0.35) bad.push(r[1] + ' 최대곡률 ' + q.maxK.toFixed(2) + ' (각이 졌다)');
+      if (q.infl > 1) bad.push(r[1] + ' 변곡 ' + q.infl + ' (물결친다)');
+    });
+  }
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+    (x ? ('절개선 ' + f(x.seamLenBig, 7) + '↔' + f(x.seamLenUnd, 7) +
+          ' · 앞솔기 ' + f(x.frontLenBig, 7) + '↔' + f(x.frontLenUnd, 7) +
+          ' · 부리 ' + f(x.cuffBig, 6) + '+' + f(x.cuffUnd, 5) + '=' + f(x.cuffBig + x.cuffUnd, 6) +
+          ' · 이세 ' + f(x.capLenBig + x.capLenUnd - g.AH, 5)) : '') +
+    (bad.length ? '\n      → ' + bad.join(' · ') : ''));
+});
+
+/* ══ 6. 도면 대조 (soft) — 원문 55 Size 그림에서 읽은 값 ═══════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 6. 도면 대조 (soft) — 원문 55 Size · 정답지가 없어 참고만 한다');
 console.log('════════════════════════════════════════════════════════════');
 (function () {
   var m = E.measuresForSize('55호'), g = E.geom(m), M = E.draftDress(m, { seam: E.SEAM_DEFAULT }).measures;

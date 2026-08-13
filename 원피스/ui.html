@@ -12,7 +12,7 @@
   <header class="topbar">
     <div class="brand">
       <h1>원피스</h1>
-      <p class="sub">번호점 제도 · 프린세스 라인 · 다이아몬드 다트 · 한 장 소매</p>
+      <p class="sub">번호점 제도 · 프린세스 라인 · 다이아몬드 다트 · 한 장/두 장 소매</p>
     </div>
 
     <div class="sizetabs" id="ndSizeTabs" role="tablist" aria-label="호수 선택">
@@ -47,6 +47,13 @@
 
       <section class="block">
         <h2>스타일 <span class="h2note">cm</span></h2>
+        <div class="field">
+          <label for="ndSleeveType">소매 종류</label>
+          <select id="ndSleeveType">
+            <option value="one" selected>한 장 소매 (원문)</option>
+            <option value="two">두 장 소매</option>
+          </select>
+        </div>
         <div class="field">
           <label for="ndSplit">조각 구성</label>
           <select id="ndSplit">

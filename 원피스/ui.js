@@ -348,6 +348,7 @@
   /** 조각 구성 select 에 현재 값을 반영합니다 (2조각 / 4조각) */
   function syncSplit() {
     if (els && els.split) els.split.value = String(state.split || 0);
+    if (els && els.sleeveType) els.sleeveType.value = state.sleeveType || 'one';
   }
 
   function buildStyleFields() {
@@ -419,6 +420,7 @@
   var state = {
     size: '55호',
     split: 0,              // 0 = 몸판 통짜 2조각(원본) · 1 = 프린세스 절개 4조각
+    sleeveType: 'one',     // 'one' 한 장 소매(원문) · 'two' 두 장 소매
     custom: false,
     m: null,
     printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄
@@ -467,6 +469,7 @@
     styleOpt(opt);
     for (var ok in sp.opt) if (sp.opt.hasOwnProperty(ok)) opt[ok] = sp.opt[ok];
     opt.splitPanels = state.split;      // 조각 구성(2/4)은 스타일과 함께 넘긴다
+    opt.sleeveType  = state.sleeveType; // 소매 종류(한 장/두 장)
     try {
       var d = E.draftDress(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftDress 가 pieces 를 반환하지 않았습니다.');
@@ -1258,6 +1261,8 @@
   function loadPick() {
     var sp = storeGet('split');
     if (sp === 0 || sp === 1) state.split = sp;
+    var st = storeGet('sleeveType');
+    if (st === 'one' || st === 'two') state.sleeveType = st;
     var ex = storeGet('printExclude');
     if (!ex || typeof ex.length !== 'number') return;
     state.printExclude = {};
@@ -1491,6 +1496,12 @@
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
+    if (els.sleeveType) els.sleeveType.addEventListener('change', function () {
+      state.sleeveType = els.sleeveType.value === 'two' ? 'two' : 'one';
+      storeSet('sleeveType', state.sleeveType);
+      /* 조각이 통째로 바뀐다 (소매 1장 ↔ 큰소매+작은소매) — 인쇄 선택도 다시 맞춘다 */
+      recompute(true);
+    });
     if (els.split) els.split.addEventListener('change', function () {
       state.split = +els.split.value ? 1 : 0;
       storeSet('split', state.split);
@@ -1686,7 +1697,7 @@
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), split: $('ndSplit'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), split: $('ndSplit'), sleeveType: $('ndSleeveType'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
