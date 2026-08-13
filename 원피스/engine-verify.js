@@ -297,6 +297,19 @@ E.SIZES.forEach(function (sz) {
     if (a > 6) bad.push('소매산 정점 꺾임 ' + a.toFixed(1) + '° (6° 이내라야 한다)');
   })();
 
+  /* ★ [19] 34번은 32~33 의 2등분 — 다트 다리는 중심에서 각각 다트분/2 */
+  if (Math.abs((g.p34[0] - g.p32[0]) - (g.p33[0] - g.p34[0])) > 0.01)
+    bad.push('[19] 34번이 32~33 의 2등분이 아니다');
+  if (Math.abs((g.p33[0] - g.p32[0]) - K.backDart) > 0.01)
+    bad.push('[19] 32~33 ≠ 다트분');
+  /* 소매산 하향폭 — 원문 「소매통이 좁으면 소매산을 0.5~1 내린다」.
+     이 제도법은 필요치수(소매통 33~34)와 [2](소매산 = AH/3)가 같이 성립하지 않아
+     55호에서 1.49 를 내려야 한다. 원문이 준 폭(0.5~1)을 넘으므로 **경고로 띄운다**. */
+  var drop = g.AH / 3 - s.h;
+  if (drop > 1.05 || drop < -1.05)
+    soft.push('소매산 하향 ' + drop.toFixed(2) + ' — 원문은 0.5~1 (필요치수 소매통 ' +
+              m.sleeveW + ' 과 [2] AH/3 = ' + (g.AH / 3).toFixed(2) + ' 가 같이 성립하지 않는다)');
+
   /* ★ 소맷부리 [10][11][15] — 도면의 ★★ 표시와 26번 통과
        사용자 지적 「소매 밑단도 처리 안되었는데?」(2026-08-14) 로 잡혔다.
        부리선이 26번을 안 지나 **완전한 직선**이었다(양 끝·중간 모두 y = 56.50). */
@@ -361,7 +374,7 @@ E.SIZES.forEach(function (sz) {
              ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (86 - bad.length - soft.length) + '/86' +
+    '원문 점 통과 ' + (89 - bad.length - soft.length) + '/89' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
