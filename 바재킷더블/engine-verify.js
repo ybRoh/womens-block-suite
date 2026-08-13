@@ -295,7 +295,10 @@ console.log('══════════════════════�
   function gArea(sub) { var s = 0; for (var i = 0; i < sub.length - 1; i++) s += sub[i][0] * sub[i + 1][1] - sub[i + 1][0] * sub[i][1]; return Math.abs(s) / 2; }
   [['sleeveBig', '큰소매', 'sleeveTop', 8.0, 120],
    ['sleeveUnder', '작은소매', 'sleeveUnder', 8.0, 120],
-   ['collar', '카라', 'collar', 4.0, 30]].forEach(function (w) {
+   ['collar', '카라', 'collar', 4.0, 30],
+   /* 주머니 — 도면 조각은 모서리가 둥글어 둘레가 우리보다 짧다. 넓이를 본다. */
+   ['flap', '주머니 플랩', 'flap', 3.0, 8],
+   ['pocketBag', '주머니감', 'pocketBag', 4.0, 15]].forEach(function (w) {
     var e = P[w[0]], t = G[w[2]].subs[0];
     var eL = outLen(e), tL = gLen(t), eA = outArea(e), tA = gArea(t);
     ok('소매·카라 ' + w[1], Math.abs(eL - tL) <= w[3] && Math.abs(eA - tA) <= w[4],
