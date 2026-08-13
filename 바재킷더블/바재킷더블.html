@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 09:08 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 09:22 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 09:08'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 09:22'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1189,7 +1189,9 @@ td.n.n-fail{color:var(--red)}
     overlap      : 7.89,   // 앞중심 → 여밈 끝                   [38] 71번
     btnOut       : 3.71,   // 앞중심 → 단추열 (좌우 대칭)
     btnGapY      : 9.80,   // 단추 세로 간격
-    btnTopFromBL : 5.30,   // 맨 위 단추 — 가슴선에서 아래로
+    /* 맨 위 단추 — 도면은 조각 맨 위(목옆점)에서 27.24 아래다.
+       목옆점이 가슴선에서 (BL − 목옆점y) 위이므로 가슴선 기준으로 옮기면 6.34. */
+    btnTopFromBL : 6.34,   // 맨 위 단추 — 가슴선에서 아래로
     btnRows      : 3,      // 단추 줄 수
     bhLen        : 2.09,   // 단춧구멍 길이
     rollIn       : 2.5,    // 꺾임선이 어깨선을 지나는 자리       [41] 76번
@@ -1200,10 +1202,20 @@ td.n.n-fail{color:var(--red)}
        ⚠ 예전에는 목옆점에서 수직으로 2.5 내리고 곧장 여밈선으로 갔다 —
          봉우리가 하나뿐이라 도면과 모양이 달랐다 (2026-08-12 사용자 지적).
        고지선은 **카라가 붙는 변**이고, 라펠 윗변은 안단으로 처리하는 변이다. */
-    gorgeLen     : 6.0,    // 고지선 길이 — 목옆점 → V 바닥      [43] 82~83번
-    gorgeAngle   : 25.0,   // 고지선이 수평에서 **내려가는** 각
-    notchLen     : 4.2,    // 라펠 윗변 — V 바닥 → 라펠 꼭짓점    [45] 83~87 쪽
-    notchAngle   : 36.0,   // 라펠 윗변이 수평에서 **올라가는** 각 — 꼭짓점이 목옆점 높이쯤
+    /* ★ 노치 자리는 **앞중심선 기준**이다 — 도면 실측으로 확인했다:
+         · V 바닥(고지선 끝)이 **앞중심선 위**(x = 0), 목옆점에서 6.24 아래
+         · 라펠 꼭짓점은 앞중심 **바깥 3.71**, 목옆점에서 2.55 아래
+       길이·각도로 잡던 것을 이 규칙으로 바꿨다. 각도로 두면 목너비가 호수마다
+       달라질 때 V 바닥이 앞중심을 벗어난다 (55호에서 2.86 안쪽에 있었다). */
+    notchDrop    : 6.24,   // V 바닥 — 목옆점에서 아래 (x = 앞중심 0)  [43] 83번
+    /* 고지선은 도면에서 **굽어 있다** — 현에서 1.2 아래로 부푼다 (실측 1.202).
+       직선으로 두면 카라 붙는 자리가 도면보다 위로 들린다. */
+    gorgeBulge   : 1.20,
+    /* 라펠선이 여밈선과 만나는 자리 = **꺾임 시작**. 도면은 맨 윗단추보다 7.1 위다
+       (조각 위에서 20.1 · 맨 윗단추 27.24). 단추 자리에 두면 라펠이 낮아진다. */
+    lapelBreakUp : 7.10,
+    lapelOut     : 3.71,   // 라펠 꼭짓점 — 앞중심 바깥               [45]
+    lapelDrop    : 2.55,   // 라펠 꼭짓점 — 목옆점에서 아래
     collarOut    : 0.5,    // 테일러 카라 — 옆목점에서 0.5 나가서 [42] 78번
     collarW      : 7.5,    // 카라 넓이 (79~80)                  [42] 80번
     collarStand  : 3.0,    // 스탠드 높이 — 넓이보다 작아야 눕는다
@@ -1464,20 +1476,21 @@ td.n.n-fail{color:var(--red)}
     /* ───────── Ⅳ. 여밈 · 꺾임선 [38]~[41] ───────── */
     var ov = num(opt.overlap, K.overlap);
     var btnTopY = BL + num(opt.btnTopFromBL, K.btnTopFromBL);
-    var breakPt = [-ov, btnTopY];                                    // [40] 75번 (꺾임 시작)
+    /* [40] 75번 — 라펠선이 여밈선과 만나는 자리. 도면은 맨 윗단추보다 위다 */
+    var breakPt = [-ov, btnTopY - num(opt.lapelBreakUp, K.lapelBreakUp)];
     var rollOn  = V.add(SNPf, V.mul(V.norm(V.sub(SPf, SNPf)),
                     num(opt.rollIn, K.rollIn)));                     // [41] 76번
     var rollDir = V.norm(V.sub(rollOn, breakPt));                    // 꺾임선 방향(위쪽)
     var rollOut = [rollDir[1], -rollDir[0]];                         // 몸 바깥쪽 법선
     if (rollOut[0] > 0) rollOut = [-rollOut[0], -rollOut[1]];
-    /* 고지선 — 목옆점에서 앞중심 쪽으로 **내려간다**. 그 끝이 노치의 V 바닥이다 */
-    var gA = num(opt.gorgeAngle, K.gorgeAngle) * Math.PI / 180;
-    var gL = num(opt.gorgeLen, K.gorgeLen);
-    var gorgeEnd = [SNPf[0] - Math.cos(gA) * gL, SNPf[1] + Math.sin(gA) * gL];  // [43] 83번
-    /* 라펠 윗변 — V 바닥에서 다시 **올라가** 라펠 꼭짓점에 닿는다 */
-    var nA = num(opt.notchAngle, K.notchAngle) * Math.PI / 180;
-    var nL = num(opt.notchLen, K.notchLen);
-    var lapelPt = [gorgeEnd[0] - Math.cos(nA) * nL, gorgeEnd[1] - Math.sin(nA) * nL];
+    /* 고지선 끝(V 바닥) — **앞중심선 위**, 목옆점에서 notchDrop 아래 (도면 규칙) */
+    var gorgeEnd = [0, SNPf[1] + num(opt.notchDrop, K.notchDrop)];             // [43] 83번
+    /* 라펠 꼭짓점 — 앞중심 **바깥** lapelOut, 목옆점에서 lapelDrop 아래 */
+    var lapelPt = [-num(opt.lapelOut, K.lapelOut), SNPf[1] + num(opt.lapelDrop, K.lapelDrop)];
+    /* 고지선 — 현에서 아래로 부푼 곡선 (도면 실측 1.20) */
+    var gorgeSegs = splineSegs([SNPf,
+        chordBulge(SNPf, gorgeEnd, 0.5, -num(opt.gorgeBulge, K.gorgeBulge)), gorgeEnd],
+      endTan(V.sub(gorgeEnd, SNPf), 1.0), endTan(V.sub(gorgeEnd, SNPf), 1.0));
     /* 라펠 폭 = 꺾임선에서 83번까지의 수직거리 — 「접어서 확인」의 수치판 */
     var lapelW = Math.abs((lapelPt[0] - breakPt[0]) * rollDir[1] -
                           (lapelPt[1] - breakPt[1]) * rollDir[0]);
@@ -1512,7 +1525,8 @@ td.n.n-fail{color:var(--red)}
       fHemSideCut: wedge.hem, dartClose: dartClose,
       /* 여밈 · 라펠 */
       overlap: ov, btnTopY: btnTopY, breakPt: breakPt, rollOn: rollOn,
-      rollDir: rollDir, rollOut: rollOut, gorgeEnd: gorgeEnd, lapelPt: lapelPt, lapelW: lapelW
+      rollDir: rollDir, rollOut: rollOut, gorgeEnd: gorgeEnd, gorgeSegs: gorgeSegs,
+      lapelPt: lapelPt, lapelW: lapelW
     };
   }
 
@@ -2152,7 +2166,7 @@ td.n.n-fail{color:var(--red)}
       /* 라펠 윗변 — 노치의 위쪽 변. 카라가 아니라 **안단**과 만난다 */
       { name: '라펠 윗변', role: 'center',   segs: lineSegs(g.lapelPt, g.gorgeEnd) },
       /* 고지선 — **카라가 붙는 변**. V 바닥에서 목옆점까지 */
-      { name: '고지선',   role: 'neck',     segs: lineSegs(g.gorgeEnd, g.SNPf) }
+      { name: '고지선',   role: 'neck',     segs: revSegs(g.gorgeSegs) }
     ], [[edgeX * 0.4, g.BL + 2.0], [edgeX * 0.4, g.hemYf - 4.0]],
       [{ p: cp(g.SNPf), angle: 0,   label: '목옆점' },
        { p: cp(g.gorgeEnd), angle: 0, label: '노치(카라 끝)' },
@@ -2268,7 +2282,7 @@ td.n.n-fail{color:var(--red)}
        조각으로 뽑을 때는 목붙임선(= 뒷목 + 옆목~고지 + 고지선)을 그대로 두고
        바깥선만 slash & spread 로 벌린다. 「접어서 확인」은 검산기가 대신한다. */
     /* 카라 목붙임선 = 뒷목 + **고지선**. 라펠 윗변은 카라가 아니라 안단과 만난다. */
-    var collarNeckLen = sLen(g.backNeck) + V.dist(g.SNPf, g.gorgeEnd);
+    var collarNeckLen = sLen(g.backNeck) + sLen(g.gorgeSegs);
     (function () {
       var Hc = num(opt.collarW, K.collarW);
       var st = Math.min(Hc - 1.0, num(opt.collarStand, K.collarStand));
@@ -2343,10 +2357,13 @@ td.n.n-fail{color:var(--red)}
       var shU2 = V.norm(V.sub(g.SPf, g.SNPf));
       var fcA = V.add(g.SNPf, V.mul(shU2, fSh));                 // 어깨선 위 안단 끝
       var fcH = [edgeX + fHm, g.fHemAt(edgeX + fHm)];            // 밑단 위 안단 끝
-      /* 가슴선 높이에서 꺾임선이 있는 x — 그보다 facingRoll 안쪽을 지난다 */
-      var tBL = (g.BL - g.breakPt[1]) / (g.rollDir[1] || -1e-9);
-      var rollAtBL = g.breakPt[0] + g.rollDir[0] * tBL;
-      var fcM = [rollAtBL + num(opt.facingRoll, K.facingRoll), g.BL];
+      /* ★ 가운데 통과점은 **꺾임선의 중간**에서 몸 안쪽으로 `facingRoll` 들어간 자리다.
+         예전에는 「가슴선 높이의 꺾임선 x」로 잡았는데, 꺾임 시작을 도면대로 위로
+         올리자 가슴선이 꺾임선 **아래**가 되어 그 x 가 곡선 밖으로 나갔다
+         (안단선이 앞판을 벗어난다는 경고가 떴다). 꺾임선 위의 점이라야 늘 안전하다. */
+      var rollMid = _lerp(g.breakPt, g.rollOn, 0.5);
+      var inward = [-g.rollOut[0], -g.rollOut[1]];
+      var fcM = V.add(rollMid, V.mul(inward, num(opt.facingRoll, K.facingRoll)));
       var fcLine = splineSegs([fcH, fcM, fcA],
         endTan([0, -1], 1.0), endTan(V.sub(fcA, fcM), 1.0));
       fcLineG = fcLine; fcAG = fcA;
@@ -2359,7 +2376,7 @@ td.n.n-fail{color:var(--red)}
       })();
       pieces.push(mk('frontFacing', '앞 안단', [
         { name: '어깨선',    role: 'shoulder', segs: lineSegs(fcA, g.SNPf) },
-        { name: '고지선',    role: 'neck',     segs: lineSegs(g.SNPf, g.gorgeEnd) },
+        { name: '고지선',    role: 'neck',     segs: g.gorgeSegs },
         { name: '라펠 윗변', role: 'center',   segs: lineSegs(g.gorgeEnd, g.lapelPt) },
         { name: '라펠선',    role: 'center',   segs: lineSegs(g.lapelPt, g.breakPt) },
         { name: '여밈선',    role: 'center',   segs: lineSegs(g.breakPt, hemEdgeF) },
@@ -2585,7 +2602,7 @@ td.n.n-fail{color:var(--red)}
         neckBack: r4(sLen(g.backNeck)),
         /* 테일러드 앞판에는 앞목둘레 곡선이 없다 — 목선 + 고지선 + 라펠선이 그 자리다.
            고지선만 재면 스타일 상수라 호수가 커져도 안 변한다. */
-        neckFront: r4(V.dist(g.SNPf, g.gorgeEnd) + V.dist(g.gorgeEnd, g.lapelPt) +
+        neckFront: r4(sLen(g.gorgeSegs) + V.dist(g.gorgeEnd, g.lapelPt) +
                       V.dist(g.lapelPt, g.breakPt)),
         neckTotal: r4(collarNeckLen),
         armholeBack: r4(sLen(g.backArm)), armholeFront: r4(sLen(g.frontArm)),
@@ -2646,9 +2663,9 @@ td.n.n-fail{color:var(--red)}
                   f1(K.bpOutToDart) + '  [26][27]', g.fDart, 'frontSide', [g.fCx + 0.6, g.WLf - 1.2]),
       FN('wedge', '가슴다트',  '겨드랑에서 ' + f1(K.bustDartAt) + ' 아래 · **유차만큼** 덜어낸다 (꼭짓점 BP)  [27b]',
                   g.wedgeAmt, 'frontSide', [g.wedgeTop[0] - 4.6, (g.wedgeTop[1] + g.wedgeBot[1]) / 2]),
-      FN('lapel', '라펠',      '꺾임 = 75(맨 윗단추) → 76(어깨선 안 ' + f1(K.rollIn) + ') · 고지선 ' +
-                  f1(K.gorgeLen) + ' ↓' + f1(K.gorgeAngle) + '° · 노치 ' + f1(K.notchLen) +
-                  ' ↑' + f1(K.notchAngle) + '°  [40]~[46]', g.lapelW, 'front',
+      FN('lapel', '라펠',      '꺾임 = 75(맨 윗단추) → 76(어깨선 안 ' + f1(K.rollIn) + ') · V 바닥 = 앞중심 위 ' +
+                  f1(K.notchDrop) + ' 아래 · 라펠 끝 = 앞중심 바깥 ' + f1(K.lapelOut) +
+                  '  [40]~[46]', g.lapelW, 'front',
                   [g.lapelPt[0] - 1.0, g.lapelPt[1] + 3.0]),
       FN('collar', '카라',     '옆목점에서 ' + f1(K.collarOut) + ' 나가서 · 뒷목치수 + 카라넓이 ' +
                   f1(K.collarW) + '  [42]', K.collarW, 'collar', [1.0, K.collarW * 0.5])
@@ -6411,8 +6428,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
-    { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
-    { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
+    /* 노치 자리는 **앞중심선 기준** — 도면 실측 규칙이다 (§Ⅵ 참고) */
+    { k: 'notchDrop',     label: '노치 깊이',      min: 3,   max: 11,  step: 0.1, hint: 'V 바닥(고지선 끝) — 앞중심선 위 · 목옆점에서 아래로 · 도면 6.24' },
+    { k: 'lapelOut',      label: '라펠 끝 폭',     min: 1,   max: 8,   step: 0.1, hint: '라펠 꼭짓점 — 앞중심 바깥으로 · 도면 3.71' },
+    { k: 'lapelDrop',     label: '라펠 끝 높이',   min: 0,   max: 6,   step: 0.1, hint: '라펠 꼭짓점 — 목옆점에서 아래로 · 도면 2.55' },
     { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
     /* ★ 트임 덧단 너비(bodyVentW)는 **입력란으로 두지 않는다** — 트임 길이가 0 이면
        아무 일도 안 하는 입력이 되어, 화면에 있는데 동작하지 않는 칸이 생긴다

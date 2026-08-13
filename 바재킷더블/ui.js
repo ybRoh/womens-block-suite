@@ -46,8 +46,10 @@
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
-    { k: 'gorgeLen',      label: '고지선 길이',    min: 3,   max: 11,  step: 0.1, hint: '목옆점 → 노치 V 바닥 · 카라가 붙는 변  [43]' },
-    { k: 'notchLen',      label: '노치 길이',      min: 2,   max: 8,   step: 0.1, hint: 'V 바닥 → 라펠 꼭짓점 (라펠 폭을 정한다)  [45]' },
+    /* 노치 자리는 **앞중심선 기준** — 도면 실측 규칙이다 (§Ⅵ 참고) */
+    { k: 'notchDrop',     label: '노치 깊이',      min: 3,   max: 11,  step: 0.1, hint: 'V 바닥(고지선 끝) — 앞중심선 위 · 목옆점에서 아래로 · 도면 6.24' },
+    { k: 'lapelOut',      label: '라펠 끝 폭',     min: 1,   max: 8,   step: 0.1, hint: '라펠 꼭짓점 — 앞중심 바깥으로 · 도면 3.71' },
+    { k: 'lapelDrop',     label: '라펠 끝 높이',   min: 0,   max: 6,   step: 0.1, hint: '라펠 꼭짓점 — 목옆점에서 아래로 · 도면 2.55' },
     { k: 'collarW',       label: '카라 넓이',      min: 5,   max: 11,  step: 0.1, hint: '79~80 · 교재 7.5  [42] 80번' },
     /* ★ 트임 덧단 너비(bodyVentW)는 **입력란으로 두지 않는다** — 트임 길이가 0 이면
        아무 일도 안 하는 입력이 되어, 화면에 있는데 동작하지 않는 칸이 생긴다
