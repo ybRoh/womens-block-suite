@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 19:02 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 19:22 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 19:02'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 19:22'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1282,8 +1282,13 @@ td.n.n-fail{color:var(--red)}
          그러면 도면과 편차가 0.44 → 0.64 로 벌어진다. */
     collarSpread : 0.07,
     /* ── 2장소매 (숙녀복기본원형2 에서 이식 · [ ] 안이 그 모듈 정답지 실측) ──── */
-    capHeightDiv   : 3,        // 소매산 높이 = AH/3 (도면 `AH/3`)
-    capPad         : 1.0,      // 패드분 — 소매산을 이만큼 더 올린다 [1.0000]
+    /* ★ 소매산 골격 — **도면(Barjacke) 대조로 다시 잡았다**.
+       소매통 폭은 `√(암홀² − 수직변²)` 로 나오는데, 이 수직변이 `AH/capHeightDiv` 다.
+       패드분은 정점만 올릴 뿐 수직변이 아니라서 **폭에 영향이 없다** —
+       예전에 `capPad` 를 낮춰 폭을 넓히려던 시도가 안 먹힌 이유가 이것이다.
+       원형2 이식판은 AH/3 이었고, 그러면 소매통이 도면보다 4.6 좁다(31.4 ↔ 36.0). */
+    capHeightDiv   : 3.45,     // 수직변 = AH/3.45 — 소매통 폭을 도면 쪽으로 넓힌 값
+    capPad         : 1.3,      // 패드분 — 정점만 올린다 (이세 확보) [원형2 1.0000]
     capApexShift   : 0.6,      // 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
     capBulge       : 0.5,      // 곡선 통과점 = 대각선 발점 ↔ 마크 사이 비율 [0.500~0.512]
     capReduce      : 0,        // 소매산 대각선에서 뺄 양 (0 = 암홀 길이 그대로)
@@ -1293,6 +1298,9 @@ td.n.n-fail{color:var(--red)}
     capEaseBack    : 0.6,      // 전체 이세의 뒤 몫
     elbowAdd       : 2.5,      // 팔꿈치선 = 소매길이/2 + 2.5
     twoSplitGap    : 0.8,      // 큰·작은 절개점 간격 [0.8000]
+    /* 절개점 높이 = 소매산 × 이 값. 원형2 정답지는 정확히 절반(0.5)인데,
+       **도면은 큰소매가 뒤 소매산을 더 많이 가져간다** (14.72 ↔ 절반이면 12.4). */
+    twoSplitAt     : 0.55,
     /* 절개 위치 — 큰소매 앞 −이 값 · 작은소매 뒤 +이 값 (소매통 총폭은 안 변하고
        큰↔작은 몫만 옮긴다). 원형2 는 3.0 이었는데, **도면의 작은소매가 훨씬 넓다**.
        도면 작은소매 폭 13.3~13.6 ↔ 3.0 이면 10.3 · 5.5 면 13.4 로 맞는다. */
@@ -1307,7 +1315,10 @@ td.n.n-fail{color:var(--red)}
     twoUndOutIn2   : 1.809, twoUndOutY2   : 45.291,
     twoUndHemIn    : 1.175,    // 작은소매 부리 뒤 모서리 — 뒤 경계에서 **안쪽**
     twoUndHemRise  : 0.300,
-    twoFrontHemIn  : 6.25, twoFrontElbowIn: 1.44,
+    /* 큰소매 부리 앞 모서리 = halfF − 이 값. halfF 는 소매산을 낮추면 커지므로
+       이 값을 그대로 두면 밑단까지 같이 벌어져 소매가 안 좁아진다 —
+       도면 밑단 몫(큰 14.24 / 작 11.16)에 맞춰 다시 잡았다 [원형2 6.25]. */
+    twoFrontHemIn  : 9.1, twoFrontElbowIn: 1.44,
     twoInsetY      : 20.8,
     ventW          : 2.0, ventWBig : 2.174, ventLen : 9.0, ventMitre : 2.0,
     sleeveLenAdd   : 0,        // 소매길이 가감 (기본 = 호수별 60 + 1.0/호수)
@@ -3131,7 +3142,7 @@ td.n.n-fail{color:var(--red)}
 
     /* ★ 소매산 높이를 넘긴다 — 원형1 은 AH/4+2, 이 모듈은 **AH/3 + 패드분** 이다.
        capGeom 안에 하드코딩돼 있던 것을 파라미터로 뺐다. */
-    var capH2 = AH / K.capHeightDiv + num(opt.capPad, K.capPad);
+    var capH2 = AH / num(opt.capHeightDiv, K.capHeightDiv) + num(opt.capPad, K.capPad);
     var pad2 = num(opt.capPad, K.capPad);
     var cg = capGeom(AH, AHb, AHf, capReduce, K.capApexShift, capH2, pad2, K.twoMarkBotB);
     var halfB = cg.halfB, halfF = cg.halfF;
@@ -3144,8 +3155,9 @@ td.n.n-fail{color:var(--red)}
      *  · 큰소매 절개점 = 소매산 곡선 ∩ 그 높이
      *  · 작은소매 절개점 = 큰소매보다 **0.8 뒤** (도면 `0.8` 두 곳 · 실측 0.8000)
      *    두 조각이 절개선에서 0.8 씩 겹쳐 그 만큼이 이세로 들어간다.
-     *  ⚠ 예전에는 splitX = −AH/4 한 점을 두 조각이 공유했다. */
-    var splitY = cg.capH / 2;
+     *  ⚠ 예전에는 splitX = −AH/4 한 점을 두 조각이 공유했다.
+     *  ★ 이 모듈은 「절반」이 아니다 — 도면의 뒤 소매산이 그보다 길다. `twoSplitAt` 참고. */
+    var splitY = cg.capH * num(opt.twoSplitAt, K.twoSplitAt);
     var splitP = ptOnSegsAtYNear(cg.capBack, splitY);
     var splitX = splitP[0];
     var splitU = [splitX - num(opt.twoSplitGap, K.twoSplitGap), splitY];   // 작은소매 절개점
@@ -3175,7 +3187,7 @@ td.n.n-fail{color:var(--red)}
        도면 실측 60.7 = 패드분 1 + 소매길이 60 − 0.3. 그 0.3 이 어디서 오는지는 [미확정]. */
     var hemY = pad2 + sleeveLen - K.twoHemUp, hemLowY = hemY + K.twoHemDrop;
 
-    var bigHemF = [halfF - K.twoFrontHemIn, hemY];
+    var bigHemF = [halfF - num(opt.twoFrontHemIn, K.twoFrontHemIn), hemY];
     /* ★ 작은소매 부리 뒤 모서리는 뒤 경계보다 **안쪽**이고 **0.3 올라간다**
        (도면 마크 「작은소매 부리 뒤모서리(0.3 올림)」 실측 (−20.250, 60.4) · 뒤 경계 −21.425).
        예전에는 `backOutX − 1.492` 로 **바깥으로** 내밀어 부호가 반대였다. 그 2.6 때문에
