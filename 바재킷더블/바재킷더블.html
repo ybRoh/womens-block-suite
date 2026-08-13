@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 21:18 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 21:28 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 21:18'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 21:28'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1268,19 +1268,20 @@ td.n.n-fail{color:var(--red)}
        도면과 가장 가깝다(편차 0.44, 6.35 는 0.47 · 7.5 는 0.54). */
     collarW      : 6.8,
     collarStand  : 3.0,    // 스탠드 높이 — 넓이보다 작아야 눕는다
-    /* ★ 카라가 눕는 정도 — **바깥선을 목붙임선보다 얼마나 길게 뽑을지**.
-         꺾여 내려온 폭(fall = 넓이 − 스탠드)이 목보다 굵은 자리에 가 닿으므로
-         바깥선은 목붙임선보다 **짧아선 안 된다**. 짧으면 목을 조여 선 카라가 된다.
-         늘림 = fall × 이 값. 목붙임선을 원호로 두면
-         `바깥선 = 목붙임선 + 넓이 × 회전각` 이라 늘림에서 회전각을 역산한다.
+    /* ★ 카라 스프링 — **몸판 목둘레의 휨을 얼마나 남길지**.
+         테일러드 카라는 몸판 위에 꺾임선을 축으로 그린 뒤 떼어낸다 [42]~[46].
+         그 결과가 곧 「목둘레 곡선을 스프링만큼만 남기고 편 선」이다.
+           0 = 완전히 편 곧은 띠(선 카라 · 바깥선 = 목붙임선)
+           1 = 목둘레 그대로 (피터팬처럼 눕는다 · 55호 늘림 9.8)
+         바깥선은 목붙임선보다 **짧아선 안 된다** — 짧으면 목을 조인다.
 
-       ★ 늘림 값은 **도면에서 뜬다** — 도면 카라는 목붙임선 17.42 · 바깥선 17.66,
+       ★ 값은 **도면에서 뜬다** — 도면 카라는 목붙임선 17.42 · 바깥선 17.66,
          즉 늘림이 **+0.24 뿐**이다. 도면의 식서 화살표가 골선과 약 57° 로 놓여
          있어 **바이어스 재단 언더칼라**다 — 바이어스는 다림질로 바깥선을 늘려
-         쓰므로 제도에서 스프링을 조금만 준다. 그래서 이 엔진도 도면을 따른다
-         (fall 3.8 × 0.07 = 0.27). 봉제 원리로만 잡으면 0.75(=2.9)까지 커지는데,
-         그러면 도면과 편차가 0.44 → 0.64 로 벌어진다. */
-    collarSpread : 0.07,
+         쓰므로 제도에서 스프링을 조금만 준다. 0.032 가 늘림 0.238 이다.
+         (도면 겹침 편차는 0.02~0.06 구간에서 0.429~0.431 로 평평해 도면이
+          스프링을 못 가린다 — 그래서 **늘림 실측값**으로 정했다.) */
+    collarSpring : 0.032,
     /* ── 2장소매 (숙녀복기본원형2 에서 이식 · [ ] 안이 그 모듈 정답지 실측) ──── */
     /* ★ 소매산 골격 — **도면(Barjacke) 대조로 다시 잡았다**.
        소매통 폭은 `√(암홀² − 수직변²)` 로 나오는데, 이 수직변이 `AH/capHeightDiv` 다.
@@ -2413,20 +2414,48 @@ td.n.n-fail{color:var(--red)}
       var Hc = num(opt.collarW, K.collarW);
       var st = Math.min(Hc - 1.0, num(opt.collarStand, K.collarStand));
       var Lc = collarNeckLen;
-      /* 바깥선 늘림 = 꺾여 내려온 폭 × 눕는 정도 → 목붙임선의 총 회전각 */
-      var spread = Math.max(0, (Hc - st) * num(opt.collarSpread, K.collarSpread));
-      var th = spread / Hc;
-      /* 목붙임선 — 길이 Lc · 총 회전각 th 인 **원호**.
-         뒤중심(골선)을 **직각으로** 지나야 펼쳤을 때 중심에 각이 안 진다. */
-      var np = [], nN = Math.max(48, Math.ceil(Lc / 0.05));
-      if (th < 1e-4) { np = [[0, Hc], [Lc, Hc]]; }
-      else {
-        var rho = Lc / th;
-        for (var i = 0; i <= nN; i++) {
-          var t = th * i / nN;
-          np.push([rho * Math.sin(t), Hc + rho * (1 - Math.cos(t))]);
+      /* ★ 목붙임선은 **몸판 목둘레를 펴서** 만든다 — 테일러드 카라의 정석이다.
+         카라를 따로 그리는 게 아니라, 꺾임선을 축으로 몸판 위에 그린 뒤 떼어낸다
+         [42]~[46]. 그 결과가 곧 「목둘레 곡선을 스프링만큼만 남기고 편 선」이다.
+
+         구현: 뒷목둘레 + 고지선을 **한 줄기**로 이어 (호길이, 방향변화) 수열로 바꾸고,
+         방향변화만 `collarSpring` 배로 줄여 다시 적분한다. 길이는 손대지 않으므로
+         목둘레와 **정확히** 같고, 휨 분포는 목선을 그대로 물려받는다 —
+         뒷목 쪽은 굽고 고지선 쪽은 곧은, 실제 카라 모양이 된다.
+
+         ⚠ 예전 판은 **길이만 맞춘 원호**였다. 그래서 라펠·꺾임선·고지선을 아무리
+           바꿔도 카라가 꿈쩍하지 않았다(늘림 0.2653 고정). 지금은 목선이 바뀌면
+           카라가 따라온다.
+
+         `collarSpring` = 몸판 목둘레의 휨을 얼마나 남기는가.
+           0 = 완전히 편 곧은 띠(선 카라) · 1 = 목둘레 그대로(피터팬처럼 눕는다). */
+      var spring = Math.max(0, Math.min(1, num(opt.collarSpring, K.collarSpring)));
+      /* 목둘레 한 줄기 — 뒤중심 → 목옆점(뒷목둘레를 뒤집어) → 노치(고지선).
+         두 조각이 좌우 반대 좌표계라 고지선의 회전 부호를 뒤집어 이어 붙인다. */
+      function turnSeq(pts, sgn) {
+        var out = [];
+        for (var i = 1; i < pts.length; i++) {
+          var dphi = 0;
+          if (i > 1) {
+            var a = V.sub(pts[i - 1], pts[i - 2]), b = V.sub(pts[i], pts[i - 1]);
+            dphi = sgn * Math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1]);
+          }
+          out.push([V.dist(pts[i - 1], pts[i]), dphi]);
         }
+        return out;
       }
+      /* 부호 — 목둘레를 뒤집어 훑으면 회전이 음수로 나온다. 그대로 쓰면 카라가
+         목 쪽으로 굽어 **바깥선이 짧아진다**(= 목을 조이는 선 카라). 바깥선이
+         길어지는 쪽으로 두 도막을 맞춘다. */
+      var seq = turnSeq(sampleSegs(g.backNeck, 0.05).slice().reverse(), -1)
+        .concat(turnSeq(sampleSegs(g.gorgeSegs, 0.05), 1));
+      var np = [[0, Hc]], ang = 0, cx = 0, cy = Hc, thTot = 0;
+      seq.forEach(function (s) {
+        ang += s[1] * spring; thTot += s[1] * spring;
+        cx += s[0] * Math.cos(ang); cy += s[0] * Math.sin(ang);
+        np.push([cx, cy]);
+      });
+      var th = thTot;
       /** 목붙임선을 **바깥(위) 법선**으로 dd 만큼 민다. 굽은 선을 밀면 길어진다. */
       function push(pts, dd) {
         return pts.map(function (q, i) {
