@@ -60,7 +60,14 @@ var MODULES = [
        · 어깨선: 뒤가 **다트분만큼 길다**(원문 [33] 이 「다트분을 뺀 어깨」를 맞추라고 한다)
        · 옆선  : 앞이 **유차만큼 길다**(다트로 흡수)
        둘 다 모듈 검산기가 제대로 본다. 여기서는 조각 품질만 건다. */
-  { dir: '원피스', draft: 'draftDress', pairs: [] }
+  { dir: '원피스', draft: 'draftDress', pairs: [] },
+  /* 원피스 4조각 — 절개선이 진짜 봉제선이 되므로 여기서 짝을 건다.
+     허용 0.6 은 **이세**다(뒤 견갑골 0.28~0.47 · 앞 가슴 0.24~0.28). 0 으로 조이면
+     밑단 끝점을 밀어 길이를 맞추게 되는데, 21cm 구간의 차이를 100cm 변에서 갚는
+     셈이라 밑단이 2.5cm 밀리고 원문 [24](38·39 의 2등분 = 35번)가 깨진다. */
+  { dir: '원피스', label: '원피스 (4조각)', draft: 'draftDress', opt: { splitPanels: 1 },
+    pairs: [['뒤 절개선', '뒤판(중심)', '절개선', '뒤옆판', '절개선', 0.6],
+            ['앞 절개선', '앞판(중심)', '절개선', '앞옆판', '절개선', 0.6]] }
 ];
 
 /* 시접 0 이 **의도된** 자리 — 그 외에 0 이 나오면 재단해도 못 꿰맨다.
@@ -245,7 +252,7 @@ function runModule(mod) {
   if (typeof draftFn !== 'function') {
     console.log('  ✗ ' + mod.dir + ' — ' + mod.draft + ' 가 없다'); fails++; return;
   }
-  console.log('\n── ' + mod.dir);
+  console.log('\n── ' + (mod.label || mod.dir));
   var prev = null, modBad = [], prevSig = null, prevSize = null;
 
   E.SIZES.forEach(function (sz) {

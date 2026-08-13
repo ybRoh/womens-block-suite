@@ -345,22 +345,13 @@
   /* ═══════════════════════════════════════════════════════════════════
      스타일 입력
      ═══════════════════════════════════════════════════════════════════ */
-  /** 소매 종류 select 를 엔진 목록으로 채우고 현재 값을 반영합니다 */
-  function syncSleeveType() {
-    var E = ENG();
-    if (!els || !els.sleeveType || !E || !E.SLEEVE_TYPE) return;
-    var keys = sleeveTypeKeys();
-    if (keys.indexOf(state.sleeveType) < 0) state.sleeveType = keys[0];
-    if (els.sleeveType.options.length !== keys.length) {
-      els.sleeveType.innerHTML = keys.map(function (k) {
-        return '<option value="' + esc(k) + '">' + esc(E.SLEEVE_TYPE[k].name) + '</option>';
-      }).join('');
-    }
-    els.sleeveType.value = state.sleeveType;
+  /** 조각 구성 select 에 현재 값을 반영합니다 (2조각 / 4조각) */
+  function syncSplit() {
+    if (els && els.split) els.split.value = String(state.split || 0);
   }
 
   function buildStyleFields() {
-    syncSleeveType();
+    syncSplit();
     if (!els.styleBox) return;
     els.styleBox.innerHTML = STYLE_KEYS.map(function (f) {
       var v = state.style[f.k];
@@ -425,14 +416,9 @@
     } catch (e) { return false; }   // 용량 초과·차단 — 저장만 못 할 뿐 앱은 그대로 돈다
   }
 
-  /** 소매 종류 — 엔진 SLEEVE_TYPE 에서 읽습니다 ('tight' 한 장 · 'two' 2장소매) */
-  function sleeveTypeKeys() {
-    var E = ENG();
-    return (E && (E.SLEEVE_TYPES || (E.SLEEVE_TYPE && Object.keys(E.SLEEVE_TYPE)))) || ['tight'];
-  }
-
   var state = {
-    size: '66호',
+    size: '55호',
+    split: 0,              // 0 = 몸판 통짜 2조각(원본) · 1 = 프린세스 절개 4조각
     custom: false,
     m: null,
     printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄
@@ -440,7 +426,6 @@
     seam: null,            // SPEC §11-1 부위별 시접 객체 {neck,shoulder,armhole,side,hem,sleeveHem,fold}
     seamPreset: 'standard',
     style: {},             // 스타일 값 (STYLE_KEYS) — 비어 있으면 엔진 기본값
-    sleeveType: 'tight',   // 'tight' 한 장 타이트 · 'two' 2장소매
     printMode: 'a4',
     rollWidthMm: 594,
     rollMaxHmm: 0,         // 롤지 한 장 최대 길이 — 0 = 연속 롤(기본). 컷시트 플로터면 841/1189
@@ -481,6 +466,7 @@
     };
     styleOpt(opt);
     for (var ok in sp.opt) if (sp.opt.hasOwnProperty(ok)) opt[ok] = sp.opt[ok];
+    opt.splitPanels = state.split;      // 조각 구성(2/4)은 스타일과 함께 넘긴다
     try {
       var d = E.draftDress(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftDress 가 pieces 를 반환하지 않았습니다.');
@@ -1270,6 +1256,8 @@
   /** 저장해 둔 선택 복원. 지금 없는 조각 id 가 섞여 있어도 그냥 둔다 —
       소매 종류를 다시 바꾸면 그 선택이 되살아나는 편이 자연스럽다. */
   function loadPick() {
+    var sp = storeGet('split');
+    if (sp === 0 || sp === 1) state.split = sp;
     var ex = storeGet('printExclude');
     if (!ex || typeof ex.length !== 'number') return;
     state.printExclude = {};
@@ -1503,9 +1491,10 @@
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
-    if (els.sleeveType) els.sleeveType.addEventListener('change', function () {
-      state.sleeveType = els.sleeveType.value;
-      /* 조각 구성이 통째로 바뀐다 (소매 1장 ↔ 큰소매+작은소매) — 다시 맞춘다 */
+    if (els.split) els.split.addEventListener('change', function () {
+      state.split = +els.split.value ? 1 : 0;
+      storeSet('split', state.split);
+      /* 조각 구성이 통째로 바뀐다 (2조각 ↔ 4조각) — 인쇄 선택도 다시 맞춘다 */
       recompute(true);
     });
     if (els.styleReset) els.styleReset.addEventListener('click', function () {
@@ -1697,7 +1686,7 @@
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), sleeveType: $('ndSleeveType'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), split: $('ndSplit'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),

@@ -362,6 +362,8 @@
     mpBelowEL   : 1.0,    // EL 에서 아래로 → 25 (MP 분량선) [14]
     ctrTwist    : 1.25,   // 10번에서 안쪽으로 (반인치) → 26 · 중심선 틀기 [15]
     sleeveEase  : 0.5,    // 앞 솔기 + 이 값 = 뒤 솔기 (■ 표시) [15]
+    /* 0 = 통짜 2조각(원문 도면) · 1 = 프린세스 절개 4조각 */
+    splitPanels : 0,
     /* 겨드랑에서 소매산이 뜨는 기울기·세기. 너무 가파르면 소매산이 물결친다 */
     capUnderTan : 0.50, capUnderK : 0.70,
     /* 밑단이 옆선과 직각으로 만나는 정도. 1.0 이면 모서리에 고리가 생긴다 */
@@ -512,8 +514,9 @@
     var p38 = [extendToY(p33, p36, LEN), LEN];
     var p39 = [extendToY(p32, p36, LEN), LEN];
     var p35 = [p34[0], LEN];
-    var dartOpen = Math.abs(p39[0] - p38[0]);         // 밑단에서 벌어진 양
-    var p40 = [p18[0] + dartOpen, LEN];               // [24] 그만큼 옆선을 밖으로
+    /* 다이아몬드 다트가 밑단에서 벌어진 만큼 옆선도 같이 벌어진다 — 이게 치마폭이다 */
+    var dartOpen = Math.abs(p39[0] - p38[0]);
+    var p40 = [p18[0] + dartOpen, LEN];
     var p43 = _lerp(p11, p40, 1 / 3);
 
     /* ── 뒤판 곡선 ──────────────────────────────────────────────── */
@@ -522,13 +525,17 @@
     var bwTop = p20[1] + (p26[0] - p20[0]) / Math.max(p23[0] - p20[0], 1e-6) * (p23[1] - p20[1]);
     var bArm = armhole2(p23, p26[0], bwTop, p12, BL, num(opt.armFromBW, K.armFromBW), CAL.arm);
     var bArmGuide = [p26[0] + num(opt.armFromBW, K.armFromBW), (bwTop + BL) / 2];
-    var bSide = splineSegs([p12, p15, p40],
-                           endTan(V.sub(p15, p12), CAL.side.k0), endTan(V.sub(p40, p15), CAL.side.k1));
+    function mkBSide() { return splineSegs([p12, p15, p40],
+                           endTan(V.sub(p15, p12), CAL.side.k0), endTan(V.sub(p40, p15), CAL.side.k1)); }
+    var bSide = mkBSide();
     /* [28] 44번 — 밑단이 옆선과 **직각**으로 만나게 끝접선을 옆선의 수직으로 잡는다.
        직선으로 두면 옆선 쪽 모서리가 뾰족해져 이어 붙일 때 각이 진다. */
-    var bSideDir = V.norm(V.sub(p40, p15));
-    var bHem = splineSegs([p11, p43, p40], endTan([1, 0], 1.0),
-                          endTan(perpToward(bSideDir, p11, p40), num(opt.hemPerpK, K.hemPerpK)));
+    function mkBHem() {
+      var dir = V.norm(V.sub(p40, p15));
+      return splineSegs([p11, p43, p40], endTan([1, 0], 1.0),
+                        endTan(perpToward(dir, p11, p40), num(opt.hemPerpK, K.hemPerpK)));
+    }
+    var bHem = mkBHem();
 
     /* ══ 앞판 [29]~[46] — 뒤판과 같은 골격, 기준선이 유차만큼 위 ══
        앞판 자기 좌표계: y = 0 이 앞목 기준선(49번). 그래서 y 값은 뒤판과 같고,
@@ -575,11 +582,88 @@
     /* [45] 「앞품 78번점과 암홀선이 0.3~0.5 떨어지거나 **붙게**」 — 붙는다는 건
        암홀이 앞품선에 **접한다**는 뜻이다. 뒤와 같은 2도막 작도를 쓴다. */
     var fArm = armhole2(f57, f51[0], f56[1], f12, BL, num(opt.frontArmGap, K.frontArmGap), CAL.armF);
-    var fSide = splineSegs([f12, f15, f65],
-                           endTan(V.sub(f15, f12), CAL.side.k0), endTan(V.sub(f65, f15), CAL.side.k1));
-    var fSideDir = V.norm(V.sub(f65, f15));
-    var fHem = splineSegs([f64, _lerp(f64, f65, 1 / 3), f65],
-                          endTan([1, 0], 1.0), endTan(perpToward(fSideDir, f64, f65), num(opt.hemPerpK, K.hemPerpK)));
+    function mkFSide() { return splineSegs([f12, f15, f65],
+                           endTan(V.sub(f15, f12), CAL.side.k0), endTan(V.sub(f65, f15), CAL.side.k1)); }
+    var fSide = mkFSide();
+    /* ★ 옆선 길이 맞추기(true the side seams).
+       앞은 허리에서 2.25 를 죄고 뒤는 0.75 만 죈다(원문 [8][36] — 앞뒤 허리 몫은
+       같지만 가슴 폭이 앞이 1.5 넓다). 그래서 **앞 옆선이 0.25 더 길게** 나온다.
+       위아래 끝점은 원문이 정한 자리라 못 건드린다 → **밑단 쪽 65번을 올려** 맞춘다.
+       밑단은 마지막에 수평을 잡는 자유변이고, 65번의 x(18번+다트벌림)는 그대로 둔다. */
+    (function trueSideSeam() {
+      var want = polyLen(sampleSegs(bSide, 0.02)), y0 = f65[1], lo = -4, hi = 4, i, mid;
+      function lenAt(dy) { f65 = [f65[0], y0 + dy]; return polyLen(sampleSegs(mkFSide(), 0.02)); }
+      if (lenAt(lo) > want || lenAt(hi) < want) { f65 = [f65[0], y0]; fSide = mkFSide(); return; }
+      for (i = 0; i < 44; i++) { mid = (lo + hi) / 2; if (lenAt(mid) < want) lo = mid; else hi = mid; }
+      f65 = [f65[0], y0 + (lo + hi) / 2];
+      fSide = mkFSide();
+    })();
+    function mkFHem() {
+      var dir = V.norm(V.sub(f65, f15));
+      return splineSegs([f64, _lerp(f64, f65, 1 / 3), f65], endTan([1, 0], 1.0),
+                        endTan(perpToward(dir, f64, f65), num(opt.hemPerpK, K.hemPerpK)));
+    }
+    var fHem = mkFHem();
+
+    /* ══ 프린세스 절개선 [21]~[24] · [39]~[41] ═══════════════════════
+       어깨 다트(31·30) → 29번 → 허리 다트(32·33) → 다트 끝 36 → 밑단(38·39).
+       ★ 두 변은 **서로 꿰매는 짝**이라 길이가 같아야 한다. 원문이 「곡자로 한 번에」
+         라고 한 대로 각각 한 줄기 C2 스플라인으로 긋는다.
+       ⚠ 원문 [21][23] 은 30→32 · 31→33 으로 **엇갈려** 적혀 있는데, 그러면 절개선
+         두 줄이 29번 근처에서 교차해 조각이 안 된다. 안쪽끼리(31→32)·바깥끼리(30→33)
+         이어야 프린세스 절개가 성립한다. 도면의 45·46 「교차선」 표시는 그 아래
+         밑단 쪽에서 다트 다리가 스치는 자리다. */
+    /** 밑단 곡선의 x 자리 y — 밑단은 x 에 대해 단조라 이렇게 읽어도 된다 */
+    function hemYAt(segs, x) {
+      var pts = sampleSegs(segs, 0.02);
+      for (var j = 1; j < pts.length; j++) {
+        var a = pts[j - 1], b = pts[j];
+        if ((x >= a[0] && x <= b[0]) || (x >= b[0] && x <= a[0])) {
+          var t = Math.abs(b[0] - a[0]) < 1e-9 ? 0 : (x - a[0]) / (b[0] - a[0]);
+          return a[1] + (b[1] - a[1]) * t;
+        }
+      }
+      return pts[x <= pts[0][0] ? 0 : pts.length - 1][1];
+    }
+    /** 다트 다리를 **진짜 밑단선까지** 늘린다.
+        38·39·73·74 는 y=원피스길이 자리에서 잡은 점인데, 밑단은 직선이 아니라
+        곡선이다(앞은 앞처짐 때문에 앞중심이 1.4 나 내려간다). 그대로 쓰면
+        절개선 끝과 밑단이 그만큼 어긋나 조각이 안 닫힌다. */
+    function toHem(tip, at, segs) {
+      var y = at[1], t, x, i;
+      for (i = 0; i < 30; i++) {
+        t = (y - tip[1]) / (at[1] - tip[1]);
+        x = tip[0] + (at[0] - tip[0]) * t;
+        var ny = hemYAt(segs, x);
+        if (Math.abs(ny - y) < 1e-7) break;
+        y = ny;
+      }
+      t = (y - tip[1]) / (at[1] - tip[1]);
+      return [tip[0] + (at[0] - tip[0]) * t, y];
+    }
+    var p38h = toHem(p36, p38, bHem), p39h = toHem(p36, p39, bHem);
+    var f73h = toHem(f67, f73, fHem), f74h = toHem(f67, f74, fHem);
+
+    /* ★ 두 변의 길이 — **걷어서 재 보면 안쪽이 0.3 정도 길다.**
+       그런데 그 차이는 **전부 어깨~29번 구간에 있다**(29번 아래는 32·33 이 35번을
+       기준으로 대칭이라 저절로 같다). 즉 이것은 오차가 아니라 **견갑골 이세**다.
+       밑단 끝점을 밀어 길이를 맞추면 21cm 짜리 차이를 100cm 짜리 변에서 갚는 셈이라
+       밑단이 2.5cm 나 밀려 나가고 원문 [24](38·39 의 2등분 = 35번)도 깨진다.
+       → 원문 그대로 두고, 이세량을 재서 내보낸다. 봉제 때 어깨 쪽에서 홈줄인다. */
+    var bPrinIn  = splineSegs([p31, p29, p32, p36, p38h],
+                              endTan(V.sub(p29, p31), CAL.princess.k0), endTan(V.sub(p38h, p36), CAL.princess.k1));
+    var bPrinOut = splineSegs([p30, p29, p33, p36, p39h],
+                              endTan(V.sub(p29, p30), CAL.princess.k0), endTan(V.sub(p39h, p36), CAL.princess.k1));
+    /* 앞은 어깨 다트가 없다 — 58번 한 점에서 갈라진다 [39][41] */
+    var f70 = _lerp(f59, f60, 0.5);
+    /* ⚠ 다트 다리는 다트 끝(36·67번)에서 **교차한다** — 허리에서 안쪽이던 다리가
+       밑단에서는 바깥으로 간다(원문 [24] 「36번에서 직선으로 내려」). 조각 경계는
+       원문이 선을 그은 짝이 아니라 **끝까지 안쪽에 남는 쪽**으로 잡아야 한다.
+       앞을 74번(바깥)으로 잡았더니 앞 중심판과 옆판의 밑단이 5.9~13.6 겹쳤다. */
+    var fPrinIn  = splineSegs([f58, f70, f68, f67, f73h],
+                              endTan(V.sub(f70, f58), CAL.princess.k0), endTan(V.sub(f73h, f67), CAL.princess.k1));
+    var fPrinOut = splineSegs([f58, f70, f69, f67, f74h],
+                              endTan(V.sub(f70, f58), CAL.princess.k0), endTan(V.sub(f74h, f67), CAL.princess.k1));
 
     var ahBack = polyLen(sampleSegs(bArm, 0.02));
     var ahFront = polyLen(sampleSegs(fArm, 0.02));
@@ -593,6 +677,13 @@
       p26: p26, p27: p27, p28: p28, p29: p29, p30: p30, p31: p31,
       p32: p32, p33: p33, p34: p34, p35: p35, p36: p36, p38: p38, p39: p39,
       p40: p40, p41: p41, p42: p42, p43: p43,
+      p38h: p38h, p39h: p39h, f73h: f73h, f74h: f74h,
+      bPrinIn: bPrinIn, bPrinOut: bPrinOut, fPrinIn: fPrinIn, fPrinOut: fPrinOut, f70: f70,
+      prinLenB: [polyLen(sampleSegs(bPrinIn, 0.05)), polyLen(sampleSegs(bPrinOut, 0.05))],
+      /* 견갑골·가슴 이세 — 어깨~(29·70)번 구간에서만 생긴다 */
+      prinEaseB: polyLen(sampleSegs(bPrinIn.slice(0, 1), 0.02)) - polyLen(sampleSegs(bPrinOut.slice(0, 1), 0.02)),
+      prinEaseF: polyLen(sampleSegs(fPrinIn.slice(0, 1), 0.02)) - polyLen(sampleSegs(fPrinOut.slice(0, 1), 0.02)),
+      prinLenF: [polyLen(sampleSegs(fPrinIn, 0.05)), polyLen(sampleSegs(fPrinOut, 0.05))],
       bwTopY: p20[1] + (p26[0] - p20[0]) / Math.max(p23[0] - p20[0], 1e-6) * (p23[1] - p20[1]),
       cbSegs: cbSegs, bNeck: bNeck, bArm: bArm, bSide: bSide, bHem: bHem,
       backDart: backDart, dartOpen: dartOpen, shDartAmt: shDart,
@@ -1213,12 +1304,96 @@
       ];
     }
 
-    /* ══ ① 뒤판 ═══════════════════════════════════════════════════ */
+    var split = num(opt.splitPanels, K.splitPanels);   // 1 = 프린세스 4조각
+
     var cbBack = [{ p0: g.p11, c1: g.p11, c2: g.p10, p1: g.p10 },
                   { p0: g.p10, c1: g.p10, c2: g.p9, p1: g.p9 }]
                  .concat(revSegs(g.cbSegs))
                  .concat([{ p0: g.p8, c1: g.p8, c2: g.p2, p1: g.p2 }]);
-    pieces.push(mk('back', '뒤판', [
+    var cfFront = [{ p0: g.f64, c1: g.f64, c2: g.f7, p1: g.f7 },
+                   { p0: g.f7, c1: g.f7, c2: g.f6, p1: g.f6 },
+                   { p0: g.f6, c1: g.f6, c2: g.f48, p1: g.f48 },
+                   { p0: g.f48, c1: g.f48, c2: g.f75, p1: g.f75 }];
+
+    /** 밑단 곡선에서 x 구간만 잘라 온다.
+        4조각으로 나눌 때 밑단을 직선으로 이으면 **통짜가 갖고 있던 곡률**이 사라진다
+        (특히 옆선 쪽 — 옆선에 직각으로 만나느라 거기가 제일 많이 휜다). */
+    function cutAtX(segs, xa, xb) {
+      var pts = sampleSegs(segs, 0.02), lo = Math.min(xa, xb), hi = Math.max(xa, xb), out = [], i;
+      function yAt(x) {
+        for (var j = 1; j < pts.length; j++) {
+          var a = pts[j - 1], b = pts[j];
+          if ((x >= a[0] && x <= b[0]) || (x >= b[0] && x <= a[0])) {
+            var t = Math.abs(b[0] - a[0]) < 1e-9 ? 0 : (x - a[0]) / (b[0] - a[0]);
+            return a[1] + (b[1] - a[1]) * t;
+          }
+        }
+        return pts[x <= pts[0][0] ? 0 : pts.length - 1][1];
+      }
+      out.push([lo, yAt(lo)]);
+      for (i = 0; i < pts.length; i++) if (pts[i][0] > lo + 1e-6 && pts[i][0] < hi - 1e-6) out.push(pts[i]);
+      out.push([hi, yAt(hi)]);
+      if (xa > xb) out.reverse();
+      return lineSegs.apply(null, out);
+    }
+
+    /* ══ ①' 4조각 — 프린세스 절개선을 실제로 자른다 ══════════════════
+       원문 필요치수의 「프린세스라인 : 어깨에서 절개선이 들어감」이 이것이다.
+       절개선은 walk & true 로 두 변 길이를 0.000 으로 맞춰 두었다. */
+    if (split) {
+      pieces.push(mk('backCtr', '뒤판(중심)', [
+        { name: '뒷목둘레', role: 'neck',     segs: g.bNeck },
+        { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.p20, g.p31) },
+        { name: '절개선',   role: 'princess', segs: g.bPrinIn },
+        { name: '밑단',     role: 'hem',      segs: cutAtX(g.bHem, g.p38h[0], g.p11[0]) },
+        { name: '뒤중심',   role: 'center',   segs: cbBack }
+      ], [[g.cbIn + 2.0, g.BL], [g.cbIn + 2.0, g.LEN - 4]],
+        [{ p: cp(g.p20), angle: 90, label: '목옆점' },
+         { p: cp(g.p29), angle: 0, label: '절개 맞춤' },
+         { p: cp(g.p32), angle: 0, label: '허리' }],
+        [L('wl', 'dashed', [[g.cbIn + 0.3, g.WL], [g.p32[0] - 0.3, g.WL]], '허리선'),
+         L('hl', 'dashed', [[g.cbIn + 0.3, g.HL], [g.p36[0] - 0.3, g.HL]], '엉덩이선')], 2));
+      pieces.push(mk('backSide', '뒤옆판', [
+        { name: '어깨선',  role: 'shoulder', segs: lineSegs(g.p30, g.p23) },
+        { name: '뒤 암홀', role: 'armhole',  segs: g.bArm },
+        { name: '옆선',    role: 'side',     segs: g.bSide },
+        { name: '밑단',    role: 'hem',      segs: cutAtX(g.bHem, g.p40[0], g.p39h[0]) },
+        { name: '절개선',  role: 'princess', segs: revSegs(g.bPrinOut) }
+      ], [[g.p33[0] + 1.5, g.BL], [g.p33[0] + 1.5, g.LEN - 4]],
+        [{ p: cp(g.p12), angle: 180, label: '겨드랑' },
+         { p: cp(g.p29), angle: 180, label: '절개 맞춤' },
+         { p: cp(g.p33), angle: 180, label: '허리' }],
+        [L('bl', 'dashed', [[g.p29[0] + 0.3, g.BL], [g.p12[0] - 0.4, g.BL]], '가슴선'),
+         L('wl', 'dashed', [[g.p33[0] + 0.3, g.WL], [g.p15[0] - 0.4, g.WL]], '허리선')], 2));
+      pieces.push(mk('frontCtr', '앞판(중심)', [
+        { name: '앞목둘레', role: 'neck',     segs: g.fNeck },
+        { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.f54, g.f58) },
+        { name: '절개선',   role: 'princess', segs: g.fPrinIn },
+        { name: '밑단',     role: 'hem',      segs: cutAtX(g.fHem, g.f73h[0], g.f64[0]) },
+        { name: '앞중심',   role: 'center',   segs: cfFront }
+      ], [[2.0, g.BL], [2.0, g.LEN - 4]],
+        [{ p: cp(g.f54), angle: 90, label: '목옆점' },
+         { p: cp(g.f70), angle: 0, label: '절개 맞춤' },
+         { p: cp(g.f68), angle: 0, label: '허리' }],
+        [L('bp', 'point', [cp(g.f59)], 'BP'),
+         L('wl', 'dashed', [[0.3, g.WL], [g.f68[0] - 0.3, g.WL]], '허리선'),
+         L('hl', 'dashed', [[0.3, g.HL], [g.f67[0] - 0.3, g.HL]], '엉덩이선')], 2));
+      pieces.push(mk('frontSide', '앞옆판', [
+        { name: '어깨선',  role: 'shoulder', segs: lineSegs(g.f58, g.f57) },
+        { name: '앞 암홀', role: 'armhole',  segs: g.fArm },
+        { name: '옆선',    role: 'side',     segs: g.fSide },
+        { name: '밑단',    role: 'hem',      segs: cutAtX(g.fHem, g.f65[0], g.f74h[0]) },
+        { name: '절개선',  role: 'princess', segs: revSegs(g.fPrinOut) }
+      ], [[g.f69[0] + 1.5, g.BL], [g.f69[0] + 1.5, g.LEN - 4]],
+        [{ p: cp(g.f12), angle: 180, label: '겨드랑' },
+         { p: cp(g.f70), angle: 180, label: '절개 맞춤' },
+         { p: cp(g.f69), angle: 180, label: '허리' }],
+        [L('bl', 'dashed', [[g.f70[0] + 0.3, g.BL], [g.f12[0] - 0.4, g.BL]], '가슴선'),
+         L('wl', 'dashed', [[g.f69[0] + 0.3, g.WL], [g.f15[0] - 0.4, g.WL]], '허리선')], 2));
+    }
+
+    /* ══ ① 뒤판 (통짜) ═════════════════════════════════════════════ */
+    if (!split) pieces.push(mk('back', '뒤판', [
       { name: '뒷목둘레', role: 'neck',     segs: g.bNeck },
       /* ★ 어깨선은 **다트분을 품은 통짜 직선**이다 — 원문 도면이 그렇다.
          다트를 V 로 잘라 넣어 봤더니 꼭짓점이 29번(가슴선)이라 뒤판이 위에서
@@ -1245,11 +1420,7 @@
         .concat(dartLines(g.p31, g.p30, g.p29, g.p36, g.p38, g.p39, 'bd')), 2));
 
     /* ══ ② 앞판 ═══════════════════════════════════════════════════ */
-    var cfFront = [{ p0: g.f64, c1: g.f64, c2: g.f7, p1: g.f7 },
-                   { p0: g.f7, c1: g.f7, c2: g.f6, p1: g.f6 },
-                   { p0: g.f6, c1: g.f6, c2: g.f48, p1: g.f48 },
-                   { p0: g.f48, c1: g.f48, c2: g.f75, p1: g.f75 }];
-    pieces.push(mk('front', '앞판', [
+    if (!split) pieces.push(mk('front', '앞판', [
       { name: '앞목둘레', role: 'neck',     segs: g.fNeck },
       { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.f54, g.f57) },
       { name: '앞 암홀',  role: 'armhole',  segs: g.fArm },

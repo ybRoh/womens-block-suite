@@ -12,13 +12,15 @@
   <header class="topbar">
     <div class="brand">
       <h1>원피스</h1>
-      <p class="sub">V 네크라인 · 주름 치마 · 긴소매 · 깃 · 고름 · 동정</p>
+      <p class="sub">번호점 제도 · 프린세스 라인 · 다이아몬드 다트 · 한 장 소매</p>
     </div>
 
     <div class="sizetabs" id="ndSizeTabs" role="tablist" aria-label="호수 선택">
-      <button type="button" class="sizetab" role="tab" data-size="55호" aria-selected="false">55호</button>
-      <button type="button" class="sizetab is-on" role="tab" data-size="66호" aria-selected="true">66호</button>
+      <button type="button" class="sizetab" role="tab" data-size="44호" aria-selected="false">44호</button>
+      <button type="button" class="sizetab is-on" role="tab" data-size="55호" aria-selected="true">55호</button>
+      <button type="button" class="sizetab" role="tab" data-size="66호" aria-selected="false">66호</button>
       <button type="button" class="sizetab" role="tab" data-size="77호" aria-selected="false">77호</button>
+      <button type="button" class="sizetab" role="tab" data-size="88호" aria-selected="false">88호</button>
     </div>
 
     <div class="topmeta">
@@ -37,19 +39,26 @@
         <h2>치수 편집 <span class="h2note">cm</span></h2>
         <div class="fields" id="ndFields"><!-- ui.js 가 엔진 치수 키로 생성 --></div>
         <button type="button" class="btn btn-ghost btn-wide" id="ndResetBtn">
-          표준값 복원 <span class="btn-sub" id="ndResetSize">66호</span>
+          표준값 복원 <span class="btn-sub" id="ndResetSize">55호</span>
         </button>
-        <p class="hint">앞길이와 등길이를 모두 입력합니다 — 그 차이가 <b>앞 등길이 차이치수</b>(도면 4)입니다.
-          암홀(AH·뒤AH·앞AH)과 목둘레는 제도에서 자동 산출되므로 입력란이 없습니다.</p>
+        <p class="hint">원피스길이는 <b>목옆점에서 잰 전체 길이</b>입니다.
+          암홀·목둘레·소매산은 제도에서 자동 산출되므로 입력란이 없습니다.</p>
       </section>
 
       <section class="block">
         <h2>스타일 <span class="h2note">cm</span></h2>
-        <!-- 소매 종류 선택 없음 — 교재 p.51 에 소매 도면이 없어 몸판 2조각만 낸다 -->
+        <div class="field">
+          <label for="ndSplit">조각 구성</label>
+          <select id="ndSplit">
+            <option value="0" selected>2조각 — 몸판 통짜 (원본 도면)</option>
+            <option value="1">4조각 — 프린세스 절개</option>
+          </select>
+        </div>
         <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
         <button type="button" class="btn btn-ghost btn-wide" id="ndStyleReset">기본값 복원</button>
-        <p class="hint">원본 도면이 범위로 준 값을 여기서 고릅니다.
-          <b>기본값은 66호 원본 도면과 같습니다.</b></p>
+        <p class="hint">원본이 「2~2.5」처럼 범위로 준 값을 여기서 고릅니다.
+          <b>기본값은 55 Size 원본 도면과 같습니다.</b>
+          4조각은 어깨~절개 통과점 구간에 <b>이세</b>가 붙습니다(뒤 0.3~0.5 · 앞 0.1 안팎).</p>
       </section>
 
       <section class="block">

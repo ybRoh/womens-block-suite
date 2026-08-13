@@ -106,8 +106,6 @@ E.SIZES.forEach(function (sz) {
   if (M.chestFinish <= m['유B']) bad.push('완성 가슴 ' + M.chestFinish + ' ≤ 유B ' + m['유B']);
   if (M.waistFinish <= m.W)      bad.push('완성 허리 ' + M.waistFinish + ' ≤ W ' + m.W);
   if (M.hipFinish <= m.H)        bad.push('완성 엉덩이 ' + M.hipFinish + ' ≤ H ' + m.H);
-  /* 앞판이 뒤판보다 유차만큼 길다 */
-  var bH = d.pieces[0].bbox, fH = d.pieces[1].bbox;
   if (bad.length) fails++;
   console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
     '완성 가슴 ' + f(M.chestFinish, 6) + ' 허리 ' + f(M.waistFinish, 6) + ' 엉덩이 ' + f(M.hipFinish, 6) +
@@ -116,9 +114,53 @@ E.SIZES.forEach(function (sz) {
     (bad.length ? '\n      → ' + bad.join(' · ') : ''));
 });
 
-/* ══ 3. 도면 대조 (soft) — 원문 55 Size 그림에서 읽은 값 ═══════════════ */
+/* ══ 3. 프린세스 절개 4조각 ══════════════════════════════════════════ */
 console.log('\n════════════════════════════════════════════════════════════');
-console.log(' 3. 도면 대조 (soft) — 원문 55 Size · 정답지가 없어 참고만 한다');
+console.log(' 3. 프린세스 절개 4조각 — 절개선 두 변이 꿰매지는가');
+console.log('════════════════════════════════════════════════════════════');
+console.log('   ※ 안쪽 변이 조금 긴 것은 오차가 아니라 **이세**다. 뒤는 견갑골,');
+console.log('     앞은 가슴 곡선에서 생기고, 29·70번 위쪽 구간에만 몰려 있다.');
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz), g = E.geom(m), bad = [];
+  var d4 = E.draftDress(m, { seam: E.SEAM_DEFAULT, splitPanels: 1 });
+  var d2 = E.draftDress(m, { seam: E.SEAM_DEFAULT, splitPanels: 0 });
+
+  /* 조각이 실제로 갈라졌는가 — 옵션이 아무것도 안 하면 그건 거짓말이다 */
+  if (d4.pieces.length !== d2.pieces.length + 2) bad.push('4조각인데 조각 수 ' + d4.pieces.length);
+  if (d4.warnings.length) bad.push('경고 ' + d4.warnings.join(' · '));
+
+  /* 절개선 두 변 — 총 차이는 이세 허용치 안, 그리고 그 차이가 **위 구간에서만** 나야 한다 */
+  var dB = g.prinLenB[0] - g.prinLenB[1], dF = g.prinLenF[0] - g.prinLenF[1];
+  if (Math.abs(dB) > 0.6) bad.push('뒤 절개선 차 ' + dB.toFixed(3) + ' — 이세로 보기엔 크다');
+  if (Math.abs(dF) > 0.6) bad.push('앞 절개선 차 ' + dF.toFixed(3) + ' — 이세로 보기엔 크다');
+  /* 허리 아래(다트 다리)는 35번 대칭이라 저절로 같아야 한다 */
+  var lowB = Math.abs(V.dist(g.p36, g.p38) - V.dist(g.p36, g.p39));
+  if (lowB > 0.02) bad.push('허리 아래 다트 다리 차 ' + lowB.toFixed(3) + ' — 대칭이 깨졌다');
+
+  /* ★ 가장 센 검사 — **절개해도 옷이 달라지면 안 된다.**
+     통짜 밑단에서 다트로 접히는 만큼(38h~39h · 73h~74h)을 뺀 값이
+     4조각 밑단의 합과 같아야 한다. 여기가 어긋나면 절개가 치수를 먹은 것이다.
+     (0.05 는 다트 자리를 현(弦)으로 재는 데서 오는 차이다 — 밑단은 곡선이다) */
+  [['뒤', 'back', ['backCtr', 'backSide'], V.dist(g.p38h, g.p39h)],
+   ['앞', 'front', ['frontCtr', 'frontSide'], V.dist(g.f73h, g.f74h)]].forEach(function (r) {
+    var whole = edgeLen(d2, r[1], '밑단');
+    var split = r[2].reduce(function (a, id) { return a + edgeLen(d4, id, '밑단'); }, 0);
+    if (Math.abs(whole - r[3] - split) > 0.05)
+      bad.push(r[0] + ' 밑단 ' + whole.toFixed(2) + ' − 다트 ' + r[3].toFixed(2) +
+               ' ≠ 4조각 합 ' + split.toFixed(2) + ' (차 ' + (whole - r[3] - split).toFixed(3) + ')');
+  });
+
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 5) +
+    '뒤 절개선 ' + f(g.prinLenB[0], 7) + '/' + f(g.prinLenB[1], 7) + ' 이세 ' + f(dB, 6, 3) +
+    ' · 앞 ' + f(g.prinLenF[0], 7) + '/' + f(g.prinLenF[1], 7) + ' 이세 ' + f(dF, 6, 3) +
+    ' · 조각 ' + d4.pieces.length +
+    (bad.length ? '\n      → ' + bad.join(' · ') : ''));
+});
+
+/* ══ 4. 도면 대조 (soft) — 원문 55 Size 그림에서 읽은 값 ═══════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 4. 도면 대조 (soft) — 원문 55 Size · 정답지가 없어 참고만 한다');
 console.log('════════════════════════════════════════════════════════════');
 (function () {
   var m = E.measuresForSize('55호'), g = E.geom(m), M = E.draftDress(m, { seam: E.SEAM_DEFAULT }).measures;
