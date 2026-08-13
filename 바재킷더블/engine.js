@@ -353,7 +353,12 @@
     fCutShF      : 0.58,   // 어깨 출발 자리 — 목옆점에서 어깨길이의 이 비율
     hemCrossUp   : 5.0,    // 밑단 교차점 = 밑단에서 5 위        [14] 29번
     hemSplayMin  : 0.6,    // 밑단 벌림 하한 — 14~16 이 0 이면 이 값 [15] 30·31번
-    neckOut      : 1.5,    // 옆목 파기 (앞뒤 공통)              [18] 38번 · [23] 53번
+    neckOut      : 1.5,    // **뒤** 옆목 파기                    [18] 38번
+    /* ★ 앞 옆목 파기는 교재가 뒤와 같이 1.5 지만, 참고 도면은 훨씬 적다 —
+       도면 앞 목너비가 앞중심에서 7.15 이고 B/12 = 6.8 이라 파기가 0.35 다.
+       도면에 맞춰 앞만 따로 둔다 (2026-08-12 사용자 지시).
+       교재대로 하려면 1.5 를 준다. */
+    frontNeckOut : 0.35,   // **앞** 옆목 파기 — 앞 목너비 = B/12 + 이 값  [23] 53번
     bnpDrop      : 0.5,    // 뒤중심 목 파기 (목이 굵으면 0.7~1) [18] 37번
     backNeckDivB : 12,     // 뒤목치수 = B/12                    [11] 23번
     /* ── 유차 — 앞이 뒤보다 긴 양. B 90 이상이면 2.8 (교재 표) ───────── */
@@ -608,7 +613,7 @@
        앞 프레임의 가로선은 자기 원점에서 (뒤 높이 + 유차) 다 [20]. */
     var WLf = WLb + dif, hipYf = hipY + dif, hemYf = hemY + dif;
     var SNPf0 = [B / K.backNeckDivB, num(opt.frontNeckDrop, K.frontNeckDrop)];  // [22] 51번
-    var SNPf  = [SNPf0[0] + neckOut, SNPf0[1]];                                 // [23] 53번
+    var SNPf  = [SNPf0[0] + num(opt.frontNeckOut, K.frontNeckOut), SNPf0[1]];   // [23] 53번
     var fPitchX = frontW / 2;                                                   // [21] 46번
     var p48 = [fPitchX, num(opt.frontShGuide, K.frontShGuide)];                 // [21] 48번
     var fArmTan = [fPitchX + armInset, BL * 2 / 3];                             // [21] 49번
