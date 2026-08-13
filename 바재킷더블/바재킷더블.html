@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 11:27 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 11:30 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 11:27'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 11:30'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1175,6 +1175,11 @@ td.n.n-fail{color:var(--red)}
     fCutShF      : 0.58,   // 어깨 출발 자리 — 목옆점에서 어깨길이의 이 비율
     hemCrossUp   : 5.0,    // 밑단 교차점 = 밑단에서 5 위        [14] 29번
     hemSplayMin  : 0.6,    // 밑단 벌림 하한 — 14~16 이 0 이면 이 값 [15] 30·31번
+    /* ★ 뒤 옆목 파기 — **교재값 1.5** (뒷목너비 = B/12 + 1.5). 앞과 같은 이유다:
+       재킷은 겹쳐 입는 옷이라 목을 넓게 판다. 도면(Barjacke)은 뒷목너비 6.57 로
+       **앞(7.15)보다도 좁은데**, 그건 목이 조이는 제도다.
+       ⚠ 도면 대조에서 뒷목이 넓게 나와도 **고치지 말 것** — 의도한 값이다
+         (2026-08-12 사용자 결정 · 앞 목너비와 같은 판단). */
     neckOut      : 1.5,    // **뒤** 옆목 파기                    [18] 38번
     /* ★ 앞 옆목 파기 — **교재값 1.5 를 쓴다** (앞 목너비 = B/12 + 1.5).
        도면(Barjacke)은 7.15(파기 0.35)로 훨씬 적지만, 교재를 따르는 이유가 있다:
@@ -6468,7 +6473,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '기본 0 = 이세 0.75 로 대신 (도면에 다트가 없다) · 다트로 하려면 1.5  [12]' },
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
     { k: 'fCutShF',       label: '앞 절개 어깨 위치', min: 0.3, max: 0.9, step: 0.01, hint: '목옆점에서 어깨길이의 이 비율 · 도면 0.58(=6.40cm)' },
-    { k: 'neckOut',       label: '뒤 옆목 파기',   min: 0,   max: 3.5, step: 0.1, hint: '교재 1.5  [18] 38번 · 도면에 맞추려면 0 쯤 (도면 뒷목너비 6.57)' },
+    { k: 'neckOut',       label: '뒤 옆목 파기',   min: 0,   max: 3.5, step: 0.1, hint: '뒷목너비 = B/12 + 이 값 · **교재 1.5**(재킷은 겹쳐 입으니 목을 넓게 판다)  [18] 38번' },
     { k: 'frontNeckOut',  label: '앞 옆목 파기',   min: 0,   max: 3.5, step: 0.05, hint: '앞 목너비 = B/12 + 이 값 · **교재 1.5**(재킷은 겹쳐 입으니 목을 넓게 판다) · 도면대로 좁히려면 0.35  [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
     /* 노치 자리는 **앞중심선 기준** — 도면 실측 규칙이다 (§Ⅵ 참고) */
