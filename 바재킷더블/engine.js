@@ -466,7 +466,9 @@
        예전에 `capPad` 를 낮춰 폭을 넓히려던 시도가 안 먹힌 이유가 이것이다.
        원형2 이식판은 AH/3 이었고, 그러면 소매통이 도면보다 4.6 좁다(31.4 ↔ 36.0). */
     capHeightDiv   : 3.45,     // 수직변 = AH/3.45 — 소매통 폭을 도면 쪽으로 넓힌 값
-    capPad         : 1.3,      // 패드분 — 정점만 올린다 (이세 확보) [원형2 1.0000]
+    /* 패드분 — 정점만 올린다(폭에는 영향 없음). 조각 넓이를 도면에 맞추는 과정에서
+       1.3 → 1.9 로 올렸다. 소매산 이세도 3.26 → 4.01 로 재킷다워진다 [원형2 1.0000]. */
+    capPad         : 1.9,
     capApexShift   : 0.6,      // 정점을 앞으로 이동 (도면 `앞으로 이동 0.6`)
     capBulge       : 0.5,      // 곡선 통과점 = 대각선 발점 ↔ 마크 사이 비율 [0.500~0.512]
     capReduce      : 0,        // 소매산 대각선에서 뺄 양 (0 = 암홀 길이 그대로)
@@ -481,8 +483,11 @@
     twoSplitAt     : 0.55,
     /* 절개 위치 — 큰소매 앞 −이 값 · 작은소매 뒤 +이 값 (소매통 총폭은 안 변하고
        큰↔작은 몫만 옮긴다). 원형2 는 3.0 이었는데, **도면의 작은소매가 훨씬 넓다**.
-       도면 작은소매 폭 13.3~13.6 ↔ 3.0 이면 10.3 · 5.5 면 13.4 로 맞는다. */
-    twoSideOff     : 5.5,
+       도면 작은소매 폭 13.3~13.6 ↔ 3.0 이면 10.3 · 5.5 면 13.4 로 맞는다.
+       ★ 두 조각의 **넓이**까지 보면 5.5 는 큰소매가 36 넘치고 작은소매가 42
+         모자랐다(합은 맞았다 — 몫이 틀린 것이다). 55호 6.5 면 둘 다 4 안이다.
+       ★ 값은 **halfF 에 대한 비율**이다 (55호 halfF 16.50 × 0.394 = 6.50). */
+    twoSideOffAt   : 0.394,
     twoHemDrop     : 2.69,     // 밑단 뒤쪽이 내려간 양 — **도면** 59.92 − 57.23 [원형2 1.4920]
     twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 [식 미상]
     twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 — **이분법이 실패할 때만 쓰는 대비값**
@@ -2251,7 +2256,7 @@
                                     ' · 호수당 +' + f1(SLEEVE_TYPE.two.lenGrade), s.sleeveLen, B, [s.apexShift, mid]),
       FN('elbow',    '팔꿈치선',    '소매길이/2 + ' + f1(K.elbowAdd), s.elbowY, B, [s.frontInX * 0.4, s.elbowY]),
       FN('splitPt',  '절개 시작점', '뒤 소매산 위 x = −AH/4',            -s.AH / 4, B, cp(s.splitP)),
-      FN('frontIn',  '앞 경계',     '앞 소매통 − ' + f1(K.twoSideOff),   s.frontInX, B, [s.frontInX, s.topY - 0.8]),
+      FN('frontIn',  '앞 경계',     '앞 소매통 − ' + f1(s.sideOff),   s.frontInX, B, [s.frontInX, s.topY - 0.8]),
       FN('capBigFront', '큰소매 앞 소매산', '정점 → 앞 경계 (소매통까지 가지 않는다) · 앞 암홀 몫',
                      polyLen(s.capBigFront), B, [s.frontInX * 0.55, s.capH * 0.45]),
       FN('capBigBack',  '큰소매 뒤 소매산', '정점 → 절개점 · 뒤 암홀 몫',
@@ -2273,9 +2278,9 @@
                      K.twoHemDrop, B, [s.bigHemB[0] + 1.5, s.sleeveLen + 0.7]),
 
       /* ── 작은소매 ── */
-      FN('backOut',  '뒤 경계',     '뒤 소매통 + ' + f1(K.twoSideOff),   s.backOutX, U, [s.backOutX, s.topY - 0.8]),
+      FN('backOut',  '뒤 경계',     '뒤 소매통 + ' + f1(s.sideOff),   s.backOutX, U, [s.backOutX, s.topY - 0.8]),
       FN('bicep',    '소매통 연결', '뒤 경계 → 소매통 끝 · 제도는 뒤에 있어도 **앞 암홀 몫**' +
-                     ' (큰소매 앞에서 ' + f1(K.twoSideOff) + ' 떼어 여기 붙였다)',
+                     ' (큰소매 앞에서 ' + f1(s.sideOff) + ' 떼어 여기 붙였다)',
                      polyLen(sampleSegs(s.undCapOut, 0.02)), U, [(s.backOutX + s.bicepB[0]) / 2, s.topY - 0.6]),
       FN('capUnderBack', '작은소매 소매산', '소매통 → 절개점 · 뒤 암홀 몫',
                      polyLen(s.capUnderBack), U, [(s.bicepB[0] + s.splitP[0]) / 2, s.capH * 0.55]),
@@ -2414,7 +2419,11 @@
        0.16 어긋났고, `앞경계 상단 0.558 올림`을 별도 규칙으로 오해했다 — 그 0.558 은
        현 3 절단의 **결과**이지 규칙이 아니다. */
     var capFrontPts = sampleSegs(cg.capFront, 0.02);
-    var cutF = idxAtChordFromEnd(capFrontPts, cg.bicepF, num(opt.twoSideOff, K.twoSideOff));
+    /* ★ 절개 위치는 **소매폭에 대한 비율**이다. 고정 cm 로 두면 호수가 작을수록
+       비율이 커져 앞 경계가 소매산 위로 더 올라가고, 어느 호수에서 소매산 너치가
+       큰소매↔작은소매 사이를 넘어간다 — 44호만 조각별 너치 개수가 달라졌다. */
+    var sideOff = halfF * num(opt.twoSideOffAt, K.twoSideOffAt);
+    var cutF = idxAtChordFromEnd(capFrontPts, cg.bicepF, sideOff);
     var capBigFront = capFrontPts.slice(0, cutF.i + 1).concat([cutF.p]);
     var frontInX = cutF.p[0];
     var topY = cutF.p[1];
@@ -2617,7 +2626,7 @@
       bigHemF: bigHemF, bigHemB: bigHemB, undHemB: undHemB, undHemF: undHemF,
       bigBack: bigBack, undBack: undBack, bigFront: bigFront,
       ventBig: ventBig, ventUnd: ventUnd, ventW: K.ventW, ventLen: K.ventLen,
-      undOuter: undOuter, undCapOut: undCapOut,
+      undOuter: undOuter, undCapOut: undCapOut, sideOff: sideOff,
       seamLenBig: polyLen(sampleSegs(bigBack, 0.02)),
       seamLenUnder: polyLen(sampleSegs(undBack, 0.02)),
       underLenB: polyLen(sampleSegs(undOuter, 0.02)),
