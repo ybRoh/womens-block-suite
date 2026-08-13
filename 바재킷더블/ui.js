@@ -44,6 +44,7 @@
     { k: 'sideWaistIn',   label: '옆선 허리 들임', min: 0,   max: 4,   step: 0.1, hint: '0 이면 교재 그대로(들임 없음) · 남는 양이 절개 다트로 간다  [9] 19번' },
     { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '기본 0 = 이세 0.75 로 대신 (도면에 다트가 없다) · 다트로 하려면 1.5  [12]' },
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
+    { k: 'fCutShF',       label: '앞 절개 어깨 위치', min: 0.3, max: 0.9, step: 0.01, hint: '목옆점에서 어깨길이의 이 비율 · 도면 0.58(=6.40cm)' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
     /* 노치 자리는 **앞중심선 기준** — 도면 실측 규칙이다 (§Ⅵ 참고) */

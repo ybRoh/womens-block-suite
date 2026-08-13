@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 09:22 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 09:51 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 09:22'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 09:51'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1167,6 +1167,12 @@ td.n.n-fail{color:var(--red)}
     backShDartLen: 7.0,    // 어깨 다트 길이                     [19] 40번
     armInset     : 0.5,    // 암홀이 품선에서 떨어지는 양 0.5~1  [13] 26번 · [25] 49번
     bDartCenterIn: 2.5,    // 뒤 절개 중심 = 등품점에서 2~3 안쪽 [14] 27번
+    /* ── 앞 절개선 출발 ────────────────────────────────────────────
+       교재 [28] 은 **암홀**에서 출발한다(69번 아래). 참고 도면(Barjacke)은
+       **어깨**에서 출발해 앞판이 좁다 — 도면 실측 목옆점에서 6.40 (어깨의 0.58).
+       도면 구성을 기본으로 두고, 교재 구성은 `opt.fCutAt = 'armhole'` 로 쓴다. */
+    fCutAt       : 'shoulder',
+    fCutShF      : 0.58,   // 어깨 출발 자리 — 목옆점에서 어깨길이의 이 비율
     hemCrossUp   : 5.0,    // 밑단 교차점 = 밑단에서 5 위        [14] 29번
     hemSplayMin  : 0.6,    // 밑단 벌림 하한 — 14~16 이 0 이면 이 값 [15] 30·31번
     neckOut      : 1.5,    // 옆목 파기 (앞뒤 공통)              [18] 38번 · [23] 53번
@@ -1456,10 +1462,20 @@ td.n.n-fail{color:var(--red)}
     /* [28] 앞 절개선 — 암홀에서 58번을 향해. 69번 위로 올라가면 안 된다.
        ★ BP 를 그대로 지나게 하면 두 다리가 58번 기준으로 비대칭이라 **짝 길이가
          0.4 어긋난다.** 교재대로 58번(다트 중심)을 지나게 해야 좌우가 같아진다. */
-    var fCutY = Math.max(p69[1], fArmTan[1] + Math.max(0, num(opt.fCutDrop, 0)));
-    var fCut = cutSegsAtY(frontArm, fCutY, false);
-    var fPrinOut = cutLine(fCut.p, [fCx, BP[1]], fPwA, fCross, fPhA);
-    var fPrinIn  = cutLine(fCut.p, [fCx, BP[1]], fPwB, fCross, fPhB);
+    var fCutAt = (opt.fCutAt === undefined) ? K.fCutAt : opt.fCutAt;
+    var fCutShoulder = (fCutAt !== 'armhole');
+    var fCutP, fArmLow, fArmUp;
+    if (fCutShoulder) {
+      /* 도면 구성 — 어깨선 위 `fCutShF` 자리에서 출발한다. 앞판에는 **암홀이 없다** */
+      fCutP = V.add(SNPf, V.mul(shDirF, shLenFront * num(opt.fCutShF, K.fCutShF)));
+      fArmLow = frontArm; fArmUp = null;
+    } else {
+      var fCutY = Math.max(p69[1], fArmTan[1] + Math.max(0, num(opt.fCutDrop, 0)));
+      var fCut = cutSegsAtY(frontArm, fCutY, false);
+      fCutP = fCut.p; fArmLow = fCut.head; fArmUp = fCut.tail;
+    }
+    var fPrinOut = cutLine(fCutP, [fCx, BP[1]], fPwA, fCross, fPhA);
+    var fPrinIn  = cutLine(fCutP, [fCx, BP[1]], fPwB, fCross, fPhB);
     /* [27b] 가슴다트 — 앞 옆선이 뒤보다 **유차만큼** 길다. 겨드랑에서 5 내려간
        자리에서 그 길이를 덜어낸다 (꼭짓점 BP). 접으면 앞뒤 옆선이 같아진다. */
     var fSideFull = splineSegs([Uf, fWaistSide, [fHemSide[0], fHemAt(fHemSide[0])]],
@@ -1518,7 +1534,8 @@ td.n.n-fail{color:var(--red)}
       frontArm: frontArm, fSideFull: fSideFull,
       fCross: fCross, fPwA: fPwA, fPwB: fPwB, fPhA: fPhA, fPhB: fPhB,
       fPrinOut: fPrinOut, fPrinIn: fPrinIn,
-      fArmLow: fCut.head, fArmUp: fCut.tail, fCutP: fCut.p, dartTip: dartTip,
+      fArmLow: fArmLow, fArmUp: fArmUp, fCutP: fCutP, fCutShoulder: fCutShoulder,
+      dartTip: dartTip,
       shLenFront: shLenFront,
       fSideTop: wedge.top, fSideBot: wedge.bot,
       wedgeTop: wedge.pTop, wedgeBot: wedge.pBot, wedgeAmt: wedge.amt,
@@ -2149,16 +2166,22 @@ td.n.n-fail{color:var(--red)}
       return { low: lo, up: hi };
     }
     var nArmB = armSplitNotches(g.backArm,  g.bArmLow, g.bArmUp, g.Ub, [g.bCx, g.BL + 6], '뒤 암홀');
-    var nArmF = armSplitNotches(g.frontArm, g.fArmLow, g.fArmUp, g.Uf, [g.fCx, g.BL + 6], '앞 암홀');
+    var nArmF = g.fCutShoulder
+      ? { low: armNotches(g.frontArm, g.Uf, [g.fCx, g.BL + 6], '앞 암홀'), up: [] }
+      : armSplitNotches(g.frontArm, g.fArmLow, g.fArmUp, g.Uf, [g.fCx, g.BL + 6], '앞 암홀');
 
     /* ══ ① 앞패널1 — 앞중심 여밈 · 라펠 · 어깨 · 앞 암홀 위쪽 ═══════════
        ★ 테일러드 앞판에는 **앞목둘레 곡선이 없다** — 고지선이 그 자리다 [43].
          앞중심도 골선이 아니다. 여밈이 앞중심을 overlap 만큼 넘어간다(더블).   */
     var edgeX = -g.overlap;
     var hemEdgeF = [edgeX, g.fHemAt(edgeX)];
+    /* ★ 어깨 출발(도면 구성)이면 **앞판에 암홀이 없다** — 어깨선 일부만 갖고
+       암홀은 통째로 앞옆판 몫이다. 암홀 출발(교재 [28])이면 예전대로. */
     pieces.push(mk('front', '앞판', [
-      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.SPf) },
-      { name: '앞 암홀',  role: 'armhole',  segs: revSegs(g.fArmUp) },
+      { name: '어깨선',   role: 'shoulder', segs: lineSegs(g.SNPf, g.fCutShoulder ? g.fCutP : g.SPf) }
+    ].concat(g.fCutShoulder ? [] : [
+      { name: '앞 암홀',  role: 'armhole',  segs: revSegs(g.fArmUp) }
+    ], [
       { name: '절개선',   role: 'princess', segs: g.fPrinIn },
       { name: '밑단',     role: 'hem',      segs: lineSegs(g.fPhB, hemEdgeF) },
       { name: '여밈선',   role: 'center',   segs: lineSegs(hemEdgeF, g.breakPt) },
@@ -2167,7 +2190,7 @@ td.n.n-fail{color:var(--red)}
       { name: '라펠 윗변', role: 'center',   segs: lineSegs(g.lapelPt, g.gorgeEnd) },
       /* 고지선 — **카라가 붙는 변**. V 바닥에서 목옆점까지 */
       { name: '고지선',   role: 'neck',     segs: revSegs(g.gorgeSegs) }
-    ], [[edgeX * 0.4, g.BL + 2.0], [edgeX * 0.4, g.hemYf - 4.0]],
+    ]), [[edgeX * 0.4, g.BL + 2.0], [edgeX * 0.4, g.hemYf - 4.0]],
       [{ p: cp(g.SNPf), angle: 0,   label: '목옆점' },
        { p: cp(g.gorgeEnd), angle: 0, label: '노치(카라 끝)' },
        { p: cp(g.lapelPt), angle: 0, label: '라펠 꼭짓점' },
@@ -2189,8 +2212,11 @@ td.n.n-fail{color:var(--red)}
         })()), 2));   /* 앞중심이 골선이 아니다 — 좌우 한 쌍이라 2매 */
 
     /* ══ ② 앞패널2 — 앞 암홀 아래쪽 · 옆선 · 가슴다트 ══════════════════ */
-    pieces.push(mk('frontSide', '앞옆판', [
-      { name: '앞 암홀',    role: 'armhole',  segs: revSegs(g.fArmLow) },
+    pieces.push(mk('frontSide', '앞옆판',
+      (g.fCutShoulder
+        ? [{ name: '어깨선',  role: 'shoulder', segs: lineSegs(g.fCutP, g.SPf) },
+           { name: '앞 암홀', role: 'armhole',  segs: g.frontArm }]
+        : [{ name: '앞 암홀', role: 'armhole',  segs: revSegs(g.fArmLow) }]).concat([
       { name: '옆선 (위)',  role: 'side',     segs: g.fSideTop },
       /* 다트를 접으면 두 다리가 포개진다. 다리 길이가 꼭짓점에서 조금 달라
          남는 만큼을 짧게 이어 준다 — 접었을 때 맞는 연장이다.
@@ -2200,7 +2226,7 @@ td.n.n-fail{color:var(--red)}
       { name: '옆선 (아래)', role: 'side',    segs: fSideBotC },
       { name: '밑단',       role: 'hem',      segs: lineSegs(fHemSideC, fPhAC) },
       { name: '절개선',     role: 'princess', segs: revSegs(fPrinOutC) }
-    ], [[g.fCx + 3.0, g.BL + 2.0], [g.fCx + 3.0, g.hemYf - 4.0]],
+    ]), [[g.fCx + 3.0, g.BL + 2.0], [g.fCx + 3.0, g.hemYf - 4.0]],
       [{ p: cp(g.Uf), angle: 180, label: '겨드랑' },
        { p: cp(g.wedgeTop), angle: 180, label: '가슴다트' },
        { p: cp(wedgeBotC), angle: 180, label: '가슴다트' }]
@@ -2456,12 +2482,14 @@ td.n.n-fail{color:var(--red)}
         var lFPrin = cutEnd(g.fPrinIn, lift);
         var lFFace = revSegs(cutEnd(revSegs(fcLineG), lift));   // (밑단 위) → 안단 어깨 끝
         pieces.push(mk('frontLining', '앞판 안감', [
-          { name: '어깨선',  role: 'shoulder', segs: lineSegs(fcAG, g.SPf) },
-          { name: '앞 암홀', role: 'armhole',  segs: revSegs(g.fArmUp) },
+          { name: '어깨선',  role: 'shoulder', segs: lineSegs(fcAG, g.fCutShoulder ? g.fCutP : g.SPf) }
+        ].concat(g.fCutShoulder ? [] : [
+          { name: '앞 암홀', role: 'armhole',  segs: revSegs(g.fArmUp) }
+        ], [
           { name: '절개선',  role: 'princess', segs: lFPrin },
           { name: '밑단',    role: 'hem',      segs: lineSegs(endOf(lFPrin), startOf(lFFace)) },
           { name: '안단선',  role: 'side',     segs: lFFace }
-        ], [[g.fCx - 5.0, g.BL + 2.0], [g.fCx - 5.0, g.hemYf - 8.0]],
+        ]), [[g.fCx - 5.0, g.BL + 2.0], [g.fCx - 5.0, g.hemYf - 8.0]],
           [{ p: cp(g.fCutP), angle: 180, label: '절개 시작' },
            { p: cp(fcAG), angle: 180, label: '안단 끝' }].concat(nc(nFront.a)),
           [L('wlFL', 'dashed', [[startOf(lFFace)[0] + 1.0, g.WLf], [g.fCx, g.WLf]], '허리선'),
@@ -2470,14 +2498,17 @@ td.n.n-fail{color:var(--red)}
       }
       /* ② 앞옆판 안감 */
       var lFSide = cutEnd(fSideBotC, lift), lFPrinO = cutEnd(fPrinOutC, lift);
-      pieces.push(mk('frontSideLining', '앞옆판 안감', [
-        { name: '앞 암홀',   role: 'armhole',  segs: revSegs(g.fArmLow) },
+      pieces.push(mk('frontSideLining', '앞옆판 안감',
+        (g.fCutShoulder
+          ? [{ name: '어깨선',  role: 'shoulder', segs: lineSegs(g.fCutP, g.SPf) },
+             { name: '앞 암홀', role: 'armhole',  segs: g.frontArm }]
+          : [{ name: '앞 암홀', role: 'armhole',  segs: revSegs(g.fArmLow) }]).concat([
         { name: '옆선 (위)', role: 'side',     segs: g.fSideTop },
         { name: '가슴다트',  role: 'side',     segs: lineSegs(g.wedgeTop, wedgeBotC) },
         { name: '옆선 (아래)', role: 'side',   segs: lFSide },
         { name: '밑단',      role: 'hem',      segs: lineSegs(endOf(lFSide), endOf(lFPrinO)) },
         { name: '절개선',    role: 'princess', segs: revSegs(lFPrinO) }
-      ], [[g.fCx + 3.0, g.BL + 2.0], [g.fCx + 3.0, g.hemYf - 8.0]],
+      ]), [[g.fCx + 3.0, g.BL + 2.0], [g.fCx + 3.0, g.hemYf - 8.0]],
         [{ p: cp(g.Uf), angle: 180, label: '겨드랑' }]
           .concat(nc(nArmF.low)).concat(nc(nFront.b)).concat(nc(nSide.b)),
         [L('bustL', 'dashed', [cp(g.wedgeTop), cp(g.dartTip)], '가슴다트 접음선')], 2));
@@ -2564,7 +2595,7 @@ td.n.n-fail{color:var(--red)}
     /* [16] 뒤 절개는 26번 위로 · [28] 앞 절개는 69번 위로 올라가면 안 된다 */
     if (g.bCutP[1] < g.bArmTan[1] - 0.05)
       warnings.push('뒤 절개 시작이 26번보다 위다 [16]');
-    if (g.fCutP[1] < g.p69[1] - 0.05)
+    if (!g.fCutShoulder && g.fCutP[1] < g.p69[1] - 0.05)
       warnings.push('앞 절개 시작이 69번보다 위다 [28]');
     /* [40] 75번은 W 선 위로 2.5 이상 — 그보다 낮으면 배꼽이 보인다 */
     if (g.WLf - g.btnTopY < 2.5)
@@ -6426,6 +6457,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
     { k: 'sideWaistIn',   label: '옆선 허리 들임', min: 0,   max: 4,   step: 0.1, hint: '0 이면 교재 그대로(들임 없음) · 남는 양이 절개 다트로 간다  [9] 19번' },
     { k: 'backShDart',    label: '뒤 어깨 다트분', min: 0,   max: 3,   step: 0.1, hint: '기본 0 = 이세 0.75 로 대신 (도면에 다트가 없다) · 다트로 하려면 1.5  [12]' },
     { k: 'bDartCenterIn', label: '뒤 절개 위치',   min: 1.0, max: 5.0, step: 0.1, hint: '등품점에서 2~3 안쪽  [14] 27번' },
+    { k: 'fCutShF',       label: '앞 절개 어깨 위치', min: 0.3, max: 0.9, step: 0.01, hint: '목옆점에서 어깨길이의 이 비율 · 도면 0.58(=6.40cm)' },
     { k: 'neckOut',       label: '옆목 파기',      min: 0,   max: 3.5, step: 0.1, hint: '앞뒤 공통 1.5  [18] 38번 · [23] 53번' },
     { k: 'overlap',       label: '여밈 겹침',      min: 2,   max: 12,  step: 0.1, hint: '앞중심 → 여밈 끝 (더블이라 크다)  [38] 71번' },
     /* 노치 자리는 **앞중심선 기준** — 도면 실측 규칙이다 (§Ⅵ 참고) */

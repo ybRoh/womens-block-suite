@@ -126,7 +126,18 @@ E.SIZES.forEach(function (sz) {
   chk(Math.abs(V.dist(g.SNPf0, g.BP) - m.bpLen) < 0.02, '[26] 옆목점 → BP 가 유장이 아니다');
   /* [16] 뒤 절개는 26번 위로 · [28] 앞 절개는 69번 위로 올라가면 안 된다 */
   chk(g.bCutP[1] >= g.bArmTan[1] - 0.05, '[16] 뒤 절개 시작이 26번보다 위');
-  chk(g.fCutP[1] >= g.p69[1] - 0.05, '[28] 앞 절개 시작이 69번보다 위');
+  /* [28] 은 **암홀 출발**일 때의 규칙이다. 도면 구성(어깨 출발)에서는 해당 없고,
+     대신 절개 시작점이 어깨선 위에 제대로 얹혀 있는지를 본다. */
+  if (!g.fCutShoulder) {
+    chk(g.fCutP[1] >= g.p69[1] - 0.05, '[28] 앞 절개 시작이 69번보다 위');
+  } else {
+    var shL = V.dist(g.SNPf, g.SPf), cutL = V.dist(g.SNPf, g.fCutP);
+    chk(cutL > shL * 0.25 && cutL < shL * 0.9,
+        '앞 절개 시작이 어깨선 위 ' + cutL.toFixed(2) + ' / 어깨 ' + shL.toFixed(2));
+    /* 절개점이 어깨선 **위**에 있어야 한다 (두 조각의 어깨가 이어진다) */
+    var d0 = V.dist(g.SNPf, g.fCutP) + V.dist(g.fCutP, g.SPf);
+    chk(Math.abs(d0 - shL) < 0.01, '앞 절개 시작이 어깨선에서 벗어났다');
+  }
   /* [40] 꺾임 시작(75번)은 W 선 위로 2.5 이상 */
   chk(g.WLf - g.btnTopY >= 2.5, '[40] 꺾임 시작이 허리에서 ' + (g.WLf - g.btnTopY).toFixed(2) + ' 위');
   /* [42] 위카라(80번)가 꺾임선 안으로 들어가면 안 된다 = 카라넓이 > 스탠드 */
