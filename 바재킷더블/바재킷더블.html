@@ -6,7 +6,7 @@
 <title>바 재킷 (더블) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 20:00 -->
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-13 20:27 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -817,7 +817,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-13 20:00'; window.ND_APP = '바재킷더블';</script>
+<script>window.ND_BUILD = '2026-08-13 20:27'; window.ND_APP = '바재킷더블';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1308,6 +1308,8 @@ td.n.n-fail{color:var(--red)}
     twoHemDrop     : 2.69,     // 밑단 뒤쪽이 내려간 양 — **도면** 59.92 − 57.23 [원형2 1.4920]
     twoHemUp       : 0.300,    // 밑단선 — 패드점+소매길이 에서 올림 [식 미상]
     twoCuffBigShare: 2 / 3,    // 소맷부리 큰소매 몫 — **이분법이 실패할 때만 쓰는 대비값**
+    /* 몫 울타리 — 도면 몫 0.561 (큰 14.24 / 작은 11.16) 을 가운데 두고 잡았다 */
+    twoCuffShareBand: [0.50, 0.65],
     twoSeamBulge   : 0.661, twoSeamBulge2 : 0.404, twoSeamBulge3 : -0.878,
     twoSeamBulgeU  : 1.139, twoSeamBulgeU2: 0.882, twoSeamBulgeU3: -0.398,
     twoSeamT1      : 0.234715, twoSeamT2   : 0.484585, twoSeamT3   : 0.798122,
@@ -1317,8 +1319,8 @@ td.n.n-fail{color:var(--red)}
     twoUndHemRise  : 0.300,
     /* 큰소매 부리 앞 모서리 = halfF − 이 값. halfF 는 소매산을 낮추면 커지므로
        이 값을 그대로 두면 밑단까지 같이 벌어져 소매가 안 좁아진다 —
-       도면 밑단 몫(큰 14.24 / 작 11.16)에 맞춰 다시 잡았다 [원형2 6.25]. */
-    twoFrontHemIn  : 9.1, twoFrontElbowIn: 1.44,
+       도면 밑단 몫(큰 14.24 / 작 11.16)에 맞춘 **비율**이다 [원형2 는 halfF − 6.25]. */
+    twoFrontHemAt  : 0.465, twoFrontElbowIn: 1.44,
     twoInsetY      : 20.8,
     /* ★ 소매 트임 — **도면 실측**. 도면은 트임 덧단을 조각 **밖에 따로** 그려 두었다
        (큰소매 10.37 × 3.03~3.12 · 작은소매 10.52 × 5.33~5.41).
@@ -2877,7 +2879,9 @@ td.n.n-fail{color:var(--red)}
        도면보다 2.8 길다(61.8 ↔ 59.9). 등급 1.0/호는 도면 한 호수로는 못 정하니 그대로 둔다.
        밑단 앞 y 가 곧 이 값이다 (hemY = 패드분 + 길이 − twoHemUp, 55호 step −1). */
     two: { name: '2장소매', len: 57.23, lenGrade: 1.0,     // 패드점에서 잰 길이
-           cuff: 25.479, cuffGrade: 0.65, twoPiece: true } // 도면 큰 17.019 + 작은 8.460
+           /* 소맷부리 총둘레 — **Barjacke 도면** 55호 14.24 + 11.16 = 25.40 → 66호 26.05.
+              예전 25.479 는 원형2 DXF 값(큰 17.019 + 작은 8.460)이었다. */
+           cuff: 26.05, cuffGrade: 0.65, twoPiece: true }
   };
   /** 너치 보정 — ① 재단선 위로 스냅 ② 틱이 조각 **안쪽**을 향하게.
    *  판정은 그리는 것과 같은 방식(point-in-polygon)이라야 한다. */
@@ -3248,13 +3252,56 @@ td.n.n-fail{color:var(--red)}
        도면 실측 60.7 = 패드분 1 + 소매길이 60 − 0.3. 그 0.3 이 어디서 오는지는 [미확정]. */
     var hemY = pad2 + sleeveLen - K.twoHemUp, hemLowY = hemY + K.twoHemDrop;
 
-    var bigHemF = [halfF - num(opt.twoFrontHemIn, K.twoFrontHemIn), hemY];
+    /* ★ 큰소매 부리 앞 모서리. 예전에는 `halfF − 상수` 였는데, halfF 는 호수마다
+       커지므로 상수를 빼면 이 모서리가 halfF 를 그대로 따라 밖으로 나간다 —
+       그러면 **부리 몫이 호수마다 널뛴다** (44호 0.53 → 88호 0.71 · 도면 0.561).
+       소매폭에 대한 **비율**로 잡아야 몫이 유지된다. */
+    var bigHemF = [halfF * num(opt.twoFrontHemAt, K.twoFrontHemAt), hemY];
     /* ★ 작은소매 부리 뒤 모서리는 뒤 경계보다 **안쪽**이고 **0.3 올라간다**
        (도면 마크 「작은소매 부리 뒤모서리(0.3 올림)」 실측 (−20.250, 60.4) · 뒤 경계 −21.425).
        예전에는 `backOutX − 1.492` 로 **바깥으로** 내밀어 부호가 반대였다. 그 2.6 때문에
        바깥 뒤선이 팔꿈치 아래에서 크게 휘고(휨 0.404 · 도면 0.117) 부리 몫도 틀렸다
-       (작은 9.85 / 도면 8.46). 팔꿈치선까지는 도면과 0.05 로 맞고 있었다. */
-    var undHemB = [backOutX + K.twoUndHemIn, hemY - K.twoUndHemRise];
+       (작은 9.85 / 도면 8.46). 팔꿈치선까지는 도면과 0.05 로 맞고 있었다.
+
+       ★ 이 x 는 **상수가 아니라 푼 값**이다. 큰소매 `앞 밑선` 과 작은소매 `바깥 뒤선` 은
+         서로 꿰매는 짝인데, 예전에는 아무도 안 맞추고 있어서 전 호수 0.26~0.39 어긋나
+         있었다(검사 표에도 없었다). 부리 앞 모서리를 도면 몫에 맞추자 그 차이가 1.1 까지
+         벌어져 드러났다. 두 조각의 밑단 모서리는 서로 독립이므로,
+         **뒤 모서리를 이분법으로 밀어** 두 변의 길이를 맞춘다. */
+    var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
+      endTan([0, 1], CAL.twoFront.k0), null);
+    var bigFrontLen = polyLen(sampleSegs(bigFront, 0.02));
+    function mkUndOuter(hb) {
+      return splineSegs([[backOutX, topY],
+          [backOutX + K.twoUndOutIn1, K.twoUndOutY1],
+          [backOutX + K.twoUndOutIn2, K.twoUndOutY2], hb],
+        endTan([0, 1], CAL.twoUndOuter.k0), endTan([0, 1], CAL.twoUndOuter.k1));
+    }
+    var undHemB = (function () {
+      var yb = hemY - K.twoUndHemRise, seed = num(opt.twoUndHemIn, K.twoUndHemIn);
+      function gapO(dx) { return polyLen(sampleSegs(mkUndOuter([backOutX + dx, yb]), 0.02)) - bigFrontLen; }
+      /* ⚠ gapO 는 **단조가 아니다** — 뒤 모서리를 어느 쪽으로 밀어도 곡선이 길어져서
+         양 끝 부호가 같고 가운데서 0 을 두 번 지난다. 양 끝만 보고 이분법을 걸면
+         답이 있는데도 못 찾는다(55호 gapO(−8)=+4.07 · gapO(8)=+1.50 인데 1.2 근처는 음수).
+         그래서 **훑어서 부호가 바뀌는 구간을 먼저 찾고**, 씨앗값(도면 1.175)에 가장
+         가까운 구간 안에서만 이분법을 쓴다. */
+      var best = null, prev = gapO(-8), pd = -8, dx, mid0;
+      for (dx = -7.8; dx <= 8.0001; dx += 0.2) {
+        var cur = gapO(dx);
+        if (prev * cur <= 0) {
+          mid0 = (pd + dx) / 2;
+          if (!best || Math.abs(mid0 - seed) < Math.abs(best[2] - seed)) best = [pd, dx, mid0];
+        }
+        prev = cur; pd = dx;
+      }
+      if (!best) return [backOutX + seed, yb];
+      var lo = best[0], hi = best[1], gLo = gapO(lo);
+      for (var i = 0; i < 40; i++) {
+        var mid = (lo + hi) / 2;
+        if (gapO(mid) * gLo > 0) lo = mid; else hi = mid;
+      }
+      return [backOutX + (lo + hi) / 2, yb];
+    })();
     /* ★ 작은소매 절개선은 큰소매 절개선을 **절개점 수직선에 대칭**시킨 것이다.
        도면이 그렇다 — 큰 −5.586 / 작은 −15.836 은 절개점 −10.711 에 대해 정확히 대칭.
        대칭이면 두 절개변 길이가 저절로 같아진다(도면 53.7565 = 53.7565).
@@ -3320,13 +3367,22 @@ td.n.n-fail{color:var(--red)}
         var h = hemPts(sh);
         return sLen(mkSeam(h[0])) - sLen(mkSeam(h[1], splitU, +1));
       }
-      var lo = 0.35, hi = 0.90, gLo = gap(lo);
+      /* 구간을 넓게 잡는다 — 예전 [0.35, 0.90] 은 **44호에서 답을 놓쳐** 대비값
+         2/3 으로 떨어졌고, 그 호수만 작은소매 부리가 8.2 로 쪼그라들었다.
+         대비값은 절개선 짝을 맞추지 않으므로 여기 빠지면 안 된다. */
+      var lo = 0.15, hi = 0.95, gLo = gap(lo);
       if (gLo * gap(hi) > 0) return K.twoCuffBigShare;      // 구간 안에 답이 없으면 도면 몫
       for (var i = 0; i < 44; i++) {
         var mid = (lo + hi) / 2;
         if (gap(mid) * gLo > 0) lo = mid; else hi = mid;
       }
-      return (lo + hi) / 2;
+      var sol = (lo + hi) / 2;
+      /* ★ 몫에 **울타리**를 친다. 절개선 짝 하나로는 몫이 덜 정해지는 호수가 있다 —
+         44호는 gap 곡선이 거의 평평해 답이 0.21 까지 흘러가고, 그러면 작은소매 부리가
+         큰소매보다 넓어진다(19.4 / 5.2). 울타리에 걸린 호수도 짝 어긋남은 0.09 로
+         허용(0.15) 안이다. 도면 몫 0.561 은 울타리 한가운데다. */
+      var bd = K.twoCuffShareBand;
+      return Math.max(bd[0], Math.min(bd[1], sol));
     })();
     cuffBigArc = cuffW * shareSolved; cuffUndArc = cuffW * (1 - shareSolved);
     var _hp = hemPts(shareSolved);
@@ -3347,15 +3403,11 @@ td.n.n-fail{color:var(--red)}
     var ventBig = ventOf(bigBack, [halfF, elbowY], num(opt.ventWBig, K.ventWBig), vLn);   // 조각 안쪽 = 앞쪽 → 덧단은 뒤로
     var ventUnd = ventOf(undBack, [backOutX, elbowY], num(opt.ventWUnd, K.ventW), vLn);   // 조각 안쪽 = 뒤쪽 → 덧단은 앞으로
 
-    var bigFront = splineSegs([[frontInX, topY], [frontInX - K.twoFrontElbowIn, elbowY], bigHemF],
-      endTan([0, 1], CAL.twoFront.k0), null);
     /* 작은소매 바깥 뒤선 — 앵커 **두 점**. 가장 앞으로 나온 자리는 팔꿈치선(33.5)이 아니라
        그보다 아래 y 36.199 다 (도면 −19.460 · 뒤 경계에서 1.965). 팔꿈치선에 한 점만 두면
-       아래쪽이 곧게 펴져 도면과 0.53 벗어난다. */
-    var undOuter = splineSegs([[backOutX, topY],
-        [backOutX + K.twoUndOutIn1, K.twoUndOutY1],
-        [backOutX + K.twoUndOutIn2, K.twoUndOutY2], undHemB],
-      endTan([0, 1], CAL.twoUndOuter.k0), endTan([0, 1], CAL.twoUndOuter.k1));
+       아래쪽이 곧게 펴져 도면과 0.53 벗어난다.
+       (`bigFront` 와 `mkUndOuter` 는 부리 뒤 모서리를 풀 때 이미 위에서 만들었다.) */
+    var undOuter = mkUndOuter(undHemB);
     /* 소매통 연결 — 위에서 만든 **큰소매 앞 소매산의 잘린 꼬리를 평행이동한 것** 그대로다.
        예전에는 CAL.twoCapOut 으로 따로 적합한 스플라인을 그렸다 (도면에 없는 곡선이었다). */
     var undCapOut = lineSegs.apply(null, capOutPts);
