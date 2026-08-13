@@ -190,9 +190,11 @@ E.SIZES.forEach(function (sz) {
    /* [28] 은 43번(기준선 11~40 의 3등분점)이 **곡선 위 점인지 기준선 위 표시인지**
       도면 해상도로 확정이 안 됐다. 확실한 것만 잰다 — 밑단이 현에서 실제로 휘는가.
       아래 hemBow 검사가 그것이고, 43 통과 여부는 [미확정] 으로 남긴다. */
-   ['소매[7]', s.capF, s.p18, 0.60, '앞 소매산이 18번 근처'],
-   ['소매[7]', s.capF, s.p17, 0.60, '앞 소매산이 17번 근처'],
-   ['소매[8]', s.capB, s.p21, 0.60, '뒤 소매산이 21번 근처']
+   ['소매[7]', s.capF, s.p18, 0.05, '앞 소매산이 18번을 지난다'],
+   ['소매[7]', s.capF, s.p17, 0.05, '앞 소매산이 17번을 지난다'],
+   ['소매[8]', s.capB, s.p21, 0.05, '뒤 소매산이 21번을 지난다'],
+   ['소매[5]', s.capF, s.p9, 0.02, '앞 소매산이 정점 9번에서 끝난다'],
+   ['소매[5]', s.capB, s.p9, 0.02, '뒤 소매산이 정점 9번에서 시작한다']
   ].forEach(function (r) {
     var d = nearest(r[1], r[2]);
     if (d > r[3]) (r[3] >= 0.5 ? soft : bad).push(r[0] + ' ' + r[4] + ' — 실제 ' + d.toFixed(2));
@@ -256,11 +258,13 @@ E.SIZES.forEach(function (sz) {
     });
   })();
   /* ★ 소매산 **편차 프로파일** — 도면에서 확실히 읽히는 것은 「부호」다.
-       앞: 진동 쪽 **오목(−)** → 17번에서 0 교차 → 정점 쪽 **볼록(+)**
-       뒤: 진동 쪽 **볼록(+)** → 21번에서 0 교차 → 정점 쪽 **오목(−)**  (앞뒤가 반대)
+       정점은 **9번**이다(원문 [5] 소매중심선). 6번은 소매폭을 정하는 점일 뿐이다.
+       앞·뒤 모두 **진동 쪽이 오목 · 정점 쪽이 볼록**인 S 자다.
+       ⚠ 부호는 앞뒤가 반대로 나온다 — 편차식의 방향벡터(A→B)가 x 방향이 서로 반대라
+         같은 「오목」이 앞은 −, 뒤는 + 로 찍힌다. 부호 상수(마지막 열)가 그것이다.
      크기(최대 부풀림)는 도면 해상도로 확정이 안 된다 — 부호와 교차 위치만 잠근다. */
-  [['앞 소매산', s.capF, s.p5, s.p6, s.p17, -1],
-   ['뒤 소매산', s.capB, s.p7, s.p6, s.p21, +1]].forEach(function (r) {
+  [['앞 소매산', s.capF, s.p5, s.p9, s.p17, -1],
+   ['뒤 소매산', s.capB, s.p7, s.p9, s.p21, +1]].forEach(function (r) {
     var A = r[2], Bp = r[3], d = V.sub(Bp, A), L = Math.hypot(d[0], d[1]);
     function devAt(t) {
       var y = A[1] + (Bp[1] - A[1]) * t, q = U.sampleSegs(r[1], 0.02), b = null;
@@ -269,12 +273,21 @@ E.SIZES.forEach(function (sz) {
     }
     if (devAt(0.2) * r[5] <= 0.15) bad.push(r[0] + ' 진동 쪽 부호가 다르다 (' + devAt(0.2).toFixed(2) + ')');
     if (devAt(0.8) * r[5] >= -0.15) bad.push(r[0] + ' 정점 쪽 부호가 다르다 (' + devAt(0.8).toFixed(2) + ')');
-    /* 0 교차가 통과점(17·21) 자리인가 */
-    var tm = (r[4][1] - A[1]) / (Bp[1] - A[1]), lo = 0, hi = 1, i;
-    for (i = 0; i < 30; i++) { var mid = (lo + hi) / 2; if (devAt(mid) * r[5] > 0) lo = mid; else hi = mid; }
-    if (Math.abs((lo + hi) / 2 - tm) > 0.10)
-      bad.push(r[0] + ' 0 교차가 t=' + ((lo + hi) / 2).toFixed(2) + ' — 통과점은 t=' + tm.toFixed(2));
+    /* ⚠ 「0 교차가 통과점 자리」는 검사하지 않는다 — 정점이 9번이 되면서 통과점
+       17·21 이 현(5→9 · 7→9) 위에 있지 않게 됐다. 21 은 7→**6** 대각선 위의 점이다.
+       통과 여부는 위 nearest 표에서 0.000 으로 따로 확인한다. */
   });
+  /* ★ 앞이 급경사 · 뒤가 완만 — 정점이 9번이라야 이렇게 된다 (사용자 지적 2026-08-14).
+     정점을 6번에 두면 앞 39.4° / 뒤 34.1° 로 차이가 5° 밖에 안 나고 도면과 다르다.
+     9번이면 앞 42.3° / 뒤 32.1° — 10° 이상 벌어진다. */
+  (function () {
+    var hf = Math.abs(s.p9[0] - s.p5[0]), hb = Math.abs(s.p7[0] - s.p9[0]);
+    var af = Math.atan(s.h / hf) * 180 / Math.PI, ab = Math.atan(s.h / hb) * 180 / Math.PI;
+    if (af - ab < 8)
+      bad.push('소매산 앞뒤 기울기 차 ' + (af - ab).toFixed(1) + '° — 앞이 급경사·뒤가 완만해야 한다 (앞 ' +
+               af.toFixed(1) + '° 뒤 ' + ab.toFixed(1) + '°)');
+  })();
+
   /* 정점에서 앞뒤가 매끄럽게 이어지는가 (뾰족하면 안 된다) */
   (function () {
     var f = U.sampleSegs(s.capF, 0.02), b2 = U.sampleSegs(s.capB, 0.02);
@@ -282,6 +295,33 @@ E.SIZES.forEach(function (sz) {
     var n1 = Math.hypot(t1[0], t1[1]), n2 = Math.hypot(t2[0], t2[1]);
     var a = Math.acos(Math.max(-1, Math.min(1, (t1[0] * t2[0] + t1[1] * t2[1]) / (n1 * n2)))) * 180 / Math.PI;
     if (a > 6) bad.push('소매산 정점 꺾임 ' + a.toFixed(1) + '° (6° 이내라야 한다)');
+  })();
+
+  /* ★ 소맷부리 [10][11][15] — 도면의 ★★ 표시와 26번 통과
+       사용자 지적 「소매 밑단도 처리 안되었는데?」(2026-08-14) 로 잡혔다.
+       부리선이 26번을 안 지나 **완전한 직선**이었다(양 끝·중간 모두 y = 56.50). */
+  (function () {
+    var q = U.sampleSegs(s.cuff, 0.02), near26 = 1e9, ys = [];
+    q.forEach(function (x) { near26 = Math.min(near26, V.dist(x, s.p26)); ys.push(x[1]); });
+    /* [15] 26번(10번에서 안쪽 1.25)을 지나는가 */
+    if (near26 > 0.05) bad.push('소매[15] 부리선이 26번을 안 지난다 (' + near26.toFixed(2) + ')');
+    /* 직선이면 안 된다 — 23·24 가 내려가고 가운데가 26 을 지나 곡선이 된다 */
+    var rise = Math.max.apply(null, ys) - Math.min.apply(null, ys);
+    if (rise < 0.2) bad.push('소매 부리선이 직선이다 (높이차 ' + rise.toFixed(2) + ')');
+    /* [11] ★★ : 3~24 = 23~8 */
+    if (Math.abs(Math.abs(s.p24[0] - s.p3[0]) - Math.abs(s.p8[0] - s.p23[0])) > 0.02)
+      bad.push('소매[11] ★★ 3~24 ≠ 23~8');
+    /* [10][11] : 3~22 = 24~23 = 소매부리 */
+    if (Math.abs(Math.abs(s.p22[0] - s.p3[0]) - s.cuffW) > 0.02)
+      bad.push('소매[10] 3~22 ≠ 소매부리');
+    if (Math.abs(Math.abs(s.p23[0] - s.p24[0]) - s.cuffW) > 0.02)
+      bad.push('소매[11] 24~23 ≠ 소매부리 — 24 를 「밖으로」 읽으면 여기가 깨진다');
+    /* 부리 호길이가 소매부리에서 크게 벗어나면 안 된다 (26 통과로 +0.04 정도) */
+    if (Math.abs(U.polyLen(q) - s.cuffW) > 0.15)
+      bad.push('소매 부리선 호길이 ' + U.polyLen(q).toFixed(2) + ' ≠ 소매부리 ' + s.cuffW);
+    /* [14] MP 분량선 25 = EL 에서 1 아래 · 14 = EL ∩ 앞 밑변 */
+    if (Math.abs(s.p25[1] - (s.elY + 1)) > 0.02) bad.push('소매[14] 25번이 EL+1 이 아니다');
+    if (Math.abs(s.p14[1] - s.elY) > 0.02) bad.push('소매[14] 14번이 EL 위가 아니다');
   })();
 
   /* [41] 74 = 66 + (73~66) — 밑단 다트 다리가 66번 기준 대칭 */
@@ -321,7 +361,7 @@ E.SIZES.forEach(function (sz) {
              ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (75 - bad.length - soft.length) + '/75' +
+    '원문 점 통과 ' + (86 - bad.length - soft.length) + '/86' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
