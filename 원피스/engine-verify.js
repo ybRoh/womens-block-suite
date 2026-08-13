@@ -364,6 +364,24 @@ E.SIZES.forEach(function (sz) {
     if (Math.abs(s.p14[1] - s.elY) > 0.02) bad.push('소매[14] 14번이 EL 위가 아니다');
   })();
 
+  /* ★ 어깨를 꿰맸을 때 앞뒤 목선이 **한 줄기로 이어지는가**
+     (앞 목선↔어깨선 각) + (뒤 목선↔어깨선 각) = 180° 라야 안 꺾인다. */
+  (function () {
+    function arrive(sg, at) {
+      var q = U.sampleSegs(sg, 0.02);
+      if (V.dist(q[0], at) < V.dist(q[q.length - 1], at)) q = q.slice().reverse();
+      return V.norm(V.sub(q[q.length - 1], q[q.length - 4]));
+    }
+    function ang(a, b) {
+      return Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
+    }
+    var fT = arrive(g.fNeck, g.f54), bT = arrive(g.bNeck, g.p20);
+    var sum = ang([-fT[0], -fT[1]], V.norm(V.sub(g.f57, g.f54))) +
+              ang([-bT[0], -bT[1]], V.norm(V.sub(g.p23, g.p20)));
+    if (Math.abs(180 - sum) > 3)
+      bad.push('어깨에서 앞뒤 목선이 ' + Math.abs(180 - sum).toFixed(1) + '° 꺾인다 (3° 이내)');
+  })();
+
   /* ★ 앞목선은 **둥근 목선**이다 — 앞중심 쪽이 한참 평평하다가 목옆점에서 확 오른다.
      통과점을 0.62 로 두었더니 평평 구간이 목너비의 24% 뿐이라 사선처럼 보였다
      (사용자가 도면 위에 곡선을 그려 보내 발견 · 2026-08-14). 0.80 이면 57%. */
@@ -477,9 +495,7 @@ E.SIZES.forEach(function (sz) {
    [s.capF,  '앞 소매산', 0.70, 1, 180, 6, 180, 6],
    [s.capB,  '뒤 소매산', 0.70, 1, 180, 6, 180, 6],
    [g.bNeck, '뒷목',      0.70, 1, null, 0, shoulderB - 90, 15],
-   /* 앞목선 끝접선은 **어깨선 직각이 아니다** — 원문 [42] 의 76→54 보조선에 접한다
-      (K.neckEndMix 0.70 만큼 세로 쪽으로 기울어 −83° 근처). 뒤는 직각 그대로. */
-   [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90 - 16, 8]
+   [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90, 8]
   ].forEach(function (r) {
     var x = shapeOf(r[0]), nm = r[1];
     if (x.maxK > r[2]) bad.push(nm + ' 최대곡률 ' + x.maxK.toFixed(2) + ' > ' + r[2] +
