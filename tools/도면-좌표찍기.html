@@ -1,0 +1,329 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>도면 좌표 찍기 — 정답지 만들기</title>
+<style>
+:root{--bg:#f6f7f9;--pa:#fff;--ln:#dfe3e8;--tx:#1d2530;--mu:#6b7684;--ac:#1a6fd4;--rd:#c02020;--gr:#1f7a3d}
+*{box-sizing:border-box}
+body{margin:0;font:13px/1.5 -apple-system,'Apple SD Gothic Neo',sans-serif;color:var(--tx);background:var(--bg);
+  display:grid;grid-template-columns:330px 1fr;height:100vh;overflow:hidden}
+aside{background:var(--pa);border-right:1px solid var(--ln);overflow:auto;padding:14px}
+h1{font-size:15px;margin:0 0 4px}
+h2{font-size:12px;color:var(--mu);margin:18px 0 6px;text-transform:none;letter-spacing:.02em}
+.hint{font-size:11px;color:var(--mu);line-height:1.6;margin:4px 0 0}
+button{font:inherit;padding:6px 10px;border:1px solid var(--ln);background:#fff;border-radius:7px;cursor:pointer}
+button:hover{background:#f0f4f8}
+button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+input,textarea,select{font:inherit;padding:5px 7px;border:1px solid var(--ln);border-radius:6px;width:100%;background:#fff}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:11px;resize:vertical}
+.row{display:flex;gap:6px;align-items:center;margin:6px 0}
+.row>*{flex:1}
+.modes{display:flex;gap:4px;margin:8px 0}
+.modes button{flex:1;padding:7px 4px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+td,th{padding:3px 4px;border-bottom:1px solid #eef1f4;text-align:left}
+th{color:var(--mu);font-weight:600}
+td.n{text-align:right;font-family:ui-monospace,monospace}
+tr.bad td{background:#fff3f3}
+.del{cursor:pointer;color:var(--mu)}
+.del:hover{color:var(--rd)}
+main{position:relative;overflow:hidden;background:#e9edf1}
+canvas{position:absolute;inset:0;cursor:crosshair}
+#tip{position:absolute;left:10px;bottom:10px;background:rgba(255,255,255,.94);border:1px solid var(--ln);
+  border-radius:8px;padding:6px 10px;font-size:11.5px;color:var(--mu);pointer-events:none}
+#res{font-size:12px;padding:7px 9px;border-radius:7px;background:#f0f4f8;margin-top:6px}
+#res.ok{background:#eaf7ee;color:#155e2c}
+#res.no{background:#fdeeee;color:#8c1c1c}
+</style>
+
+<aside>
+  <h1>도면 좌표 찍기</h1>
+  <p class="hint">교재 도면 위에서 번호점을 클릭해 <b>정답지</b>를 만듭니다.
+    보정점을 찍고 그 <b>제도 좌표</b>를 적으면 축척·회전·거울이 자동으로 풀립니다.<br>
+    <b>보정점은 3개 이상, 한 직선에서 벗어나게</b> — 일직선이면 거울 여부가 안 갈립니다.</p>
+
+  <h2>① 도면 이미지</h2>
+  <div class="row"><input id="url" placeholder="../docs/img/원피스-뒤판-도면.png"><button id="load">열기</button></div>
+  <div class="row"><input id="file" type="file" accept="image/*"></div>
+
+  <h2>② 무엇을 찍나</h2>
+  <div class="modes">
+    <button id="mCal" class="on">보정점</button>
+    <button id="mPt">번호점</button>
+    <button id="mCv">곡선</button>
+  </div>
+  <p class="hint" id="modeHelp"></p>
+
+  <h2>③ 보정점 <span id="calN" style="color:var(--mu)"></span></h2>
+  <table id="calT"><thead><tr><th>#</th><th>제도 x</th><th>제도 y</th><th></th></tr></thead><tbody></tbody></table>
+  <div id="res">보정점을 3개 이상 찍으세요 (한 직선 위에 두지 말 것).</div>
+
+  <h2>④ 번호점</h2>
+  <table id="ptT"><thead><tr><th>번호</th><th class="n">x</th><th class="n">y</th><th></th></tr></thead><tbody></tbody></table>
+
+  <h2>⑤ 곡선</h2>
+  <div class="row"><input id="cvName" placeholder="곡선 이름 (예: bArm)"><button id="cvNew">새 곡선</button></div>
+  <table id="cvT"><thead><tr><th>이름</th><th class="n">점</th><th></th></tr></thead><tbody></tbody></table>
+
+  <h2>⑥ 엔진 출력 겹쳐 보기</h2>
+  <p class="hint">엔진에서 뽑은 <code>{"12":[23,21], …}</code> 를 붙여넣으면 도면 위에 <span style="color:var(--rd)">빨강</span>으로 겹쳐 그립니다.
+    번호가 같으면 <b>연결선과 오차</b>를 보여 줍니다.</p>
+  <textarea id="ov" rows="4" placeholder='{"12":[23.0,21.0],"42":[17.14,11.5]}'></textarea>
+  <div class="row"><button id="ovGo">겹치기</button><button id="ovClr">지우기</button></div>
+
+  <h2>⑦ 내보내기</h2>
+  <div class="row"><button id="exp">JSON 저장</button><button id="imp">불러오기</button></div>
+  <input id="impF" type="file" accept="application/json" style="display:none">
+  <p class="hint">저장 위치 관례 — <code>docs/answer/&lt;모듈&gt;-&lt;조각&gt;.json</code></p>
+</aside>
+
+<main>
+  <canvas id="cv"></canvas>
+  <div id="tip">휠 = 확대 · 드래그 = 이동 · 클릭 = 점 찍기 · ⌫ = 마지막 점 취소</div>
+</main>
+
+<script>
+(function(){
+'use strict';
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var img=null, view={s:1,x:0,y:0}, mode='cal';
+var cal=[], pts=[], curves=[], curCv=null, overlay=null, T=null;
+var $=function(id){return document.getElementById(id);};
+
+/* ── 좌표 변환 ────────────────────────────────────────────────────────
+   보정점 (픽셀 p, 제도 q) 들로 **닮음변환**을 최소제곱으로 푼다.
+   복소수로 두면 회전+축척이 곱 하나다:  w = a·z + b   (거울이면 z 대신 conj(z))
+   두 경우를 다 풀어 잔차가 작은 쪽을 고른다 — **거울 여부가 자동으로 결정된다.** */
+function solve(){
+  if(cal.length<2){T=null;return null;}
+  function fit(conj){
+    var n=cal.length, zr=0,zi=0,wr=0,wi=0,i;
+    for(i=0;i<n;i++){ zr+=cal[i].px[0]; zi+=(conj?-1:1)*cal[i].px[1]; wr+=cal[i].xy[0]; wi+=cal[i].xy[1]; }
+    zr/=n; zi/=n; wr/=n; wi/=n;
+    var nr=0,ni=0,d=0;
+    for(i=0;i<n;i++){
+      var a=cal[i].px[0]-zr, b=(conj?-1:1)*cal[i].px[1]-zi;
+      var c=cal[i].xy[0]-wr, e=cal[i].xy[1]-wi;
+      nr+=a*c+b*e; ni+=a*e-b*c; d+=a*a+b*b;
+    }
+    if(d<1e-9) return null;
+    var ar=nr/d, ai=ni/d;
+    var br=wr-(ar*zr-ai*zi), bi=wi-(ar*zi+ai*zr);
+    var r=0;
+    for(i=0;i<n;i++){
+      var x=cal[i].px[0], y=(conj?-1:1)*cal[i].px[1];
+      var gx=ar*x-ai*y+br, gy=ar*y+ai*x+bi;
+      r=Math.max(r, Math.hypot(gx-cal[i].xy[0], gy-cal[i].xy[1]));
+    }
+    return {ar:ar,ai:ai,br:br,bi:bi,conj:conj,res:r};
+  }
+  var A=fit(false), B=fit(true);
+  var best = (!A)?B : (!B)?A : (A.res<=B.res?A:B);
+  /* ★ 거울 여부는 보정점이 **삼각형을 이룰 때만** 결정된다.
+     일직선(예: 앞중심선 위의 점들만) 이면 정상/거울 잔차가 **둘 다 0** 이라
+     한쪽을 고를 수 없고, 조각이 통째로 뒤집힌 채 통과한다.
+     — 이번 원피스 소매가 정확히 그렇게 거울상으로 나갔다 (2026-08-14). */
+  var area=0, mxd=0, i, j, k;
+  for(i=0;i<cal.length;i++) for(j=i+1;j<cal.length;j++){
+    mxd=Math.max(mxd,Math.hypot(cal[i].px[0]-cal[j].px[0],cal[i].px[1]-cal[j].px[1]));
+    for(k=j+1;k<cal.length;k++){
+      var P=cal[i].px,Q=cal[j].px,R=cal[k].px;
+      area=Math.max(area,Math.abs((Q[0]-P[0])*(R[1]-P[1])-(Q[1]-P[1])*(R[0]-P[0]))/2);
+    }
+  }
+  best.tri = mxd>0 ? area/(mxd*mxd) : 0;
+  best.resA = A?A.res:null; best.resB = B?B.res:null;
+  T=best; return best;
+}
+function toXY(px){ if(!T)return null; var x=px[0], y=(T.conj?-1:1)*px[1];
+  return [T.ar*x-T.ai*y+T.br, T.ar*y+T.ai*x+T.bi]; }
+function toPX(xy){ if(!T)return null;
+  var d=T.ar*T.ar+T.ai*T.ai; if(d<1e-12)return null;
+  var u=xy[0]-T.br, v=xy[1]-T.bi;
+  var x=(T.ar*u+T.ai*v)/d, y=(T.ar*v-T.ai*u)/d;
+  return [x,(T.conj?-1:1)*y]; }
+
+/* ── 그리기 ─────────────────────────────────────────────────────── */
+function resize(){ cv.width=cv.clientWidth*devicePixelRatio; cv.height=cv.clientHeight*devicePixelRatio; draw(); }
+function draw(){
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,cv.clientWidth,cv.clientHeight);
+  if(!img) return;
+  ctx.save(); ctx.translate(view.x,view.y); ctx.scale(view.s,view.s);
+  ctx.drawImage(img,0,0);
+  var r=6/view.s, f=Math.max(11/view.s,3);
+  ctx.lineWidth=1.6/view.s; ctx.font=f+'px sans-serif'; ctx.textBaseline='middle';
+  cal.forEach(function(c,i){ dot(c.px,'#1f7a3d',r); label(c.px,'C'+(i+1),'#1f7a3d',r,f); });
+  pts.forEach(function(p){ dot(p.px,'#1a6fd4',r); label(p.px,p.name,'#1a6fd4',r,f); });
+  curves.forEach(function(c){
+    if(c.px.length>1){ ctx.strokeStyle='#8a4fd0'; ctx.beginPath();
+      ctx.moveTo(c.px[0][0],c.px[0][1]); for(var i=1;i<c.px.length;i++) ctx.lineTo(c.px[i][0],c.px[i][1]); ctx.stroke(); }
+    c.px.forEach(function(q){ dot(q,'#8a4fd0',r*0.6); });
+    if(c.px.length) label(c.px[0],c.name,'#8a4fd0',r,f);
+  });
+  if(overlay&&T){
+    ctx.strokeStyle='#c02020'; ctx.fillStyle='#c02020';
+    Object.keys(overlay).forEach(function(k){
+      var q=toPX(overlay[k]); if(!q)return;
+      dot(q,'#c02020',r*0.9);
+      var m=pts.filter(function(p){return p.name===k;})[0];
+      if(m){ ctx.beginPath(); ctx.moveTo(m.px[0],m.px[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); }
+      else label(q,k,'#c02020',r,f);
+    });
+  }
+  ctx.restore();
+  function dot(p,c,rr){ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(p[0],p[1],rr,0,7); ctx.fill(); }
+  function label(p,t,c,rr,ff){ ctx.fillStyle=c; ctx.fillText(t,p[0]+rr*1.4,p[1]-rr*1.4-ff*0.1); }
+}
+
+/* ── 목록 ───────────────────────────────────────────────────────── */
+function render(){
+  var t=solve();
+  var el=$('res');
+  if(!t){ el.className=''; el.textContent='보정점을 2개 이상 찍으세요.'; }
+  else{
+    var flat = t.tri < 0.02;                       // 보정점이 거의 일직선
+    var ok = t.res<=0.25 && !flat && cal.length>=3;
+    el.className = ok?'ok':'no';
+    var msg='잔차 <b>'+t.res.toFixed(3)+'</b> cm · 축척 '+
+      (1/Math.hypot(t.ar,t.ai)).toFixed(2)+' px/cm · 회전 '+
+      (Math.atan2(t.ai,t.ar)*180/Math.PI).toFixed(1)+'° · '+(t.conj?'<b>거울</b>':'정상');
+    if(cal.length<3) msg+='<br>⚠ 보정점이 2개뿐 — <b>거울 여부를 결정할 수 없습니다.</b> 3개 이상, 한 직선에서 벗어나게 찍으세요.';
+    else if(flat) msg+='<br>⚠ 보정점이 <b>거의 일직선</b>입니다 (삼각형 지수 '+t.tri.toFixed(3)+
+      '). 거울 여부가 안 갈립니다 — 중심선에서 떨어진 점을 하나 더 찍으세요.';
+    else if(t.res>0.25) msg+='<br>⚠ 잔차가 큽니다 — 보정점 좌표를 확인하세요.';
+    else msg+='<br>정상 잔차 '+t.resA.toFixed(2)+' vs 거울 '+t.resB.toFixed(2)+
+      ' — 차이가 클수록 확실합니다.';
+    el.innerHTML=msg;
+  }
+  $('calN').textContent=cal.length?'('+cal.length+')':'';
+  var tb=$('calT').querySelector('tbody'); tb.innerHTML='';
+  cal.forEach(function(c,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>C'+(i+1)+'</td><td><input value="'+c.xy[0]+'" data-i="'+i+'" data-k="0"></td>'+
+      '<td><input value="'+c.xy[1]+'" data-i="'+i+'" data-k="1"></td><td class="del" data-d="'+i+'">✕</td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(function(inp){
+    inp.oninput=function(){ cal[+inp.dataset.i].xy[+inp.dataset.k]=parseFloat(inp.value)||0; render(); };
+  });
+  tb.querySelectorAll('.del').forEach(function(d){ d.onclick=function(){ cal.splice(+d.dataset.d,1); render(); }; });
+
+  var pb=$('ptT').querySelector('tbody'); pb.innerHTML='';
+  pts.forEach(function(p,i){
+    var q=toXY(p.px), o=overlay&&overlay[p.name];
+    var err=(q&&o)?Math.hypot(q[0]-o[0],q[1]-o[1]):null;
+    var tr=document.createElement('tr');
+    if(err!==null&&err>0.15) tr.className='bad';
+    tr.innerHTML='<td>'+p.name+'</td><td class="n">'+(q?q[0].toFixed(2):'—')+'</td>'+
+      '<td class="n">'+(q?q[1].toFixed(2):'—')+'</td>'+
+      '<td class="del" data-d="'+i+'">'+(err!==null?('<span style="color:'+(err>0.15?'#c02020':'#1f7a3d')+'">Δ'+err.toFixed(2)+'</span> '):'')+'✕</td>';
+    pb.appendChild(tr);
+  });
+  pb.querySelectorAll('.del').forEach(function(d){ d.onclick=function(e){
+    if(e.target.tagName==='SPAN')return; pts.splice(+d.dataset.d,1); render(); }; });
+
+  var cb=$('cvT').querySelector('tbody'); cb.innerHTML='';
+  curves.forEach(function(c,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+c.name+(c===curCv?' ●':'')+'</td><td class="n">'+c.px.length+'</td><td class="del" data-d="'+i+'">✕</td>';
+    tr.onclick=function(){ curCv=c; render(); };
+    cb.appendChild(tr);
+  });
+  cb.querySelectorAll('.del').forEach(function(d){ d.onclick=function(ev){
+    ev.stopPropagation(); var c=curves.splice(+d.dataset.d,1)[0]; if(curCv===c)curCv=null; render(); }; });
+  draw();
+}
+
+/* ── 입력 ───────────────────────────────────────────────────────── */
+var drag=null;
+cv.addEventListener('mousedown',function(e){ drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false}; });
+addEventListener('mousemove',function(e){
+  if(!drag)return; var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true;
+  view.x=drag.vx+dx; view.y=drag.vy+dy; draw();
+});
+addEventListener('mouseup',function(e){
+  if(!drag)return; var moved=drag.moved; drag=null;
+  if(moved||!img)return;
+  var r=cv.getBoundingClientRect();
+  var px=[(e.clientX-r.left-view.x)/view.s,(e.clientY-r.top-view.y)/view.s];
+  if(px[0]<0||px[1]<0||px[0]>img.width||px[1]>img.height) return;
+  if(mode==='cal'){ cal.push({px:px,xy:[0,0]}); }
+  else if(mode==='pt'){
+    var n=prompt('번호 (예: 12)', String(pts.length?(+pts[pts.length-1].name+1||''):''));
+    if(n===null)return; pts.push({name:n.trim(),px:px});
+  } else {
+    if(!curCv){ var nm=$('cvName').value.trim()||('곡선'+(curves.length+1));
+      curCv={name:nm,px:[]}; curves.push(curCv); $('cvName').value=''; }
+    curCv.px.push(px);
+  }
+  render();
+});
+cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  var k=Math.exp(-e.deltaY*0.0015), ns=Math.max(0.05,Math.min(40,view.s*k));
+  view.x=mx-(mx-view.x)*(ns/view.s); view.y=my-(my-view.y)*(ns/view.s); view.s=ns; draw();
+},{passive:false});
+addEventListener('keydown',function(e){
+  if(e.key!=='Backspace')return;
+  if(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
+  e.preventDefault();
+  if(mode==='cal'&&cal.length) cal.pop();
+  else if(mode==='pt'&&pts.length) pts.pop();
+  else if(mode==='cv'&&curCv&&curCv.px.length) curCv.px.pop();
+  render();
+});
+
+/* ── 모드 ───────────────────────────────────────────────────────── */
+var HELP={cal:'도면에서 <b>제도 좌표를 아는 점</b>을 클릭하고 표에 그 좌표를 적습니다. <b>3개 이상, 삼각형을 이루게</b> 찍어야 거울 여부까지 결정됩니다.',
+          pt:'번호점을 클릭할 때마다 번호를 묻습니다. 엔진 출력을 겹쳐 놓으면 Δ(오차)가 바로 뜹니다.',
+          cv:'곡선을 따라 여러 점을 찍습니다. 5~8점이면 하우스도르프 비교에 충분합니다.'};
+function setMode(m){ mode=m;
+  $('mCal').className=m==='cal'?'on':''; $('mPt').className=m==='pt'?'on':''; $('mCv').className=m==='cv'?'on':'';
+  $('modeHelp').innerHTML=HELP[m]; }
+$('mCal').onclick=function(){setMode('cal');}; $('mPt').onclick=function(){setMode('pt');};
+$('mCv').onclick=function(){setMode('cv');};
+$('cvNew').onclick=function(){ var nm=$('cvName').value.trim(); if(!nm)return alert('곡선 이름을 적으세요');
+  curCv={name:nm,px:[]}; curves.push(curCv); $('cvName').value=''; setMode('cv'); render(); };
+
+/* ── 이미지 ─────────────────────────────────────────────────────── */
+function setImg(src){ var i=new Image(); i.onload=function(){ img=i;
+  var r=cv.getBoundingClientRect();
+  view.s=Math.min(r.width/i.width,r.height/i.height)*0.95;
+  view.x=(r.width-i.width*view.s)/2; view.y=(r.height-i.height*view.s)/2; draw(); };
+  i.onerror=function(){ alert('이미지를 못 읽었습니다: '+src); }; i.src=src; }
+$('load').onclick=function(){ var u=$('url').value.trim(); if(u) setImg(u); };
+$('file').onchange=function(e){ var f=e.target.files[0]; if(!f)return;
+  var fr=new FileReader(); fr.onload=function(){ setImg(fr.result); }; fr.readAsDataURL(f); };
+
+/* ── 겹쳐 보기 · 내보내기 ───────────────────────────────────────── */
+$('ovGo').onclick=function(){ try{ overlay=JSON.parse($('ov').value); }catch(err){ return alert('JSON 오류: '+err.message); } render(); };
+$('ovClr').onclick=function(){ overlay=null; render(); };
+$('exp').onclick=function(){
+  var t=solve(); if(!t) return alert('보정점을 2개 이상 찍으세요.');
+  var out={ image:$('url').value.trim()||null, unit:'cm',
+    transform:{scale_px_per_cm:1/Math.hypot(t.ar,t.ai), rotation_deg:Math.atan2(t.ai,t.ar)*180/Math.PI,
+               mirrored:t.conj, residual_cm:+t.res.toFixed(4)},
+    calib:cal.map(function(c){return {px:c.px.map(r2),xy:c.xy};}),
+    points:{}, curves:{} };
+  pts.forEach(function(p){ var q=toXY(p.px); if(q) out.points[p.name]=[r2(q[0]),r2(q[1])]; });
+  curves.forEach(function(c){ out.curves[c.name]=c.px.map(function(q){var w=toXY(q);return [r2(w[0]),r2(w[1])];}); });
+  var b=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download=(out.image?out.image.split('/').pop().replace(/\.\w+$/,''):'도면')+'.json'; a.click();
+  function r2(v){ return Math.round(v*100)/100; }
+};
+$('imp').onclick=function(){ $('impF').click(); };
+$('impF').onchange=function(e){ var f=e.target.files[0]; if(!f)return;
+  var fr=new FileReader(); fr.onload=function(){
+    try{ var d=JSON.parse(fr.result); }catch(err){ return alert('JSON 오류'); }
+    cal=(d.calib||[]).map(function(c){return {px:c.px,xy:c.xy};});
+    pts=Object.keys(d.points||{}).map(function(k){ var q=toPX(d.points[k]); return q?{name:k,px:q}:null; }).filter(Boolean);
+    if(d.image){ $('url').value=d.image; setImg(d.image); }
+    render();
+  }; fr.readAsText(f); };
+
+setMode('cal'); addEventListener('resize',resize); resize(); render();
+})();
+</script>

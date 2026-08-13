@@ -14,6 +14,7 @@
  * ==========================================================================*/
 'use strict';
 var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
+var AC = require('../tools/answer-check.js');
 
 var fails = 0, warns = 0;
 function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
@@ -434,6 +435,52 @@ E.SIZES.forEach(function (sz) {
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
+
+/* ══ 3-C. 정답지 대조 — 도면에서 찍은 좌표와 직접 비교 ═══════════════════
+ *  `tools/도면-좌표찍기.html` 로 docs/answer/원피스-{뒤판,앞판,소매}.json 을 만들면
+ *  여기가 자동으로 켜진다. 정답지가 없으면 조용히 건너뛴다.
+ *  ★ 좌표 대조는 **거울·회전·모양을 한 번에** 잡는다 — 길이 검사가 못 잡는 것들이다.
+ * ══════════════════════════════════════════════════════════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3-C. 정답지 대조 (docs/answer/*.json · 도면에서 찍은 좌표)');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var m = E.measuresForSize('55호'), g = E.geom(m);
+  var s = E.draftDress(m, { seam: E.SEAM_DEFAULT }).sleeve, any = false;
+  [['원피스-뒤판',
+    { 2: g.p2, 9: g.p9, 10: g.p10, 11: g.p11, 12: g.p12, 15: g.p15, 17: g.p17, 18: g.p18,
+      19: g.p19, 20: g.p20, 21: g.p21, 22: g.p22, 23: g.p23, 26: g.p26, 28: g.p28, 29: g.p29,
+      32: g.p32, 33: g.p33, 34: g.p34, 35: g.p35, 36: g.p36, 38: g.p38, 39: g.p39, 40: g.p40, 42: g.p42 },
+    { bArm: g.bArm, bNeck: g.bNeck, bSide: g.bSide, bHem: g.bHem }],
+   ['원피스-앞판',
+    { 12: g.f12, 15: g.f15, 51: g.f51, 53: g.f53, 54: g.f54, 56: g.f56, 57: g.f57, 58: g.f58,
+      59: g.f59, 60: g.f60, 64: g.f64, 67: g.f67, 68: g.f68, 69: g.f69, 70: g.f70,
+      73: g.f73, 74: g.f74, 75: g.f75, 78: g.f78 },
+    { fArm: g.fArm, fNeck: g.fNeck, fSide: g.fSide, fHem: g.fHem }],
+   ['원피스-소매',
+    { 3: s.p3, 5: s.p5, 6: s.p6, 7: s.p7, 8: s.p8, 9: s.p9, 10: s.p10, 15: s.p15, 16: s.p16,
+      17: s.p17, 18: s.p18, 19: s.p19, 20: s.p20, 21: s.p21, 22: s.p22, 23: s.p23, 24: s.p24, 26: s.p26 },
+    { capF: s.capF, capB: s.capB, seamF: s.seamF, seamB: s.seamB, cuff: s.cuff }]
+  ].forEach(function (r) {
+    var bad = [], out = AC.run(r[0], r[1], r[2], U, bad);
+    if (out.skipped) { console.log('  · ' + pad(r[0], 12) + '정답지 없음 — 건너뜀'); return; }
+    any = true;
+    if (bad.length) fails++;
+    console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(r[0], 12) +
+      '번호점 ' + out.n + '개 최대 차 ' + f(out.worst, 5) + (out.worstK ? ' (' + out.worstK + '번)' : '') +
+      ' · 곡선 ' + out.cn + '개 최대 ' + f(out.cworst, 5) +
+      (out.mirrored ? ' · 도면은 거울' : '') +
+      (bad.length ? '\n      → ' + bad.slice(0, 6).join('\n      → ') +
+        (bad.length > 6 ? '\n      → … 외 ' + (bad.length - 6) + '건' : '') : ''));
+  });
+  if (!any) {
+    console.log('');
+    console.log('  ※ 정답지를 만들면 이 절이 켜진다 — 좌표 대조는 **거울·회전·모양**을');
+    console.log('    한 번에 잡는다. 길이 검사(§1~3)로는 못 잡는 것들이다.');
+    console.log('      tools/도면-좌표찍기.html 을 열고 docs/img/ 의 도면에서');
+    console.log('      보정점 3개(삼각형!) + 번호점을 찍어 docs/answer/ 에 저장.');
+  }
+})();
 
 /* ══ 4. 곡선 모양 검사 — 길이가 아니라 **생김새**를 잰다 ═══════════════
  *
