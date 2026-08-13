@@ -443,10 +443,14 @@
     collarOut    : 0.5,    // 테일러 카라 — 옆목점에서 0.5 나가서 [42] 78번
     collarW      : 7.5,    // 카라 넓이 (79~80)                  [42] 80번
     collarStand  : 3.0,    // 스탠드 높이 — 넓이보다 작아야 눕는다
-    /* ★ 카라가 눕는 정도 — 목붙임선을 앞으로 갈수록 `(넓이 − 스탠드) × 이 값`만큼
-       올려 굽힌다. 굽은 목붙임선을 바깥으로 넓이만큼 밀면 바깥선이 저절로 길어진다
-       (slash & spread 를 안 해도 같은 결과다). 0 이면 목붙임선이 직선 = 선 카라. */
-    collarCurl   : 0.55,
+    /* ★ 카라가 눕는 정도 — **바깥선을 목붙임선보다 얼마나 길게 뽑을지**.
+         꺾여 내려온 폭(fall = 넓이 − 스탠드)이 목보다 굵은 자리에 가 닿으므로
+         바깥선은 반드시 목붙임선보다 길어야 한다. 짧으면 목을 조여 카라가
+         서 버린다(선 카라). 늘림 = fall × 이 값.
+         목붙임선을 원호로 두면 `바깥선 = 목붙임선 + 넓이 × 회전각` 이라
+         늘림에서 회전각을 역산하면 slash & spread 를 안 해도 같은 결과다.
+         0 이면 곧은 띠 = 선 카라. */
+    collarSpread : 0.75,
     /* ── 2장소매 (숙녀복기본원형2 에서 이식 · [ ] 안이 그 모듈 정답지 실측) ──── */
     capHeightDiv   : 3,        // 소매산 높이 = AH/3 (도면 `AH/3`)
     capPad         : 1.0,      // 패드분 — 소매산을 이만큼 더 올린다 [1.0000]
@@ -1529,23 +1533,32 @@
          78~79 = 뒷목치수 · 79~80 = 카라넓이. 위카라(80번)가 꺾임선(77번) 안으로
          들어가면 안 된다 — 들어가면 카라가 목에서 뜬다.
        조각으로 뽑을 때는 목붙임선(= 뒷목 + 옆목~고지 + 고지선)을 그대로 두고
-       바깥선만 slash & spread 로 벌린다. 「접어서 확인」은 검산기가 대신한다. */
+       바깥선만 slash & spread 로 벌린다. 「접어서 확인」은 검산기가 대신한다.
+
+       ★ 목붙임선을 **굽히는 방향**이 카라의 성격을 정한다.
+         굽은 안쪽(회전 중심)이 목 쪽이면 → 바깥으로 밀 때 반지름이 커져 **길어진다**
+         = 눕는 카라. 반대면 바깥선이 짧아져 목을 조이는 **선 카라**가 된다.
+         테일러 카라는 꺾여 내려오므로 반드시 앞쪽이다. */
     /* 카라 목붙임선 = 뒷목 + **고지선**. 라펠 윗변은 카라가 아니라 안단과 만난다. */
-    var collarNeckLen = sLen(g.backNeck) + sLen(g.gorgeSegs);
+    var collarNeckLen = sLen(g.backNeck) + sLen(g.gorgeSegs), collarOuterLen = 0;
     (function () {
       var Hc = num(opt.collarW, K.collarW);
       var st = Math.min(Hc - 1.0, num(opt.collarStand, K.collarStand));
       var Lc = collarNeckLen;
-      var curl = (Hc - st) * num(opt.collarCurl, K.collarCurl);
-      /* 목붙임선 — 뒤중심에서 수평으로 나가 앞으로 갈수록 curl 만큼 올라간다.
-         x 를 반복 보정해 **실제 호길이가 목둘레(Lc)** 가 되게 한다. */
-      function neckAt(sx) {
-        return splineSegs([[0, Hc], [sx * 0.55, Hc - curl * 0.30], [sx, Hc - curl]],
-          endTan([1, 0], 1.0), endTan([1, -curl * 2.2 / Math.max(sx, 1)], 1.0));
+      /* 바깥선 늘림 = 꺾여 내려온 폭 × 눕는 정도 → 목붙임선의 총 회전각 */
+      var spread = Math.max(0, (Hc - st) * num(opt.collarSpread, K.collarSpread));
+      var th = spread / Hc;
+      /* 목붙임선 — 길이 Lc · 총 회전각 th 인 **원호**.
+         뒤중심(골선)을 **직각으로** 지나야 펼쳤을 때 중심에 각이 안 진다. */
+      var np = [], nN = Math.max(48, Math.ceil(Lc / 0.05));
+      if (th < 1e-4) { np = [[0, Hc], [Lc, Hc]]; }
+      else {
+        var rho = Lc / th;
+        for (var i = 0; i <= nN; i++) {
+          var t = th * i / nN;
+          np.push([rho * Math.sin(t), Hc + rho * (1 - Math.cos(t))]);
+        }
       }
-      var sx = Lc;
-      for (var it = 0; it < 14; it++) { var ln = sLen(neckAt(sx)); if (ln > 1e-6) sx *= Lc / ln; }
-      var np = sampleSegs(neckAt(sx), 0.05);
       /** 목붙임선을 **바깥(위) 법선**으로 dd 만큼 민다. 굽은 선을 밀면 길어진다. */
       function push(pts, dd) {
         return pts.map(function (q, i) {
@@ -1555,18 +1568,23 @@
         });
       }
       var outer = push(np, Hc), stand = push(np, st);
+      for (var oi = 1; oi < outer.length; oi++) collarOuterLen += V.dist(outer[oi - 1], outer[oi]);
       /* 뒷목 끝 — 어깨선에 맞추는 자리. 목붙임선을 뒷목치수만큼 잰 곳 */
       var bnLen = sLen(g.backNeck), acc = 0, shPt = np[np.length - 1];
       for (var i = 1; i < np.length; i++) {
         acc += V.dist(np[i - 1], np[i]);
         if (acc >= bnLen) { shPt = np[i]; break; }
       }
+      /* 식서 — 굽은 조각이라 고정 좌표로 두면 밖으로 나간다. 10% 자리에서
+         목붙임선↔바깥선을 잇는 선분 위에 놓는다. */
+      var gi = Math.round(np.length * 0.10), gA = np[gi], gB = outer[gi];
+      function gLerp(u) { return [gA[0] + (gB[0] - gA[0]) * u, gA[1] + (gB[1] - gA[1]) * u]; }
       pieces.push(mk('collar', '카라', [
         { name: '뒤중심',    role: 'fold', segs: lineSegs(np[0], outer[0]) },
         { name: '카라 윗선', role: 'neck', segs: lineSegs.apply(null, outer) },
         { name: '카라 끝',   role: 'neck', segs: lineSegs(outer[outer.length - 1], np[np.length - 1]) },
         { name: '목붙임선',  role: 'neck', segs: lineSegs.apply(null, np.slice().reverse()) }
-      ], [[Lc * 0.10, Hc * 0.15], [Lc * 0.10, Hc * 0.9]],
+      ], [gLerp(0.10), gLerp(0.85)],
         [{ p: cp(np[0]), angle: 270, label: '뒤중심' },
          { p: cp(shPt), angle: 270, label: '뒷목 끝(어깨)' }],
         [L('stand', 'dashed', stand.filter(function (q, i) { return i % 8 === 0 || i === stand.length - 1; }),
@@ -1839,6 +1857,11 @@
     /* [42] 위카라가 꺾임선 안으로 들어가면 안 된다 = 카라넓이 > 스탠드 */
     if (num(opt.collarW, K.collarW) - num(opt.collarStand, K.collarStand) < 1.0)
       warnings.push('카라넓이 − 스탠드 가 1.0 미만 — 위카라가 꺾임선 안으로 들어간다 [42]');
+    /* ★ 눕는 카라는 바깥선이 목붙임선보다 길어야 한다. 짧으면 목을 조여 선 카라가 된다.
+       예전 판이 목붙임선을 반대로 굽혀 바깥선이 2.1 짧았다 — 그 사고를 여기서 막는다. */
+    if (collarOuterLen > 0 && collarOuterLen <= collarNeckLen + 0.5)
+      warnings.push('카라 바깥선 ' + r4(collarOuterLen) + ' 이 목붙임선 ' + r4(collarNeckLen) +
+                    ' 보다 길지 않다 — 카라가 눕지 못하고 목을 조인다');
 
     return {
       pieces: pieces, warnings: warnings, notes: [],
@@ -1861,6 +1884,9 @@
         neckFront: r4(sLen(g.gorgeSegs) + V.dist(g.gorgeEnd, g.lapelPt) +
                       V.dist(g.lapelPt, g.breakPt)),
         neckTotal: r4(collarNeckLen),
+        /* 카라 — 바깥선이 목붙임선보다 **길어야** 눕는다 */
+        collarNeck: r4(collarNeckLen), collarOuter: r4(collarOuterLen),
+        collarSpread: r4(collarOuterLen - collarNeckLen),
         armholeBack: r4(sLen(g.backArm)), armholeFront: r4(sLen(g.frontArm)),
         armholeTotal: r4(sLen(g.backArm) + sLen(g.frontArm)),
         sideBack: r4(sideBack), sideFront: r4(sideFront),

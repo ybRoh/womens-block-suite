@@ -78,6 +78,20 @@ E.SIZES.forEach(function (sz) {
     row.push(w[0] + ' ' + f(a, 6) + '/' + f(b, 6));
     if (Math.abs(a - b) > w[5]) bad.push(w[0] + ' 차 ' + (a - b).toFixed(3));
   });
+  /* ★ 카라 목붙임선 ↔ 몸판 목둘레(뒤판 뒷목둘레 + 앞판 고지선).
+     짝이 **두 조각에 걸쳐** 있어 위 PAIRS 표로는 못 잰다 — 그래서 예전 판은
+     이 짝을 아예 안 보고 있었고, 카라 바깥선이 목붙임선보다 2.1 **짧은** 채로
+     통과했다(= 목을 조이는 선 카라). 길이와 「눕는가」를 같이 본다. */
+  var cN = edgeLen(d, 'collar', '목붙임선'), cO = edgeLen(d, 'collar', '카라 윗선');
+  var bodyN = edgeLen(d, 'back', '뒷목둘레') + edgeLen(d, 'front', '고지선');
+  row.push('카라 목붙임 ' + f(cN, 6) + '/' + f(bodyN, 6) + ' 바깥 ' + f(cO, 6));
+  if (Math.abs(cN - bodyN) > 0.10) bad.push('카라 목붙임선 차 ' + (cN - bodyN).toFixed(3));
+  /* 꺾여 내려온 폭은 목보다 굵은 자리에 가 닿는다 — 바깥선이 더 길어야 눕는다.
+     너무 길면(1.35 배 넘게) 피터팬처럼 퍼져 재킷 카라가 안 된다. */
+  if (cO <= cN + 0.5)
+    bad.push('카라 바깥선 ' + cO.toFixed(2) + ' 이 목붙임선 ' + cN.toFixed(2) + ' 보다 안 길다 — 안 눕는다');
+  else if (cO / cN > 1.35)
+    bad.push('카라 바깥선/목붙임선 ' + (cO / cN).toFixed(3) + ' — 너무 퍼졌다 (1.35 이하)');
   if (d.pieces.length !== 17) bad.push('조각 ' + d.pieces.length + '장 (17 이라야 한다)');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
   if (bad.length) fails++;
