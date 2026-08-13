@@ -64,8 +64,40 @@ console.log('══════════════════════�
   ok('소매 진동 · 수구', Math.abs(g.sleeveAH - GT.landmark['긴소매']['진동']) <= 0.05 &&
      Math.abs(g.cuffW - GT.landmark['긴소매']['수구']) <= 0.05,
      f(g.sleeveAH, 6) + ' / ' + f(g.cuffW, 5) + '  도면 ' + GT.landmark['긴소매']['진동'] + ' / ' + GT.landmark['긴소매']['수구']);
-  ok('조각 구성', d.pieces.length === 6,
-     '6장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
+  ok('조각 구성', d.pieces.length === 9,
+     '9장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
+  /* ★ **외곽선 전체를 도면과 겹쳐 잰다** — bbox 만 맞고 모양이 다를 수 있다.
+     정답지의 SPLINE 은 제어점이 아니라 **de Boor 로 평가한 실제 곡선**이다.
+     ⚠ 그 평가가 **날카로운 모서리를 둥글린다** (뒷목·V 바닥). 그래서 모서리 부근에서
+       1.5 쯤 벌어지는 것은 정상이다 — 2.0 을 넘으면 모양이 다른 것이다. */
+  (function () {
+    function norm(pts) {
+      var mnx = Math.min.apply(null, pts.map(function (q) { return q[0]; }));
+      var mny = Math.min.apply(null, pts.map(function (q) { return q[1]; }));
+      var r = pts.map(function (q) { return [q[0] - mnx, q[1] - mny]; });
+      r.push(r[0]); return r;
+    }
+    function dev(A, B) {
+      var mx = 0;
+      A.forEach(function (a) {
+        var b = 1e9;
+        for (var i = 1; i < B.length; i++) {
+          var p = B[i - 1], q = B[i], dx = q[0] - p[0], dy = q[1] - p[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((a[0] - p[0]) * dx + (a[1] - p[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var e = Math.hypot(a[0] - (p[0] + t * dx), a[1] - (p[1] + t * dy));
+          if (e < b) b = e;
+        }
+        if (b > mx) mx = b;
+      });
+      return mx;
+    }
+    ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
+      var a = norm(P[k].outline), b = norm(GT.pieces[k].outline);
+      var e = Math.max(dev(a, b), dev(b, a));
+      ok('외곽선 ' + k, e <= 2.0, '최대 편차 ' + f(e, 5) + ' cm');
+    });
+  })();
 })();
 
 /* ══ 2. 전 호수 — 옷으로 성립하는가 ════════════════════════════════════ */
