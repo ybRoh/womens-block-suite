@@ -412,8 +412,8 @@
          [9]「이세 1.5~2」와 정면으로 어긋난다. 도면의 곡선을 **모식도**로 보고
          숫자로 못 박힌 [9] 를 따른다 — 이세가 없으면 소매를 못 단다.
          **도면에서 잠그는 것은 「모양」(부호·교차·정점)이지 「크기」가 아니다.** */
-    capBack : { k0: 0.510, k1: 0.816 },
-    capFront: { k0: 0.493, k1: 0.750 },
+    capBack : { k0: 0.408, k1: 0.653 },
+    capFront: { k0: 0.394, k1: 0.600 },
     side    : { k0: 1.00, k1: 1.00 },
     /* 절개선 — k0 는 **작게**. 소매산 접선을 이어받되(각이 안 지게) 세게 주면
        절개점 바로 아래에서 3.5 나 밖으로 튄다(정답지 도면의 부풀림은 0.66). */
@@ -1353,8 +1353,11 @@
     var halfB = Math.sqrt(Math.max(ahB * ahB - h * h, 0.25));
     var len = num(opt.sleeveLen, m.sleeveLen), cuffW = num(opt.cuffW, K.cuffW);
     var ctrIn = num(opt.sleeveCtrIn, K.sleeveCtrIn);
-    var p6 = [0, 0], p5 = [-halfF, h], p7 = [halfB, h];
-    var p9 = [-ctrIn, 0], p10 = [-ctrIn, len], p11 = [-ctrIn, h];
+    /* ★ 좌표 규약 — **앞 +x · 뒤 −x** (스위트 공통 · 숙녀복기본원형1·2 와 같다).
+       도면을 90° 반시계로 돌리면 뒤가 왼쪽·앞이 오른쪽이다. 예전에는 반대로 두어
+       조각이 도면과 **거울상**으로 나왔다 (사용자 지적 2026-08-14). */
+    var p6 = [0, 0], p5 = [halfF, h], p7 = [-halfB, h];
+    var p9 = [ctrIn, 0], p10 = [ctrIn, len], p11 = [ctrIn, h];
     /* ── 소매산 곡선 — 원문 작도 그대로 (도면 `docs/img/원피스-소매-골격.png`) ──
        도면을 받고 나서야 작도가 확정됐다 (2026-08-14):
 
@@ -1370,10 +1373,10 @@
          가져다 썼다. 모양은 그럴듯했지만 **원문의 17·21번에서 0.74~0.94 벗어났다**
          — 아예 다른 작도였다. 정답지가 있는 모듈의 작도라도 **골격이 같을 때만**
          빌려 쓸 수 있다. 여기서는 원문에 통과점이 명시돼 있으므로 원문이 먼저다. */
-    var p15 = [p5[0] + num(opt.capFrontOut, K.capFrontOut), h];
-    var p19 = [p7[0] - num(opt.capBackIn, K.capBackIn), h];
-    var p16 = [p9[0] - num(opt.capFrontIn, K.capFrontIn), 0];
-    var p20 = [p6[0] + num(opt.capBackOut, K.capBackOut), 0];
+    var p15 = [p5[0] - num(opt.capFrontOut, K.capFrontOut), h];
+    var p19 = [p7[0] + num(opt.capBackIn, K.capBackIn), h];
+    var p16 = [p9[0] + num(opt.capFrontIn, K.capFrontIn), 0];
+    var p20 = [p6[0] - num(opt.capBackOut, K.capBackOut), 0];
     /* 17·21 — 원문 [7][8] 글자 그대로 「16-15 의 2등분」·「20-19 의 2등분」 */
     var p17 = _lerp(p15, p16, 0.5);
     var p18 = _lerp(p15, p17, 0.5);
@@ -1389,23 +1392,30 @@
        도면은 「18·17 을 지나는 앞 곡선이 급경사, 7·21 을 지나는 뒤 곡선이 완만」이다.
        9번으로 옮기니 그대로 맞는다. 이세도 1.60~2.09 로 유지된다. */
     var capF = splineSegs([p5, p18, p17, p9],
-                          endTan([1, 0], CAL.capFront.k0), endTan([1, 0], CAL.capFront.k1));
-    var capB = splineSegs([p9, p21, p7],
-                          endTan([1, 0], CAL.capBack.k0), endTan([1, 0], CAL.capBack.k1));
+                          endTan([-1, 0], CAL.capFront.k0), endTan([-1, 0], CAL.capFront.k1));
+    /* ★ 정수리는 **9~6 (1.5) 짜리 평평한 구간**이다 (사용자 지적 2026-08-14
+       「정상부근은 완만한 연결곡선처럼 보여야해」).
+       앞 곡선은 소매중심선 위 **9번**에서, 뒤 곡선은 **6번**에서 끝나고 그 사이가 마루다.
+       두 곡선을 9번 한 점에 모으면 앞이 급경사(42°)라 정점에서 급히 꺾여
+       최대곡률이 정점에 몰린다(반지름 1.8cm — 어깨에 못 얹는다).
+       장력을 올려 펴려 하면 이세가 2.5~3.6 으로 폭발한다. 평평한 1.5 가 답이다. */
+    var capTop = lineSegs(p9, p6);
+    var capB = splineSegs([p6, p21, p7],
+                          endTan([-1, 0], CAL.capBack.k0), endTan([-1, 0], CAL.capBack.k1));
     /* 부리 [10][11] — 24 는 3번에서 **안쪽**. 그래야 부리 길이가 보존된다 */
-    var p3 = [-halfF, len], p8 = [halfB, len];
-    var p22 = [p3[0] + cuffW, len];
-    var Lrest = Math.max(0, p8[0] - p22[0]);
-    var p23 = [p22[0] + Lrest / 2, len];
-    var p24 = [p3[0] + Lrest / 2, len];
+    var p3 = [halfF, len], p8 = [-halfB, len];
+    var p22 = [p3[0] - cuffW, len];
+    var Lrest = Math.max(0, p22[0] - p8[0]);
+    var p23 = [p22[0] - Lrest / 2, len];
+    var p24 = [p3[0] - Lrest / 2, len];
     var drop = num(opt.cuffDrop, K.cuffDrop);
     var c23 = [p23[0], p23[1] + drop], c24 = [p24[0], p24[1] + drop];
     /* EL [6] · MP [14] */
     var p12 = [p9[0], (h + len) / 2];
     var elY = p12[1] - num(opt.elbowAdd, K.elbowAdd);
-    var p14 = [-halfF, elY];
-    var p25 = [halfB, elY + num(opt.mpBelowEL, K.mpBelowEL)];
-    var p26 = [p10[0] - num(opt.ctrTwist, K.ctrTwist), len];
+    var p14 = [halfF, elY];
+    var p25 = [-halfB, elY + num(opt.mpBelowEL, K.mpBelowEL)];
+    var p26 = [p10[0] + num(opt.ctrTwist, K.ctrTwist), len];
     /* 솔기 [12][13] */
     /* ── 솔기 [12][13] ──────────────────────────────────────────────
        ★ 끝접선을 **세로 [0,±1]** 로 묶고 있었다. 솔기는 소매통에서 부리로 좁아지는
@@ -1459,9 +1469,10 @@
              p19: p19, p20: p20, p21: p21, p22: p22, p23: c23, p24: c24,
              p25: p25, p26: p26, elY: elY,
              markPtF: markPtF, markPtB: markPtB, markAtF: markAtF, markAtB: markAtB,
-             capF: capF, capB: capB, seamF: seamF, seamB: seamB, cuff: cuff,
+             capF: capF, capTop: capTop, capB: capB, seamF: seamF, seamB: seamB, cuff: cuff,
              sleeveW: halfF + halfB,
-             capLen: polyLen(sampleSegs(capF, 0.02)) + polyLen(sampleSegs(capB, 0.02)),
+             capLen: polyLen(sampleSegs(capF, 0.02)) + polyLen(sampleSegs(capTop, 0.02)) +
+                     polyLen(sampleSegs(capB, 0.02)),
              seamLenF: polyLen(sampleSegs(seamF, 0.02)),
              seamLenB: polyLen(sampleSegs(seamB, 0.02)) };
   }
@@ -1490,7 +1501,7 @@
     var tgt = s.h * num(opt.twoSplitAt, K.twoSplitAt);
     var bp = sampleSegs(s.capB, 0.01), splitP = bp[0];
     bp.forEach(function (q) { if (Math.abs(q[1] - tgt) < Math.abs(splitP[1] - tgt)) splitP = q; });
-    var splitU = [splitP[0] + gap, splitP[1]];        // 작은소매 절개점
+    var splitU = [splitP[0] - gap, splitP[1]];        // 작은소매 절개점
     var axis = (splitP[0] + splitU[0]) / 2;           // 대칭축
     /* ② 앞에서 현 twoSideOff 만큼 떼는 자리 — x 오프셋이 아니라 **현 길이**다 */
     var fp = sampleSegs(s.capF, 0.01);                // p5 → p6
@@ -1501,16 +1512,16 @@
     var capBigF = fp.slice(cutI);                                        // cutF → 정점
     var capBigB = splitSegsAtPt(s.capB, splitP, true);                   // 정점 → 절개점
     var capUndB = splitSegsAtPt(s.capB, splitU, false);                  // 절개점 → p7
-    var capUndF = fp.slice(0, cutI + 1).map(function (q) {               // p5 → cutF 를 +W
-      return [q[0] + W, q[1]];
+    var capUndF = fp.slice(0, cutI + 1).map(function (q) {               // p5 → cutF 를 뒤로 −W
+      return [q[0] - W, q[1]];
     });
-    var backTop = [cutF[0] + W, cutF[1]];
+    var backTop = [cutF[0] - W, cutF[1]];
     /* ④ 밑단 모서리 — 위 식으로 푼다 */
     var bigHemF = s.p24;                                   // 앞 부리 모서리는 한 장과 같다
     var hemY = s.p24[1];
-    var bigHemB = [axis + (s.cuffW - W) / 2, hemY];
+    var bigHemB = [axis - (s.cuffW - W) / 2, hemY];
     var undHemS = [2 * axis - bigHemB[0], hemY];           // 절개선 쪽 (대칭)
-    var undHemB = [bigHemF[0] + W, hemY];                  // 뒤 밑선 쪽 (평행이동)
+    var undHemB = [bigHemF[0] - W, hemY];                  // 뒤 밑선 쪽 (평행이동)
     /* ⑤ 절개선 — 팔꿈치에서 바깥으로 부푸는 C 자. 부푸는 양은 소매통 비율로 둔다
        (고정 cm 를 박으면 호수가 커질 때 안 자란다 — 이 리포에서 여러 번 겪었다) */
     var bulge = W * num(opt.twoSeamBulge, K.twoSeamBulge);
@@ -1531,17 +1542,17 @@
       return V.norm([d[0] * (1 - mixv), d[1] * (1 - mixv) + mixv]);
     })();
     function mkBigSeam() {
-      return splineSegs([splitP, [splitP[0] + bulge, elY], bigHemB],
-                        endTan(capT, CAL.twoSeam.k0), endTan(V.sub(bigHemB, [splitP[0] + bulge, elY]), CAL.twoSeam.k1));
+      return splineSegs([splitP, [splitP[0] - bulge, elY], bigHemB],
+                        endTan(capT, CAL.twoSeam.k0), endTan(V.sub(bigHemB, [splitP[0] - bulge, elY]), CAL.twoSeam.k1));
     }
     var bigSeam = mkBigSeam();
     var undSeam = mirrorX(bigSeam, axis);                  // ★ 대칭 → 길이가 저절로 같다
     /* ⑥ 앞 밑선 — 한 장 소매의 앞 솔기를 cutF 에서 시작하도록 다시 그린 것 */
-    var bigFront = splineSegs([cutF, [(cutF[0] + bigHemF[0]) / 2 - 0.4, (s.h + hemY) / 2], bigHemF],
+    var bigFront = splineSegs([cutF, [(cutF[0] + bigHemF[0]) / 2 + 0.4, (s.h + hemY) / 2], bigHemF],
                               endTan([0, 1], 1.0), endTan([0, 1], 1.0));
     var undOuter = bigFront.map(function (g) {             // ★ 평행이동 → 길이가 저절로 같다
-      return { p0: [g.p0[0] + W, g.p0[1]], c1: [g.c1[0] + W, g.c1[1]],
-               c2: [g.c2[0] + W, g.c2[1]], p1: [g.p1[0] + W, g.p1[1]] };
+      return { p0: [g.p0[0] - W, g.p0[1]], c1: [g.c1[0] - W, g.c1[1]],
+               c2: [g.c2[0] - W, g.c2[1]], p1: [g.p1[0] - W, g.p1[1]] };
     });
     return {
       splitP: splitP, splitU: splitU, axis: axis, cutF: cutF, backTop: backTop,
@@ -1551,7 +1562,7 @@
       cuffBig: V.dist(bigHemF, bigHemB), cuffUnd: V.dist(undHemS, undHemB),
       seamLenBig: polyLen(sampleSegs(bigSeam, 0.02)), seamLenUnd: polyLen(sampleSegs(undSeam, 0.02)),
       frontLenBig: polyLen(sampleSegs(bigFront, 0.02)), frontLenUnd: polyLen(sampleSegs(undOuter, 0.02)),
-      capLenBig: polyLen(capBigF) + polyLen(sampleSegs(capBigB, 0.02)),
+      capLenBig: polyLen(capBigF) + polyLen(sampleSegs(s.capTop, 0.02)) + polyLen(sampleSegs(capBigB, 0.02)),
       capLenUnd: polyLen(sampleSegs(capUndB, 0.02)) + polyLen(capUndF)
     };
   }
@@ -1736,16 +1747,17 @@
     if (num(opt.includeSleeve, 1) && two) {
       pieces.push(mk('sleeveBig', '큰소매', [
         { name: '앞 소매산', role: 'armhole',   segs: poly2segs(two.capBigF) },
+        { name: '소매산 정수리', role: 'armhole', segs: s.capTop },
         { name: '뒤 소매산', role: 'armhole',   segs: two.capBigB },
         { name: '절개선',    role: 'side',      segs: two.bigSeam },
         { name: '소맷부리',  role: 'sleeveHem', segs: lineSegs(two.bigHemB, two.bigHemF) },
         { name: '앞 밑선',   role: 'side',      segs: revSegs(two.bigFront) }
-      ], [[two.axis - 3, s.h + 2], [two.axis - 3, s.len - 3]],
+      ], [[two.axis + 3, s.h + 2], [two.axis + 3, s.len - 3]],
         [{ p: cp(s.p9), angle: 90, label: '소매산 정점' },
          { p: cp(two.splitP), angle: 0, label: '절개 시작' },
          { p: cp(two.cutF), angle: 180, label: '앞 맞춤' }],
-        [L('el',  'dashed', [[two.bigHemF[0] + 0.4, s.elY], [two.splitP[0] - 0.4, s.elY]], '팔꿈치선'),
-         L('bic', 'dashed', [[two.cutF[0] + 0.4, s.h], [two.splitP[0] - 0.4, s.h]], '소매통선')], 2));
+        [L('el',  'dashed', [[two.splitP[0] + 0.4, s.elY], [two.bigHemF[0] - 0.4, s.elY]], '팔꿈치선'),
+         L('bic', 'dashed', [[two.splitP[0] + 0.4, s.h], [two.cutF[0] - 0.4, s.h]], '소매통선')], 2));
       pieces.push(mk('sleeveUnder', '작은소매', [
         { name: '뒤 소매산', role: 'armhole',   segs: revSegs(poly2segs(two.capUndF)) },
         { name: '소매통 연결', role: 'armhole', segs: revSegs(two.capUndB) },
@@ -1757,11 +1769,12 @@
         [{ p: cp(s.p7), angle: 90, label: '겨드랑' },
          { p: cp(two.splitU), angle: 0, label: '절개 시작' },
          { p: cp(two.backTop), angle: 180, label: '앞 맞춤' }],
-        [L('el',  'dashed', [[two.undHemS[0] + 0.4, s.elY], [two.backTop[0] - 0.4, s.elY]], '팔꿈치선'),
-         L('bic', 'dashed', [[two.splitU[0] + 0.4, s.h], [two.backTop[0] - 0.4, s.h]], '소매통선')], 2));
+        [L('el',  'dashed', [[two.backTop[0] + 0.4, s.elY], [two.undHemS[0] - 0.4, s.elY]], '팔꿈치선'),
+         L('bic', 'dashed', [[two.backTop[0] + 0.4, s.h], [two.splitU[0] - 0.4, s.h]], '소매통선')], 2));
     } else if (num(opt.includeSleeve, 1)) {
       pieces.push(mk('sleeve', '소매', [
         { name: '앞 소매산', role: 'armhole', segs: s.capF },
+        { name: '소매산 정수리', role: 'armhole', segs: s.capTop },
         { name: '뒤 소매산', role: 'armhole', segs: s.capB },
         { name: '뒤 솔기',   role: 'side',    segs: revSegs(s.seamB) },
         { name: '소맷부리',  role: 'sleeveHem', segs: revSegs(s.cuff) },
@@ -1774,9 +1787,9 @@
          { p: cp(s.markPtF), angle: 180, label: '■ 앞' },
          { p: cp(s.markPtB), angle: 0, label: '■ 뒤' }],
         [L('ctr', 'dashed', [cp(s.p9), cp(s.p26)], '소매중심선'),
-         L('el',  'dashed', [[-s.halfF + 0.4, s.elY], [s.halfB - 0.4, s.elY]], '팔꿈치선'),
+         L('el',  'dashed', [[-s.halfB + 0.4, s.elY], [s.halfF - 0.4, s.elY]], '팔꿈치선'),
          L('mp',  'dashed', [cp(s.p25), cp(s.p14)], 'MP 분량선'),
-         L('bic', 'dashed', [[-s.halfF + 0.4, s.h], [s.halfB - 0.4, s.h]], '소매통선'),
+         L('bic', 'dashed', [[-s.halfB + 0.4, s.h], [s.halfF - 0.4, s.h]], '소매통선'),
          /* 소매산 작도 보조선 — 원문 [7][8]. 곡선이 어떻게 정해졌는지 눈으로 보인다 */
          L('diagF', 'thin', [cp(s.p5), cp(s.p9)], '앞 대각선 = 앞AH'),
          L('diagB', 'thin', [cp(s.p7), cp(s.p6)], '뒤 대각선 = 뒤AH'),

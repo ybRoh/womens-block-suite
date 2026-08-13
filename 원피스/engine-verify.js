@@ -194,7 +194,7 @@ E.SIZES.forEach(function (sz) {
    ['소매[7]', s.capF, s.p17, 0.05, '앞 소매산이 17번을 지난다'],
    ['소매[8]', s.capB, s.p21, 0.05, '뒤 소매산이 21번을 지난다'],
    ['소매[5]', s.capF, s.p9, 0.02, '앞 소매산이 정점 9번에서 끝난다'],
-   ['소매[5]', s.capB, s.p9, 0.02, '뒤 소매산이 정점 9번에서 시작한다']
+   ['소매[5]', s.capB, s.p6, 0.02, '뒤 소매산이 6번에서 시작한다']
   ].forEach(function (r) {
     var d = nearest(r[1], r[2]);
     if (d > r[3]) (r[3] >= 0.5 ? soft : bad).push(r[0] + ' ' + r[4] + ' — 실제 ' + d.toFixed(2));
@@ -263,8 +263,8 @@ E.SIZES.forEach(function (sz) {
        ⚠ 부호는 앞뒤가 반대로 나온다 — 편차식의 방향벡터(A→B)가 x 방향이 서로 반대라
          같은 「오목」이 앞은 −, 뒤는 + 로 찍힌다. 부호 상수(마지막 열)가 그것이다.
      크기(최대 부풀림)는 도면 해상도로 확정이 안 된다 — 부호와 교차 위치만 잠근다. */
-  [['앞 소매산', s.capF, s.p5, s.p9, s.p17, -1],
-   ['뒤 소매산', s.capB, s.p7, s.p9, s.p21, +1]].forEach(function (r) {
+  [['앞 소매산', s.capF, s.p5, s.p9, s.p17, +1],
+   ['뒤 소매산', s.capB, s.p7, s.p6, s.p21, -1]].forEach(function (r) {
     var A = r[2], Bp = r[3], d = V.sub(Bp, A), L = Math.hypot(d[0], d[1]);
     function devAt(t) {
       var y = A[1] + (Bp[1] - A[1]) * t, q = U.sampleSegs(r[1], 0.02), b = null;
@@ -288,14 +288,30 @@ E.SIZES.forEach(function (sz) {
                af.toFixed(1) + '° 뒤 ' + ab.toFixed(1) + '°)');
   })();
 
-  /* 정점에서 앞뒤가 매끄럽게 이어지는가 (뾰족하면 안 된다) */
+  /* ★ 정수리 — 9~6 의 평평한 구간이 있고 양쪽 곡선이 거기에 매끄럽게 붙는가.
+     한 점에 모으면 앞이 급경사(42°)라 정점에서 급히 꺾인다(반지름 1.8cm). */
   (function () {
+    var top = U.polyLen(U.sampleSegs(s.capTop, 0.02));
+    if (Math.abs(top - K.sleeveCtrIn) > 0.02)
+      bad.push('소매산 정수리 길이 ' + top.toFixed(2) + ' ≠ 9~6 (' + K.sleeveCtrIn + ')');
+    if (Math.abs(s.p9[1]) > 1e-6 || Math.abs(s.p6[1]) > 1e-6)
+      bad.push('정수리가 수평이 아니다');
     var f = U.sampleSegs(s.capF, 0.02), b2 = U.sampleSegs(s.capB, 0.02);
-    var t1 = V.sub(f[f.length - 1], f[f.length - 6]), t2 = V.sub(b2[5], b2[0]);
-    var n1 = Math.hypot(t1[0], t1[1]), n2 = Math.hypot(t2[0], t2[1]);
-    var a = Math.acos(Math.max(-1, Math.min(1, (t1[0] * t2[0] + t1[1] * t2[1]) / (n1 * n2)))) * 180 / Math.PI;
-    if (a > 6) bad.push('소매산 정점 꺾임 ' + a.toFixed(1) + '° (6° 이내라야 한다)');
+    [['앞', V.sub(f[f.length - 1], f[f.length - 6])], ['뒤', V.sub(b2[5], b2[0])]].forEach(function (r) {
+      var a = Math.abs(Math.atan2(r[1][1], r[1][0]) * 180 / Math.PI);
+      if (Math.abs(180 - a) > 6)
+        bad.push('소매산 ' + r[0] + ' 이 정수리에 ' + (180 - a).toFixed(1) + '° 로 붙는다 (6° 이내)');
+    });
   })();
+
+  /* ★ 소매 좌표 규약 — **앞 +x · 뒤 −x** (스위트 공통).
+     도면을 90° 반시계로 돌리면 뒤가 왼쪽·앞이 오른쪽이다. 반대로 두면 조각이
+     도면과 거울상으로 나온다 (2026-08-14 사용자 지적으로 발견 — 길이·거리 검사는
+     **거울에 불변**이라 89항목 중 어느 것도 못 잡았다). */
+  if (!(s.p5[0] > 0 && s.p7[0] < 0))
+    bad.push('소매 앞뒤가 뒤집혔다 — 5번(앞) x=' + s.p5[0].toFixed(2) + ' 7번(뒤) x=' + s.p7[0].toFixed(2) +
+             ' (앞이 +x 라야 한다)');
+  if (!(s.p3[0] > 0 && s.p8[0] < 0)) bad.push('소매 부리 앞뒤가 뒤집혔다');
 
   /* ★ [19] 34번은 32~33 의 2등분 — 다트 다리는 중심에서 각각 다트분/2 */
   if (Math.abs((g.p34[0] - g.p32[0]) - (g.p33[0] - g.p34[0])) > 0.01)
@@ -343,8 +359,8 @@ E.SIZES.forEach(function (sz) {
 
   /* 좌표로 정해진 점 — 원문 식 그대로인지 */
   var chk = [
-    ['소매[5]', s.p9[0], -1.5, 0.01, '9번 = 6번에서 1.5 앞'],
-    ['소매[15]', s.p26[0] - s.p10[0], -1.25, 0.01, '26번 = 10번에서 1.25 안쪽'],
+    ['소매[5]', s.p9[0], 1.5, 0.01, '9번 = 6번에서 1.5 앞 (앞 = +x)'],
+    ['소매[15]', s.p26[0] - s.p10[0], 1.25, 0.01, '26번 = 10번에서 1.25 안쪽'],
     ['소매[6]', s.elY, (s.h + s.len) / 2 - 2.25, 0.01, 'EL = 12번에서 2.25 위'],
     ['[20]', g.p36[1], g.HL - 5, 0.01, '36번 = H선에서 5 위'],
     ['[42]', g.f75[1], m.B / 12 + 0.5, 0.01, '앞목 깊이 = B/12 + 0.5'],
@@ -374,7 +390,7 @@ E.SIZES.forEach(function (sz) {
              ' — [10][11] 작도상 같아야 한다');
   if (bad.length) fails++; else if (soft.length) warns++;
   console.log('  ' + (bad.length ? '✗ ' : soft.length ? '⚠ ' : '✓ ') + pad(sz, 5) +
-    '원문 점 통과 ' + (89 - bad.length - soft.length) + '/89' +
+    '원문 점 통과 ' + (91 - bad.length - soft.length) + '/91' +
     (bad.length ? '\n      ✗ ' + bad.join('\n      ✗ ') : '') +
     (soft.length ? '\n      ⚠ ' + soft.join('\n      ⚠ ') : ''));
 });
@@ -432,8 +448,12 @@ E.SIZES.forEach(function (sz) {
   var shoulderF = Math.atan2(g.f57[1] - g.f54[1], g.f57[0] - g.f54[0]) * 180 / Math.PI;
   [[g.bArm,  '뒤 암홀',   0.45, 1, shoulderB + 90, 12, 0, 6],
    [g.fArm,  '앞 암홀',   0.45, 1, shoulderF + 90, 12, 0, 6],
-   [s.capF,  '앞 소매산', 0.60, 1, 0, 6, 0, 6],     // 양 끝 수평 — 정답지 작도
-   [s.capB,  '뒤 소매산', 0.60, 1, 0, 6, 0, 6],
+   /* 앞 = +x 규약이라 소매산은 −x 로 진행 → 끝접선 기대값 180° (여전히 수평) */
+   /* 소매산 상한은 0.70 — 최대곡률이 **끝점**에 있다: 앞은 겨드랑 훅(반지름 1.5cm,
+      앞 소매산이 원래 그렇다), 뒤는 평평한 정수리에서 곡선으로 넘어가는 자리.
+      가운데가 튀면 여전히 잡힌다. */
+   [s.capF,  '앞 소매산', 0.70, 1, 180, 6, 180, 6],
+   [s.capB,  '뒤 소매산', 0.70, 1, 180, 6, 180, 6],
    [g.bNeck, '뒷목',      0.70, 1, null, 0, shoulderB - 90, 15],
    [g.fNeck, '앞목',      0.70, 2, null, 0, shoulderF - 90, 15]
   ].forEach(function (r) {
