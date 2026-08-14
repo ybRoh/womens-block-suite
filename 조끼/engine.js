@@ -204,7 +204,6 @@
     return m;
   }
   /** 유차 — 원문 [11] 참고: B 90 미만 2.5 · 90 이상 2.8 */
-  function bustDiffOf(B) { return B >= 90 ? 2.8 : 2.5; }
   /* ══════════════════════════════════════════════════════════════════
    * 3. 제도 상수 — 전부 원문 단계 번호를 달았다
    *    「식」이 있는 것은 식으로, 「2~2.5」처럼 폭이 있는 것은 중간값을 기본으로.
@@ -421,8 +420,6 @@
     var splitWaistX = p28[0] + (p29[0] - p28[0]) * (WL - BL) / (HL - BL);
     var p33 = [splitWaistX + backDart / 2, WL], p34 = [splitWaistX - backDart / 2, WL];
     /* [17] 35 = 암홀 위 MP 자리 · 36 = MP 만큼 줄인 곳 */
-    var p35 = _lerp(p26, p11, num(opt.mpAt, K.mpAt));
-    var p36 = [p35[0] - num(opt.mpBack, K.mpBack), p35[1]];
     /* [18] 37 = 2~23 의 3등분 · 38 = 24 에서 1.5 나간 곳 */
     var p37 = [p23[0] / 3, 0];
     var p38 = [p24[0] + num(opt.neckOut, K.neckOut), p24[1]];
@@ -450,6 +447,14 @@
          (그 구간은 어느 변도 아닌 암묵적 현으로 메워졌다). */
     var bArm = armholeC(p26, bShDir, [p11[0] + num(opt.armFromBW, K.armFromBW), p27[1]],
                         p13, CAL.arm);
+    /* [17] 35 = 암홀 위의 적당한 곳. **현(26~11)이 아니라 곡선 위**라야 한다 —
+       예전엔 현에서 잡아 암홀선에서 0.60~0.64 떠 있었다 (engine-verify 가 잡음).
+       그래서 bArm 이 만들어진 **뒤에** 잡는다. */
+    var p35 = (function () {
+      var pts = sampleSegs(bArm, 0.02), t = num(opt.mpAt, K.mpAt);
+      return cp(pts[Math.max(0, Math.min(pts.length - 1, Math.round(t * (pts.length - 1))))]);
+    })();
+    var p36 = [p35[0] - num(opt.mpBack, K.mpBack), p35[1]];
     /* 뒤 옆선 — 13 → 19 → 16 */
     var bSide = splineSegs([p13, p19, p16], endTan(V.sub(p19, p13), CAL.side.k0),
                                             endTan(V.sub(p16, p19), CAL.side.k1));
@@ -463,8 +468,14 @@
       return splineSegs([p27a, p28, [waistX, WL], [hemX, HL]],
                         endTan(V.sub(p28, p27a), CAL.princess.k0), endTan([0, 1], CAL.princess.k1));
     }
-    var bSplitOut = bSplit(p33[0], p31[0]);    // 옆선 쪽 조각의 변
-    var bSplitIn  = bSplit(p34[0], p32[0]);    // 중심 쪽 조각의 변
+    /* ★ [16] 「33번에서 32번을 연결 · 34번에서 31번을 연결」 — **교차한다.**
+       허리에서 바깥쪽(33)인 변이 밑단에서는 안쪽(32)으로 간다. 30번이 그 교차점이다.
+       예전에는 33→31 · 34→32 로 나란히 그어 두 변이 만나지 않았고, 밑단 끝이
+       서로 1.5 어긋난 채였다 (engine-verify 가 전 호수에서 잡았다 · 2026-08-14 QA).
+       ⚠ 「같은 쪽끼리 잇는다」가 자연스러워 보이지만 원문은 반대다 — 다이아몬드
+         모양이라야 다트가 허리에서 물리고 밑단에서 풀린다. */
+    var bSplitOut = bSplit(p33[0], p32[0]);    // 옆선 쪽 조각의 변 (33 → 32)
+    var bSplitIn  = bSplit(p34[0], p31[0]);    // 중심 쪽 조각의 변 (34 → 31)
     var bHem = lineSegs(p9, p16);
 
     /* ══ 앞판 [20]~[40] — 뒤판을 복사해 그린다 ═══════════════════ */
@@ -574,8 +585,9 @@
       return splineSegs([f67, f68, [waistX, WL], hemPt],
                         endTan(V.sub(f68, f67), CAL.princess.k0), endTan([0, 1], CAL.princess.k1));
     }
-    var fSplitOut = fSplit(f63[0], f60);
-    var fSplitIn  = fSplit(f64[0], f61);
+    /* [29] 「64번과 60번을 연결 · 63번과 61번을 연결」 — 뒤와 같이 **62 에서 교차** */
+    var fSplitOut = fSplit(f63[0], f61);
+    var fSplitIn  = fSplit(f64[0], f60);
     var fHem = lineSegs(fHemA, fHemB);
 
     return {
@@ -1015,7 +1027,7 @@
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.p38, g.p26) },
         { name: '진동',   role: 'armhole',  segs: bArmUp },
         { name: '절개선', role: 'princess', segs: g.bSplitIn },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p32, g.p9) },
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p31, g.p9) },   // 절개선(In)이 31 에서 끝난다
         { name: '등솔선', role: 'center',   segs: revSegs(g.bCb.concat(g.bCbLow)) }
       ], [[2.0, g.BL], [2.0, g.HL - 3]],
         [{ p: cp(g.p38), angle: 90, label: '목옆점' },
@@ -1030,7 +1042,7 @@
       pieces.push(mk('backSide', '뒤옆', [
         { name: '진동',   role: 'armhole',  segs: bArmLow },
         { name: '옆선',   role: 'side',     segs: g.bSide },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.p31) },
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.p32) },   // 절개선(Out)이 32 에서 끝난다
         { name: '절개선', role: 'princess', segs: revSegs(g.bSplitOut) }
       ], [[g.p28[0] + 2.0, g.BL], [g.p28[0] + 2.0, g.HL - 3]],
         [{ p: cp(g.p13), angle: 180, label: '겨드랑' }].concat(nB.b), bGuide));
@@ -1077,7 +1089,7 @@
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.f53, g.f52) },
         { name: '진동',   role: 'armhole',  segs: fArmUp },
         { name: '절개선', role: 'princess', segs: g.fSplitIn },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f61, g.f71) },
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f60, g.f71) },   // 절개선(In)이 60 에서 끝난다
         { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
       ], [[-g.f71[0] + 2.0, g.BL], [-g.f71[0] + 2.0, g.HL - 3]],
         /* ★ BP 는 **너치가 아니다** — 조각 한가운데라 재단선 위에 못 찍는다.
@@ -1089,7 +1101,7 @@
       pieces.push(mk('frontSide', '앞옆', [
         { name: '진동',   role: 'armhole',  segs: fArmLow },
         { name: '옆선',   role: 'side',     segs: g.fSide },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.f60) },
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.f61) },   // 절개선(Out)이 61 에서 끝난다
         { name: '절개선', role: 'princess', segs: revSegs(g.fSplitOut) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
         [{ p: cp(g.f41), angle: 180, label: '겨드랑' }].concat(nF.b), fGuide));
