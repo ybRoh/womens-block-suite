@@ -1802,7 +1802,7 @@
         { name: '소맷부리',  role: 'sleeveHem', segs: revSegs(s.cuff) },
         { name: '앞 솔기',   role: 'side',    segs: revSegs(s.seamF) }
       ], [[s.p9[0], s.h + 2], [s.p9[0], s.len - 3]],
-        [{ p: cp(s.p6), angle: 90, label: '소매산 정점' },
+        [{ p: cp(s.p9), angle: 90, label: '소매산 정점' },
          { p: cp(s.p18), angle: 90, label: '앞 맞춤' },
          { p: cp(s.p21), angle: 90, label: '뒤 맞춤' },
          /* ■ — 앞쪽이 뒤쪽보다 0.5 더 나간 자리. 그 0.5 가 이세분이다 [15] */

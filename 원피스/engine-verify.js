@@ -292,6 +292,20 @@ E.SIZES.forEach(function (sz) {
                af.toFixed(1) + '° 뒤 ' + ab.toFixed(1) + '°)');
   })();
 
+  /* ★ 「소매산 정점」 너치는 **9번** 위에 있어야 한다 — 마루가 9 로 시프트했으므로.
+     6 에 남아 있으면 재단할 때 몸판 어깨점과 맞추는 자리가 1.5 어긋난다.
+     (실제로 정점을 9 로 옮기면서 이 너치만 6 에 남아 있었다 · 2026-08-14) */
+  (function () {
+    var p = E.draftDress(m, { seam: E.SEAM_DEFAULT }).pieces
+             .filter(function (x) { return x.id === 'sleeve'; })[0];
+    if (!p) return;
+    var n = (p.notches || []).filter(function (x) { return /정점/.test(x.label); })[0];
+    if (!n) { bad.push('소매산 정점 너치가 없다'); return; }
+    if (V.dist(n.p, s.p9) > 0.05)
+      bad.push('소매산 정점 너치가 ' + n.p.map(function (v) { return v.toFixed(2); }).join(',') +
+               ' — 9번 ' + s.p9.map(function (v) { return v.toFixed(2); }).join(',') + ' 위라야 한다');
+  })();
+
   /* ★ 정수리 — 9~6 의 평평한 구간이 있고 양쪽 곡선이 거기에 매끄럽게 붙는가.
      한 점에 모으면 앞이 급경사(42°)라 정점에서 급히 꺾인다(반지름 1.8cm). */
   (function () {
