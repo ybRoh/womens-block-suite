@@ -657,10 +657,17 @@
     var f53 = [B / 12, 0];                            // [31] 기본목 너비
     var f54 = [B / 12, num(opt.neckDrop1, K.neckDrop1)];
     var f75 = [0, B / 12 + num(opt.neckDeepAdd, K.neckDeepAdd)];   // [42] 앞목 깊이
-    var f56 = [f51[0], BL - num(opt.frontShDrop, K.frontShDrop)];  // hmm→ 아래 참조
-    /* [32] 「앞품선 52번에서 아래로 4.8」 — 52 는 앞품선이 y=0 을 지나는 점 */
-    var f52 = [frontW / 2, 0];
-    f56 = [frontW / 2, num(opt.frontShDrop, K.frontShDrop)];
+    /* [32] 「52번에서 아래로 4.8」 = 56번.
+       52 는 **앞품선이 아니라 어깨너비/2 선**이 y=0 을 지나는 점이다.
+       도면 실측(55호, 22.70 px/cm)이 근거 —
+         · 어깨선이 폭 7.00 을 지나는 곳의 길이 = 1.06  → [31] 「1 내려온 곳」 ✓
+         · 어깨선의 위쪽 끝(57번)  = 폭 18.99 · 길이 4.85 → [33] 「어깨/2 = 19」 ✓
+       이 두 점을 잇는 기울기는 0.3157 인데, 앞품/2(16) 에서 4.8 을 재면 0.4222 가
+       나와 57 이 (18.72, 5.95) 로 1.1 아래에 찍힌다. 그만큼 앞 암홀이 짧아져
+       앞 소매산과 2.45 벌어졌다. 어깨/2 에서 재면 57 = (19.13, 4.84) 로
+       도면과 0.14 안에 든다(도면에서도 56·57 라벨이 겹쳐 찍혀 있다). */
+    var f52 = [shoulderW / 2, 0];
+    var f56 = [shoulderW / 2, num(opt.frontShDrop, K.frontShDrop)];
     /* [33] 앞 어깨 = 뒤 어깨 솔기(다트 뺀 것) — 54 에서 54→56 방향으로 */
     var backShoulder = V.dist(p20, p22);
     var fShU = V.norm(V.sub(f56, f54));
