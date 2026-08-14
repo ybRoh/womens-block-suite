@@ -450,6 +450,34 @@ E.SIZES.forEach(function (sz) {
       bad.push('앞목선 평평 구간 ' + (ratio * 100).toFixed(0) + '% — 45% 이상이라야 둥근 목선이다');
   })();
 
+  /* ★ 앞목선은 54 쪽이 **직선으로 나간다** — 원문 [42] 의 76 보조선 구간.
+     앞판 도면 실측: 54 에서 3.2cm 넘게 편차 0.04(화소 잡음) 인 완전한 직선이고,
+     현 길이로 정규화하면 목선의 **48.1%** 다.
+     예전엔 54 에서 곧바로 곡률이 붙어 직선이 16% 밖에 없었다(사용자 지적 2026-08-14).
+     ⚠ 이 검사는 「평평 구간 ≥45%」와 **같이** 걸어야 뜻이 있다 — 둘 중 하나만 보면
+       한쪽을 늘리다 다른 쪽을 죽인다(직선을 넣자 평평이 57%→44% 로 무너졌었다). */
+  (function () {
+    var p = U.sampleSegs(g.fNeck, 0.02).slice().reverse();   // 54 → 75
+    var s = [0], i;
+    for (i = 1; i < p.length; i++) s.push(s[i - 1] + V.dist(p[i], p[i - 1]));
+    var T = s[s.length - 1], i1 = 0;
+    while (s[i1] < 0.05 * T) i1++;
+    var d = V.norm(V.sub(p[i1], p[0])), n = [-d[1], d[0]], hit = 1;
+    for (i = 2; i < p.length; i++) {
+      if (Math.abs((p[i][0] - p[0][0]) * n[0] + (p[i][1] - p[0][1]) * n[1]) > 0.01) { hit = s[i] / T; break; }
+    }
+    if (hit < 0.35)
+      bad.push('앞목선 직선 구간 ' + (hit * 100).toFixed(0) + '% — 도면은 48% (35% 이상)');
+    /* 직선이 끝나는 자리에서 꺾이면 안 된다 — 접선이 이어져야 한다 */
+    var j = 0; while (j < p.length - 4 && s[j] < hit * T) j++;
+    if (j > 3 && j < p.length - 4) {
+      var a = V.norm(V.sub(p[j], p[j - 3])), b = V.norm(V.sub(p[j + 3], p[j]));
+      var kink = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
+      if (kink > 6)
+        bad.push('앞목선 직선이 끝나는 곳에서 ' + kink.toFixed(1) + '° 꺾인다 (6° 이내)');
+    }
+  })();
+
   /* [41] 74 = 66 + (73~66) — 밑단 다트 다리가 66번 기준 대칭 */
   if (Math.abs(Math.abs(g.f73[0] - g.f66[0]) - Math.abs(g.f74[0] - g.f66[0])) > 0.02)
     bad.push('[41] 73~66 ≠ 66~74');
