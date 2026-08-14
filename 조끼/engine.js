@@ -1841,6 +1841,22 @@
         [{ p: cp(g.f53), angle: 90, label: '목옆점' }], fGuideCommon.slice()));
     })();
 
+    /* ★ 옆선 맞춤 너치 — 앞뒤 옆선은 **서로 꿰매는 봉제선**인데 맞출 자리가 없었다
+       (사용자 지적 2026-08-15 「여기는 옆선에 너치가 없네」).
+       허리선(WL) 높이에 앞뒤 하나씩 — 겨드랑다트를 접으면 두 옆선이 같아지므로
+       그 높이가 서로 대응한다. 조각을 고르지 않고 **옆선 변을 가진 조각 전부**에
+       넣는다 (통짜·4조각이 같이 맞는다). */
+    pieces.forEach(function (pc) {
+      (pc.edges || []).forEach(function (e) {
+        if (e.role !== 'side') return;
+        var seg = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        var best = null, bd = Infinity;
+        seg.forEach(function (q) { var d = Math.abs(q[1] - g.WL); if (d < bd) { bd = d; best = q; } });
+        if (best && bd <= 0.3) pc.notches.push({ p: cp(best), angle: 0, label: '옆선 허리' });
+      });
+      fixNotches(pc.notches, pc.outline);
+    });
+
     /* ★ MP 두 점 — 진동 위의 눈금 2개 (사용자 지정 2026-08-15).
        ⚠ 어느 조각에 붙는지는 구성마다 다르다 (4조각이면 진동이 둘로 갈린다) —
          조각을 고르지 않고 **외곽선 위에 있는 조각에만** 붙인다. mpB·BP 를 엉뚱한
