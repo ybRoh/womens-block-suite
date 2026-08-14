@@ -341,11 +341,19 @@
     /* ── 프린세스 절개선 (이 모듈 전용) ─────────────────────────────
        철릭 도면에는 절개선이 없다. 토르소원형프린세스라인을 벤치마킹한 값이다.
        ⚠ 허리 위치는 「폭의 비율」이라 호수가 바뀌어도 같은 자리에 온다. */
-    princessAt   :  0.5,   // 어깨선 2등분 자리에서 출발 (토르소 도면 ✳)
-    bPrinWaistAt :  0.50,  // 뒤 절개선이 허리를 만나는 곳 — 뒤 허리폭의 비율
-    fPrinWaistAt :  0.62,  // 앞 절개선 — 앞판은 여밈이 붙어 있어 옆선 쪽으로 더 간다
-    bPrinBow     :  0.35,  // 진동선 높이에서 옆선 쪽으로 부풀리는 양
-    fPrinBow     :  0.45,
+    princessAt   :  0.52,  // 어깨선에서 출발하는 자리 (0.5 = 2등분 · 토르소 도면 ✳)
+    /* ★ 앞 절개선은 **BP 를 지난다** (사용자 지적 2026-08-14 — 「앞판은 BP점을
+       지나야 이쁘지」). 철릭 치수에는 유장·유폭이 없어 B·등길이에서 세운다.
+       기준은 숙녀복 원형(B 84 에서 유폭 16 · 유장 25 · 등길이 38):
+         유폭/2 = B × 0.0952   (84 × 0.0952 = 8.00)
+         유장   = 등길이 × 0.658 (38 × 0.658 = 25.0)
+       ⚠ 앞판 좌표는 x=0 이 **여밈 끝**이고 **몸 중심은 x = 여밈분** 이다
+         (옆선 36.38 = 여밈 13.73 + B/4 22.65 로 맞아떨어진다). */
+    bustHalfAt   :  0.0952, // 유폭/2 = B × 이 값
+    bustLenAt    :  0.658,  // 유장 = 등길이 × 이 값 (목옆점에서)
+    fPrinWaistOff: -0.60,   // 허리에서 BP 보다 앞중심 쪽으로 더 들어가는 양
+    bPrinWaistAt :  0.40,   // 뒤 절개선이 허리를 만나는 곳 — 뒤 허리폭의 비율
+    bPrinBow     : -1.00,   // 뒤 — 진동선 높이에서 **뒤중심 쪽으로** 휘는 양(견갑골)
     shSlope      :  3.57,  // 어깨 기울기 — 목옆점에서 어깨점까지 내림  [3.57]
     shoulderSub  :  0.07,  // 어깨점 x = 어깨너비/2 − 이 값  [19.13]
     armDepthSub  :  1.71,  // 진동깊이 = B/4 − 이 값 (뒷목선에서 겨드랑까지)  [20.94]
@@ -551,19 +559,25 @@
        다만 철릭 몸판은 겨드랑~허리가 거의 수직이라(뒤 23.64 → 22.39) 절개선도
        거의 수직이다. 서양 원형처럼 허리를 조이는 선이 아니다. */
     var pAt = num(opt.princessAt, K.princessAt);
-    function prin(SNP, SP, waistX, bow) {
-      var top = V.add(SNP, V.mul(V.norm(V.sub(SP, SNP)), V.dist(SNP, SP) * pAt));
-      var wp  = [waistX, bTotal];
-      var t   = (bUY - top[1]) / (wp[1] - top[1]);        // 진동선이 놓이는 비율
-      var mid = [top[0] + (wp[0] - top[0]) * t + bow, bUY];
+    function shTop(SNP, SP) {
+      return V.add(SNP, V.mul(V.norm(V.sub(SP, SNP)), V.dist(SNP, SP) * pAt));
+    }
+    function prin(top, mid, wp) {
       return { top: top, mid: mid, waist: wp,
                segs: splineSegs([top, mid, wp], endTan([0, 1], CAL.princess.k0),
                                                 endTan([0, 1], CAL.princess.k1)) };
     }
-    var bPrin = prin(bSNP, bSP, bWaist[0] * num(opt.bPrinWaistAt, K.bPrinWaistAt),
-                     num(opt.bPrinBow, K.bPrinBow));
-    var fPrin = prin(fSNP, fSP, fWaistW * num(opt.fPrinWaistAt, K.fPrinWaistAt),
-                     num(opt.fPrinBow, K.fPrinBow));
+    /* 뒤 — 견갑골 자리를 지난다. 진동선 높이에서 **뒤중심 쪽으로** 휜다. */
+    var bTop  = shTop(bSNP, bSP);
+    var bWp   = [bWaist[0] * num(opt.bPrinWaistAt, K.bPrinWaistAt), bTotal];
+    var bT    = (bUY - bTop[1]) / (bWp[1] - bTop[1]);
+    var bPrin = prin(bTop, [bTop[0] + (bWp[0] - bTop[0]) * bT + num(opt.bPrinBow, K.bPrinBow), bUY], bWp);
+    /* 앞 — **BP 를 지난다**. 몸 중심 = 여밈분 자리이므로 거기서 유폭/2 만큼 나간다. */
+    var bodyCf  = fWaistW - q;                                   // = 여밈분
+    var BP      = [bodyCf + B * num(opt.bustHalfAt, K.bustHalfAt),
+                   fSNP[1] + backLen * num(opt.bustLenAt, K.bustLenAt)];
+    var fTop    = shTop(fSNP, fSP);
+    var fPrin   = prin(fTop, BP, [BP[0] + num(opt.fPrinWaistOff, K.fPrinWaistOff), bTotal]);
 
     /* ───────── 치마 ───────── */
     var bPl = pleatPlan(bWaist[0], opt, num(opt.pleatDepthB, K.pleatDepthB));  // 뒷치마
@@ -582,7 +596,7 @@
       bU: bU, bWaist: bWaist, bHem: bHem, bArm: bArm,
       fWaistW: fWaistW, fChestW: fChestW, fSNP: fSNP, fSP: fSP, fU: fU,
       fWaist: fWaist, fCf: fCf, vBot: vBot, fCfTop: fCfTop, fArm: fArm, vNeck: vNeck,
-      bPrin: bPrin, fPrin: fPrin,
+      bPrin: bPrin, fPrin: fPrin, BP: BP, bodyCf: bodyCf,
       bPleat: bPl, fPleat: fPl, coatLen: bTotal + skirtLen,
       sleeveAH: ah, sleeveWideY: wide, cuffW: cuff,
       shLenBack: V.dist(bSNP, bSP), shLenFront: V.dist(fSNP, fSP)
@@ -1130,8 +1144,9 @@
        너치는 진동선·중간 높이에 짝으로 찍는다 — 봉제할 때 맞출 자리다. */
     var nB = levelNotches(g.bPrin.segs, [0, g.bTotal], g.bPrin.segs, [g.bWaist[0], g.bTotal],
                [['진동선', g.bU[1]], ['중간', (g.bU[1] + g.bTotal) / 2]]);
+    /* 앞 너치는 **BP** 에 찍는다 — 절개선이 BP 를 지나므로 봉제할 때 맞출 자리다 */
     var nF = levelNotches(g.fPrin.segs, [0, g.bTotal], g.fPrin.segs, [g.fWaistW, g.bTotal],
-               [['진동선', g.fU[1]], ['중간', (g.fU[1] + g.bTotal) / 2]]);
+               [['진동선', g.fU[1]], ['BP', g.BP[1]]]);
 
     /* ① 뒷면 — 뒤중심이 **골선** (1매) */
     pieces.push(mk('back', '뒷면', [
@@ -1177,7 +1192,9 @@
       [{ p: cp(g.fSNP), angle: 90, label: '목옆점' },
        { p: cp(g.vBot), angle: 0, label: 'V 바닥' }].concat(nF.a),
       [L('cfF', 'dashed', [[0, g.bTotal - 2.0], [0, g.vBot[1]]], '앞중심'),
-       L('wrapF', 'dashed', [[g.q, g.fU[1]], [g.q, g.bTotal]], '여밈 시작(B/4)')]));
+       L('bodyF', 'dashed', [[g.bodyCf, g.fU[1]], [g.bodyCf, g.bTotal]], '몸 중심(여밈 끝에서 여밈분)'),
+       L('bpF', 'edge', [[g.BP[0] - 0.6, g.BP[1]], [g.BP[0] + 0.6, g.BP[1]]], 'BP'),
+       L('bpF2', 'edge', [[g.BP[0], g.BP[1] - 0.6], [g.BP[0], g.BP[1] + 0.6]], 'BP')]));
 
     /* ══ ③ 긴소매 — 두리소매. 진동(오른쪽)에서 수구(왼쪽)로 ═══════════════
        진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다 (배래). */
