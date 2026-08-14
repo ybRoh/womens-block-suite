@@ -80,7 +80,10 @@ head('1. 다트가 조각에 그려졌는가 (55호) — 값만 있고 안 그�
   d.pieces.forEach(function (p) {
     var dt = dartsOf(p);
     total += dt.lines.length;
-    ok('조각 ' + p.name, dt.lines.length > 0 || /옆|Side/.test(p.name),
+    /* ⚠ 4조각에서는 **앞판(중심)에 다트가 없는 것이 정상**이다 — 허리다트는 절개선으로,
+       겨드랑다트는 앞옆판으로 갔다. 「모든 조각에 다트가 있어야 한다」로 두면 옳게 옮긴
+       것을 결함으로 잡는다 (2026-08-15). 뒤판은 어깨다트가 남아 있어야 한다. */
+    ok('조각 ' + p.name, dt.lines.length > 0 || /옆|Side|^앞판$/.test(p.name),
        '다트선 ' + dt.lines.length + '개 · 다트너치 ' + dt.notches.length + '개' +
        (dt.lines.length ? ' — ' + dt.lines.map(function (x) { return x.label || x.id; }).join(', ') : ''),
        /옆|Side/.test(p.name));
@@ -284,11 +287,20 @@ head('7. ⑥ 앞 겨드랑다트 — 통짜는 변으로 · 4조각은 회전해
        dartEdges.length ? '앞옆판에 다트 변이 아직 남아 있다 (회전 전 상태)'
                         : '앞옆판 옆선 ' + sideEdges.length + '줄 · 다트 변 0개');
     var sideL = sideEdges.length === 1 ? edgeLen(sideEdges[0]) : NaN;
+    /* ⚠ 2026-08-15 밑단을 보라선으로 올리면서 옆선도 **잘렸다** — 뒤 옆선(M.sideBack)은
+       제도 전체 길이라 이제 짝이 아니다. 같은 조건의 **뒤옆판 옆선 변**과 잰다. */
+    var bsP = d.pieces.filter(function (x) { return x.id === 'backSide'; })[0];
+    var bsE = bsP ? (bsP.edges || []).filter(function (e) { return e.role === 'side'; })[0] : null;
+    var sideBackCut = bsE ? (function () {
+      var a = bsP.outline.slice(bsE.start === 0 ? 0 : bsE.start - 1, bsE.end + 1), L = 0;
+      for (var i = 1; i < a.length; i++) L += V.dist(a[i], a[i - 1]);
+      return L;
+    })() : M.sideBack;
     /* 회전은 강체 변환이라 옆선 길이는 「다트를 뺀 값」 그대로여야 한다.
        허용 0.25 — 외곽선은 폴리라인 샘플이라 곡선 이음부에서 그만큼 차이가 난다. */
-    ok('sp1 └ 접은 옆선 = 뒤 옆선', isFinite(sideL) && Math.abs(sideL - M.sideBack) <= 0.25,
-       '앞옆판 옆선 ' + f(sideL, 6) + ' ↔ 뒤 ' + f(M.sideBack, 6) +
-       ' 차 ' + f(sideL - M.sideBack, 6, 3));
+    ok('sp1 └ 접은 옆선 = 뒤 옆선', isFinite(sideL) && Math.abs(sideL - sideBackCut) <= 0.25,
+       '앞옆판 옆선 ' + f(sideL, 6) + ' ↔ 뒤옆판 ' + f(sideBackCut, 6) +
+       ' 차 ' + f(sideL - sideBackCut, 6, 3) + '  (둘 다 밑단에서 잘린 길이)');
   }
   /* 구성과 무관하게 — 접은 뒤 옆선 짝은 늘 맞아야 한다 */
   ok('sp' + sp + ' └ 봉제 후 옆선 짝', Math.abs(M.sideFrontSewn - M.sideBack) <= 0.1,

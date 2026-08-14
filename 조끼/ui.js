@@ -76,13 +76,14 @@
     { k: 'facingSh',    label: '안단 어깨',     min: 2,   max: 8,   step: 0.1,  hint: '어깨선 위 · 옆목점에서 · 도면 4~5  [15]' },
     { k: 'facingCf',    label: '안단 앞단',     min: 4,   max: 10,  step: 0.1,  hint: '앞단(여밈선)에서 안으로 · 도면 6~7  [15]' },
     { k: 'facingBk',    label: '안단 뒤중심',   min: 3,   max: 10,  step: 0.1,  hint: '2번에서 아래로 (뒷목 안단) · 도면 6~7  [15]' },
-    { k: 'facingHemS',  label: '밑단안단 옆',   min: 3,   max: 14,  step: 0.5,  hint: '옆선에서 위로 · 앞뒤 공통 · 도면 9  [15]' },
+    /* ⚠ 2026-08-15 「밑단 안단」이 아니라 **밑단 그 자체**다 — 보라선 아래를 잘라낸다 */
+    { k: 'hemUpSide',   label: '밑단 옆',      min: 3,   max: 14,  step: 0.5,  hint: '옆선에서 위로 · 앞뒤 공통 · 도면 9  [15]' },
     /* 앞자락을 사선으로 자르면서(사용자 결정 2026-08-14) 밑단안단의 앞중심 다리는
        사라졌다 — 그 자리를 정하는 것은 이제 **사선이 올라가는 양**이다.
        (facingHemCf 는 죽은 상수라 슬라이더에서 뺐다 · engine-verify §10) */
-    { k: 'frontPointRise', label: '앞자락 사선', min: 4, max: 18,  step: 0.5,  hint: '앞단 아래를 자르는 사선이 여밈선에서 올라가는 양 · 도면 12  [40]' },
-    { k: 'facingHemCb', label: '밑단안단 뒤중심', min: 3, max: 14,  step: 0.5,  hint: '뒤중심에서 위로 · 도면 8  [15]' },
-    { k: 'facingHemF',  label: '밑단안단 꼭짓점', min: 2, max: 10,  step: 0.5,  hint: '안단선과 만나는 자리의 높이 · 도면 4.5  [15]' }
+    { k: 'hemUpCb',     label: '밑단 뒤중심',   min: 3,  max: 14,  step: 0.5,  hint: '뒤중심에서 위로 · 도면 8  [15]' },
+    { k: 'hemUpCf',     label: '밑단 앞중심',   min: 6,  max: 18,  step: 0.5,  hint: '여밈선에서 위로 · 앞자락 V 의 위 끝 · 도면 12  [15]' },
+    { k: 'hemUpPoint',  label: '밑단 앞자락 꼭짓점', min: 2, max: 10, step: 0.5, hint: 'V 꼭짓점 높이 · 도면 4.5  [15]' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {

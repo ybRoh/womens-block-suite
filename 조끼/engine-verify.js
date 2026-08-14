@@ -333,8 +333,6 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
        초록 삼각 윗다리 y≈24.2 와 일치). 사용자 확정 2026-08-14. */
     ['udDrop',       4.0, 5.0, '[27] 65 = 41 에서 5 정도 (도면 실측 4.29)'],
     ['udTipShort',   0.3, 1.0, '[27] 꼭짓점을 58(절개선)보다 짧게 — 그 점에서 조각이 집힌다'],
-    /* [40] 앞자락 사선 — 정답지 15 의 보라 V 오른쪽 다리 끝(앞중심 12)과 같은 자리 */
-    ['frontPointRise', 10.0, 13.0, '[40] 앞단 아래 사선 — 앞중심에서 올라가는 양 (정답지 라벨 12)'],
     /* ── 안단선 — 본문 [1]~[40] 에 없다. **정답지 15_앞뒤판완성이미지 에 적힌 숫자**가
        근거다. 그려진 길이가 라벨보다 짧은 자리가 있어(어깨 2.54 · 뒤중심 4.3 · 밑단
        8.0~8.2 / 6.9 / 11.35 — 4차 픽셀 실측) 규칙대로 **라벨을 앞세웠다**.
@@ -344,9 +342,14 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['facingSh',     4.0,  5.0, '[15] 안단선 — 어깨에서 4~5'],
     ['facingCf',     6.0,  7.0, '[15] 안단선 — 앞단에서 6~7 (실측 6.81 · 라벨과 일치)'],
     ['facingBk',     6.0,  7.0, '[15] 뒷목 안단 — 뒤중심에서 6~7 (실측 4.3)'],
-    ['facingHemS',   8.0, 10.0, '[15] 밑단 안단 — 옆선 9 (실측 앞 8.0 · 뒤 8.2)'],
-    ['facingHemCb',  7.0,  9.0, '[15] 밑단 안단 — 뒤중심 8 (실측 6.9)'],
-    ['facingHemF',   3.5,  5.5, '[15] 밑단 안단 — 안단선 자리 4.5 (실측 4.5 · 라벨과 일치)']
+    /* ══ 밑단 완성선 — 2026-08-15 사용자 확정으로 **안단이 아니라 밑단**이 됐다.
+       「보라색선 아래는 잘라 버리고 패턴을 완성한다」. 값은 정답지 15 의 라벨 그대로.
+       ⚠ facingHemS/Cb/F 라는 옛 이름으로 두면 「안단이 두 줄 더 있다」고 읽힌다 —
+         docs §6 은 안단을 어깨 4~5 · 앞단 6~7 둘뿐이라고 적는다. */
+    ['hemUpSide',    8.0, 10.0, '[15] 밑단 — 옆선 9 (실측 앞 8.0 · 뒤 8.2)'],
+    ['hemUpCb',      7.0,  9.0, '[15] 밑단 — 뒤중심 8 (실측 6.9)'],
+    ['hemUpCf',     11.0, 13.0, '[15] 밑단 — 앞중심 12 (실측 11.35)'],
+    ['hemUpPoint',   3.5,  5.5, '[15] 밑단 — 앞자락 V 꼭짓점 4.5 (실측 4.5 · 라벨과 일치)'],
   ];
   R.forEach(function (r) {
     var v = K[r[0]];
@@ -651,8 +654,10 @@ SIZES.forEach(function (sz) {
 
   /* 너치 짝 — **호길이**로 맞아야 한다. 높이(y)로만 잡으면 곡률이 다른 쪽에서 밀린다 */
   var P = {}; d.pieces.forEach(function (p) { P[p.id] = p; });
-  [['뒤', 'back', 'backSide', g.bSplitIn, g.bSplitOut, ['진동선', '허리', '엉덩이']],
-   ['앞', 'front', 'frontSide', g.fSplitIn, g.fSplitOut, ['BP', '허리', '엉덩이']]].forEach(function (r) {
+  /* ⚠ '엉덩이'(HL) 너치는 2026-08-15 에 빠졌다 — 밑단을 보라선으로 올리면서 그 높이가
+     조각 밖이 됐다. 기대 목록을 안 옮기면 「한쪽에만 있다」로 잡힌다. */
+  [['뒤', 'back', 'backSide', g.bSplitIn, g.bSplitOut, ['진동선', '허리']],
+   ['앞', 'front', 'frontSide', g.fSplitIn, g.fSplitOut, ['BP', '허리']]].forEach(function (r) {
     var A = P[r[1]], Bp = P[r[2]];
     if (!A || !Bp) { bad.push(r[0] + ' 절개 조각이 없다'); return; }
     r[5].forEach(function (lab) {
@@ -837,15 +842,17 @@ SIZES.forEach(function (sz) {
      앞뒤가 같은 좌표계에 겹쳐 그려지므로(앞판은 뒤판 위에 그린다) 조각 id 로 가르지
      않으면 앞 안단선이 뒤판에도 「들어온다」 — 그래서 조각별 기대 개수를 못 박는다. */
   (function () {
-    var want = { back: ['facB', 'facHemB'], backSide: ['facHemB'],
-                 front: ['facF', 'facHemF'], frontSide: ['facHemF'] };
+    /* ⚠ 2026-08-15 「밑단 안단」 두 줄(facHemB·facHemF)은 사라졌다 — 그 보라선이 곧
+       밑단이고 조각이 거기서 잘린다. 남는 안단은 docs §6 의 둘(어깨 4~5 · 앞단 6~7)뿐.
+       옆 조각(backSide·frontSide)에는 안단선이 아예 없다. */
+    var want = { back: ['facB'], backSide: [], front: ['facF'], frontSide: [] };
     [0, 1].forEach(function (sp) {
       var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
       d.pieces.forEach(function (p) {
         var got = (p.internal || []).filter(function (it) { return /^fac/.test(it.id); });
         var ids = got.map(function (it) { return it.id.replace(/_\d+$/, ''); });
         /* 비분할(sp0)이면 뒤판 한 장이 뒤 안단 둘을, 앞판 한 장이 앞 안단 둘을 갖는다 */
-        var exp = sp ? (want[p.id] || []) : (p.id === 'back' ? ['facB', 'facHemB'] : ['facF', 'facHemF']);
+        var exp = sp ? (want[p.id] || []) : (p.id === 'back' ? ['facB'] : ['facF']);
         exp.forEach(function (id) {
           if (ids.indexOf(id) < 0) bad.push('sp' + sp + ' ' + p.id + ' 에 안단선 ' + id + ' 이 없다');
         });
@@ -889,9 +896,11 @@ SIZES.forEach(function (sz) {
        2026-08-14 「여기 다트는 회전해서 붙여줘요」) — 그래서 앞옆판에 다트 변이
        없는 것이 정상이고, 대신 옆선이 **한 줄**이라야 한다(아래 §5 가 길이를 잰다).
        통짜(sp0)는 절개선이 제도선일 뿐이라 회전할 수 없어 다트를 그대로 둔다. */
+    /* ⚠ 「앞단 사선」 변은 2026-08-15 에 사라졌다 — 앞자락 V 가 **밑단 그 자체**가 되어
+       밑단 변 안에 꼭짓점이 들어온다(hemSpan). 아래 §밑단 모양 검사가 그 V 를 지킨다. */
     var WANTE = {
-      0: { front: ['겨드랑다트', '앞단 사선'] },
-      1: { front: ['앞단 사선'] }
+      0: { front: ['겨드랑다트'] },
+      1: {}
     };
     [0, 1].forEach(function (sp) {
       var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
@@ -951,23 +960,29 @@ SIZES.forEach(function (sz) {
   if (finiteOr(bad, '완성 엉덩이', M.hipFinish) && Math.abs(M.hipFinish - wantH) > 0.02)
     bad.push('완성 엉덩이 ' + M.hipFinish + ' ≠ H + 뒤여유×2 + 앞여유×2 = ' + wantH.toFixed(2) +
              ' — 옆선(14·42)에서 뗀 분량이 절개선 밑단으로 안 옮겨졌거나 두 번 더해졌다');
-  /* ★ 보고한 완성 엉덩이가 **실제로 그린 밑단**과 같은가.
-     식으로만 계산해 두면 조각을 바꿔도 숫자가 안 따라온다 — 화면의 요약표가
-     종이와 다른 말을 하게 된다. 밑단 변의 x 폭을 직접 더해서 맞춰 본다
-     (앞여밈분 x<0 은 몸통 둘레가 아니므로 뺀다). */
+  /* ★ 보고한 밑단 둘레가 **실제로 그린 밑단**과 같은가.
+     ⚠ 2026-08-15 밑단을 보라선(엉덩이선 위 8~12)으로 올렸다 — 이제 조각은 엉덩이선까지
+       내려가지 않으므로 「완성 엉덩이 = H + 여유」를 조각에서 잴 수 없다. 재는 대상을
+       **밑단 둘레**로 바꾼다. 엉덩이 여유(hipEase/hipEaseB)는 여전히 절개선 밑단 벌림을
+       통해 살아 있고, §3 의 번호점 검사(15·16·31·32)가 그걸 지킨다.
+     (앞여밈분 x<0 은 몸통 둘레가 아니므로 뺀다.) */
   var hemSum = 0;
   E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: 1 }).pieces.forEach(function (p) {
     p.edges.forEach(function (e) {
       if (e.role !== 'hem') return;
-      /* ⚠ 변의 start 는 **두 번째** 샘플점이다(첫 점은 앞 변이 갖는다). 그대로 쓰면
-         모서리 하나만큼 짧게 재서 0.3 쯤 어긋난다 — 앞 변의 끝점을 가져온다. */
       var a = p.outline[e.start === 0 ? 0 : e.start - 1], b = p.outline[e.end];
       hemSum += Math.abs(Math.max(0, b[0]) - Math.max(0, a[0]));
     });
   });
-  if (finiteOr(bad, '밑단 실측', hemSum) && Math.abs(M.hipFinish - hemSum * 2) > 0.05)
-    bad.push('완성 엉덩이 ' + M.hipFinish + ' 가 실제로 그린 밑단(' + (hemSum * 2).toFixed(2) +
-             ') 과 다르다 — 요약표가 조각과 다른 말을 한다');
+  var hemFinish = hemSum * 2;
+  /* 밑단은 힙선보다 위라 H 보다 작아야 정상이고(옆선이 그만큼 들어와 있다),
+     그렇다고 허리보다 작으면 못 입는다 — 그 사이에 있는지만 못 박는다. */
+  if (finiteOr(bad, '밑단 둘레', hemFinish)) {
+    if (hemFinish <= M.waistFinish)
+      bad.push('밑단 둘레 ' + hemFinish.toFixed(2) + ' 가 완성 허리 ' + M.waistFinish + ' 보다 좁다');
+    if (hemFinish > m.H + 4 * K.hipEaseB)
+      bad.push('밑단 둘레 ' + hemFinish.toFixed(2) + ' 가 엉덩이선 폭보다 넓다 — 밑단을 안 잘랐다');
+  }
   if (prev) {
     ['ahBack', 'ahFront', 'shoulderBack', 'shoulderFront', 'chestFinish', 'waistFinish', 'hipFinish']
     .forEach(function (k) {
