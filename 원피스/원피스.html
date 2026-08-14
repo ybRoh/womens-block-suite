@@ -6,7 +6,7 @@
 <title>원피스 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 원피스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 원피스/build.py     생성일: 2026-08-14 09:26 -->
+     재생성: python3 원피스/build.py     생성일: 2026-08-14 09:34 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -832,7 +832,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-14 09:26'; window.ND_APP = '원피스';</script>
+<script>window.ND_BUILD = '2026-08-14 09:34'; window.ND_APP = '원피스';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1201,6 +1201,7 @@ td.n.n-fail{color:var(--red)}
     sleeveCtrIn : 1.5,    // 정점 6 에서 앞쪽으로 → 소매중심선 9 [5]
     elbowAdd    : 2.25,   // 12번에서 소매산 쪽으로 (2~2.5) → EL [6]
     capFrontOut : 4.5,    // 5번에서 나가는 양 → 15 [7]
+    capEaseFront: 0.30,   // 앞 소매산 = 앞AH + 이 값 — **곡선의 휨으로** 만든다
     capFrontIn  : 4.5,   // 9번에서 들어오는 양 (4.5~5) → 16 [7]
     capBackIn   : 4.0,    // 7번에서 들어오는 양 → 19 [8]
                           //  ⚠ opt 로 주면 그 값을 쓰고, 안 주면 이세에서 역산한다
@@ -2256,11 +2257,30 @@ td.n.n-fail{color:var(--red)}
          앞이 급경사라 정점에서 급히 꺾여 최대곡률이 반지름 1.8cm 로 몰린다
          — 「어깨를 그렇게 하면 못 만들어」. 장력을 올려 펴면 이세가 2.5~3.6 으로 폭발한다.
          평평한 1.5 가 답이다. */
-    var capF = splineSegs([p5, p18, p17, p9],
-                          endTan([-1, 0], CAL.capFront.k0), endTan([-1, 0], CAL.capFront.k1));
-    var capTop = lineSegs(p9, p6);
-    var capB = splineSegs([p6, p21, p7],
-                          endTan([-1, 0], CAL.capBack.k0), endTan([-1, 0], CAL.capBack.k1));
+    /* ★★ 곡선의 **휨이 곧 암홀 길이**다 (사용자 지적 2026-08-14
+         「5,18,17,9 로 이어지는 곡선이 많이 휘는 것이 암홀 길이를 맞추는 이유 아닐까」).
+
+       장력을 눈대중으로 두었더니 **앞 소매산이 앞AH 보다 짧게** 나왔다
+       (44호 −0.17 · 55호 −0.10) — 소매를 달 때 앞이 모자라 늘려 붙여야 한다.
+       그리고 이세 1.67 중 1.50 이 **정수리**에서 나오고 있었다. 그건 곡선이 만든
+       이세가 아니라 작도 부산물이다.
+
+       → 앞 곡선의 장력을 **앞 이세에서 역산**한다:  앞 곡선 = 앞AH + capEaseFront.
+         뒤는 기하가 이미 강제한다 — 정점이 9번(6에서 1.5 앞)이라 9→7 직선거리가
+         뒤AH 보다 길어서(23.41 > 22.16) 뒤 이세는 최소 1.25 가 깔린다.
+         그래서 앞은 작게, 뒤는 크게 — 원문 [9] 「이세 1.5~2」 안에 든다. */
+    var capF, capB, capTop = lineSegs(p9, p6);
+    (function () {
+      var want = ahF + num(opt.capEaseFront, K.capEaseFront);
+      function mk(k) { return splineSegs([p5, p18, p17, p9],
+        endTan([-1, 0], CAL.capFront.k0 * k), endTan([-1, 0], CAL.capFront.k1 * k)); }
+      var lo = 0.2, hi = 6, i, mid;
+      for (i = 0; i < 44; i++) { mid = (lo + hi) / 2;
+        if (polyLen(sampleSegs(mk(mid), 0.02)) < want) lo = mid; else hi = mid; }
+      capF = mk((lo + hi) / 2);
+      capB = splineSegs([p6, p21, p7],
+                        endTan([-1, 0], CAL.capBack.k0), endTan([-1, 0], CAL.capBack.k1));
+    })();
     /* 부리 [10][11] — 24 는 3번에서 **안쪽**. 그래야 부리 길이가 보존된다 */
     var p3 = [halfF, len], p8 = [-halfB, len];
     var p22 = [p3[0] - cuffW, len];

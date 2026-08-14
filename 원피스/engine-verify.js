@@ -77,6 +77,16 @@ E.SIZES.forEach(function (sz) {
   /* 소매 [9] 앞뒤 암홀 + 이세 1.5~2 */
   row.push('이세 ' + f(M.capEase, 5));
   if (M.capEase < 1.0 || M.capEase > 2.6) bad.push('소매산 이세 ' + M.capEase.toFixed(2) + ' (원문 1.5~2)');
+  /* ★ 앞 소매산이 앞 암홀을 덮는가 — 짧으면 소매를 못 단다 (사용자 지적 2026-08-14)
+     「5,18,17,9 로 이어지는 곡선이 많이 휘는 것이 암홀 길이를 맞추는 이유 아닐까」
+     장력을 눈대중으로 두었을 때 44~66호에서 앞 곡선이 앞AH 보다 **짧았다**(−0.17~−0.04). */
+  var sl = d.sleeve, capFLen = U.polyLen(U.sampleSegs(sl.capF, 0.02));
+  row.push('앞소매산−앞AH ' + f(capFLen - g.ahFront, 5));
+  if (capFLen < g.ahFront + 0.05)
+    bad.push('앞 소매산 ' + capFLen.toFixed(2) + ' < 앞AH ' + g.ahFront.toFixed(2) +
+             ' — 곡선이 덜 휘어 앞이 모자란다 (소매를 못 단다)');
+  /* 이세가 2.0 을 넘는 것은 **AH 가 3.5 작은 것의 증상** — 정점이 9번이라
+     9→7 직선이 이미 뒤AH 보다 길어 뒤 이세가 1.5 이상 깔린다. 위 1.0~2.6 검사로 남긴다. */
 
   /* 소매 [11] 부리선 길이가 소매부리와 같은가 — 24번을 「밖으로」 잡으면 어긋난다 */
   row.push('부리 ' + f(M.cuffWidth, 5));
@@ -329,6 +339,26 @@ E.SIZES.forEach(function (sz) {
     if (!(s.cuffW > prevCuff + 0.2))
       bad.push('소맷부리가 호수 따라 안 큰다 (' + prevCuff.toFixed(2) + ' → ' + s.cuffW.toFixed(2) + ')');
   }
+
+  /* ★★ NaN·누락 가드 — **이번 세션에서 세 번 밟은 함정.**
+     `num(opt.x, K.x)` 를 쓰면서 K 에 값을 안 넣으면 undefined → NaN 이 조용히 번진다.
+     NaN 은 모든 부등호를 통과하므로 길이·거리 검사가 전부 「통과」로 찍힌다
+     (hemBow · capEaseFront 가 그랬다). 여기서 먼저 막는다. */
+  ['cbIn','waistEase','hipEase','backDart','princessOut','dartFromCB','dartTipUp',
+   'shDrop','shDart','armFromBW','frontShDrop','neckDrop1','neckDeepAdd','bpOut',
+   'frontWEase','frontDrop','frontArmGap','frontPrinOut','neckAnchor','neckEndMix',
+   'hemPerpK','hemBow','capDiv','capAdd','capFrontOut','capFrontIn','capBackIn','capBackOut',
+   'capEaseFront','sleeveCtrIn','elbowAdd','cuffW','cuffGrade','cuffDrop','cuffPerpK',
+   'mpBelowEL','ctrTwist','sleeveEase','sleeveSeamBow','twoSideOff','twoSplitAt',
+   'twoSplitGap','twoSeamBulge','twoSeamMix','splitPanels'].forEach(function (k) {
+    if (!isFinite(K[k])) bad.push('K.' + k + ' 가 없다/숫자가 아니다 (' + K[k] + ') — NaN 이 번진다');
+  });
+  E.draftDress(m, { seam: E.SEAM_DEFAULT }).pieces.forEach(function (pc) {
+    for (var i = 0; i < pc.outline.length; i++)
+      if (!isFinite(pc.outline[i][0]) || !isFinite(pc.outline[i][1])) {
+        bad.push(pc.name + ' 외곽선에 NaN 좌표'); break;
+      }
+  });
 
   /* ★ 소매 좌표 규약 — **앞 +x · 뒤 −x** (스위트 공통).
      도면을 90° 반시계로 돌리면 뒤가 왼쪽·앞이 오른쪽이다. 반대로 두면 조각이
