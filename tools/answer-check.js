@@ -23,18 +23,36 @@ function load(name) {
   catch (e) { return { _err: e.message }; }
 }
 function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+/** 점 → 선분열 최단거리. 점끼리만 재면 두 곡선의 점 간격이 다를 때 그 차이가
+ *  그대로 오차로 잡힌다 (샘플이 성긴 쪽이 늘 손해를 본다). */
+function toPoly(p, Q) {
+  var best = 1e9;
+  for (var i = 1; i < Q.length; i++) {
+    var a = Q[i - 1], b = Q[i], dx = b[0] - a[0], dy = b[1] - a[1];
+    var L2 = dx * dx + dy * dy;
+    var t = L2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    var d = Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+    if (d < best) best = d;
+  }
+  return best;
+}
 /** 양방향 하우스도르프 — 한 방향만 재면 곡선이 밖으로 튀어도 안 걸린다 */
 function hausdorff(A, B) {
-  function one(P, Q) {
-    var m = 0;
-    P.forEach(function (p) {
-      var d = 1e9;
-      Q.forEach(function (q) { d = Math.min(d, dist(p, q)); });
-      m = Math.max(m, d);
-    });
-    return m;
-  }
+  function one(P, Q) { var m = 0; P.forEach(function (p) { m = Math.max(m, toPoly(p, Q)); }); return m; }
   return Math.max(one(A, B), one(B, A));
+}
+/** 정답지가 **닿는 구간**으로 엔진 곡선을 자른다.
+ *  도면에서 곡선의 끝이 다른 선과 겹쳐 못 딴 경우가 있다 (원피스 앞목선은 54 쪽
+ *  2cm 를 못 땄다). 그대로 재면 정답지에 자료가 없는 구간까지 벌점이 붙어
+ *  하우스도르프가 0.18 → 1.76 으로 튄다 — 곡선이 틀린 게 아니라 자료가 없는 것이다. */
+function clipToRef(A, R) {
+  function nearest(q) { var bi = 0, bd = 1e9;
+    for (var i = 0; i < A.length; i++) { var d = dist(A[i], q); if (d < bd) { bd = d; bi = i; } }
+    return bi; }
+  var i0 = nearest(R[0]), i1 = nearest(R[R.length - 1]);
+  if (i0 > i1) { var t = i0; i0 = i1; i1 = t; }
+  return (i1 - i0 >= 3) ? A.slice(i0, i1 + 1) : A;
 }
 
 /**
@@ -72,12 +90,16 @@ function run(name, points, curves, U, bad, tol) {
   var cn = 0, cworst = 0;
   Object.keys(A.curves || {}).forEach(function (k) {
     var segs = curves[k]; if (!segs) return;
-    cn++; var d = hausdorff(U.sampleSegs(segs, 0.05), A.curves[k]);
+    /* 곡선마다 사연이 다르므로 `tol_<이름>` 으로 따로 줄 수 있다 —
+       도면이 원문과 충돌하는 곡선(뒤 암홀)과 잘 맞는 곡선(앞 목선)을
+       한 허용치로 묶으면 잘 맞는 쪽 검사가 무력해진다. */
+    var t = A['tol_' + k] !== undefined ? A['tol_' + k] : tc;
+    cn++; var d = hausdorff(clipToRef(U.sampleSegs(segs, 0.05), A.curves[k]), A.curves[k]);
     if (d > cworst) cworst = d;
-    if (d > tc) bad.push('[정답지] 곡선 ' + k + ' 하우스도르프 ' + d.toFixed(2) + ' > ' + tc);
+    if (d > t) bad.push('[정답지] 곡선 ' + k + ' 하우스도르프 ' + d.toFixed(2) + ' > ' + t);
   });
   return { n: n, worst: worst, worstK: worstK, cn: cn, cworst: cworst,
            mirrored: tr.mirrored, residual: tr.residual_cm };
   function f2(v) { return (+v).toFixed(2); }
 }
-module.exports = { run: run, load: load, hausdorff: hausdorff, DIR: DIR };
+module.exports = { run: run, load: load, hausdorff: hausdorff, clipToRef: clipToRef, DIR: DIR };

@@ -345,8 +345,9 @@
        원문 [42] 의 「75번 → 직선으로 76번 보조선」이 그 가로 보조선이고,
        곡선은 76~54 직선과 함께 **L 자 두 변에 접한다**(도면의 곡자 작도). */
     neckEndMix  : 0.0,    // 앞목선 끝접선 = 어깨선 직각 ↔ 세로 사이 (0 직각 · 1 세로)
-    neckAnchor  : 0.76,
+    neckAnchor  : 0.72,
     neckStraight: 0.40,   // 앞목선 54 쪽 직선 구간 — 54~75 현의 비율 [42] 76 보조선
+    neckStartTilt: 0.8,   // 그 직선의 출발각을 앞중심 쪽으로 눕히는 각(도) — 도면 108.43° vs 어깨직각 107.57°
     neckDeepAdd : 0.5,    // 앞목 깊이 = B/12 + 이 값 [42]
     bpOut       : 1.75,   // BP 에서 나가는 양 (1.5~2) → 60 [34]
     frontWEase  : 1.5,    // 앞 W 여유 [36]
@@ -718,7 +719,16 @@
          (아래 neckStraight). 방향은 어깨 직각 그대로가 맞았다 — 도면 108.4° · 규칙 107.6°. */
     var fNeckT = (function () {
       var n = neckEndTan(f54, f57, f75), mx = num(opt.neckEndMix, K.neckEndMix);
-      return V.norm([n[0] * (1 - mx), n[1] * (1 - mx) - mx]);
+      n = V.norm([n[0] * (1 - mx), n[1] * (1 - mx) - mx]);
+      /* 54 에서 나가는 각을 **안쪽(앞중심 쪽)으로** 조금 눕힌다.
+         어깨 직각은 107.6° 인데 도면 곡선의 실제 출발 접선은 **108.43°** 다.
+         작아 보여도 이 각이 목선 길이를 좌우한다 (사용자 지적 —
+         「암홀길이를 맞추려면 54에서 출발할 때 안쪽으로 직선 출발 각을 조금 줄이면」).
+         + 면 앞중심 쪽으로 눕는다. */
+      var t = num(opt.neckStartTilt, K.neckStartTilt) * Math.PI / 180;
+      if (!t) return n;
+      var c = Math.cos(t), s = Math.sin(t);
+      return V.norm([n[0] * c - n[1] * s, n[0] * s + n[1] * c]);
     })();
     var nA = num(opt.neckAnchor, K.neckAnchor);
     var bNeck = splineSegs([p2, p41, p20], endTan([1, 0], 1.0), endTan(neckEndTan(p20, p23, p2), 1.0));
