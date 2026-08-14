@@ -249,7 +249,15 @@
        34.7°(4_뒤판이미지 · 「내려와서 그리는」 변형). 모서리 시접이 여기에 직결된다. */
     splitStartAng: 31,
     hemUp       :  5.0,   // [14] 30 = 29 에서 5 · [27] 62 = 59 에서 5
-    mpAt        :  0.55,  // [17] 35 = 암홀 위 MP 자리 (26~11 비율)
+    /* [17][39] MP 자리 — **앞뒤가 다르고, 앞은 진동이 아니라 목선 위**다
+       (사용자 지적 2026-08-15 「MP 위치도 틀렸어」 · 완성이미지 실측).
+         뒤  진동 곡선 위 · 겨드랑 쪽 — 도면 x 20.57~21.09 (호길이 0.844~0.873)
+         앞  **앞목선** 위 — 도면 y 11.9~12.6 (호길이 0.377~0.410)
+       원문 [39] 「목이 파인 옷은 앞이 뜨는 것을 막으려고 MP 를 준다」와도 맞는다 —
+       앞이 뜨는 것을 막으려면 줄여 박을 자리가 **목선**이라야 한다.
+       ⚠ 예전에는 앞뒤 공통 0.55 였고 앞은 53~58 선(어깨~BP) 위였다. */
+    mpAtBack    :  0.86,  // 뒤 — 진동 호길이 비율 (도면 실측 0.844~0.873 의 중간)
+    mpAtFront   :  0.39,  // 앞 — 앞목선 호길이 비율 (도면 실측 0.377~0.410 의 중간)
     mpBack      :  0.65,  // [17] MP 0.5~0.8 (뒤 · 겨드랑~등의 살을 보고 정한다)
     mpFront     :  0.75,  // [39] MP 0.5~1 (앞 · 카라가 없거나 목파임이 큰 옷은 앞이 뜬다)
     neckOut     :  1.5,   // [18] 38 = 24 에서 1.5
@@ -393,15 +401,47 @@
    *  판정은 그리는 것과 같은 방식(point-in-polygon)이라야 한다. */
   function fixNotches(notches, o) {
     (notches || []).forEach(function (n) {
-      var best = null, bd = Infinity;
+      var best = null, bd = Infinity, bt = null;
       for (var i = 1; i < o.length; i++) {
         var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
         var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
         t = t < 0 ? 0 : t > 1 ? 1 : t;
         var q = [a[0] + t * dx, a[1] + t * dy], e = V.dist(n.p, q);
-        if (e < bd) { bd = e; best = q; }
+        if (e < bd) { bd = e; best = q; bt = L2 ? [dx, dy] : null; }
       }
       if (bd <= 3.0) n.p = best;
+      /* ★ 너치는 **재단선에 직각**으로 세운다 (사용자 지정 2026-08-15
+         「모든 너치는 선에 직각이어야 해, 선과 겹치면 잘 안 보여」).
+         예전에는 넘겨받은 angle 이 조각 안쪽만 향하면 그대로 뒀다 — 그래서 선과
+         나란히 누워 재단선에 묻히는 너치가 나왔다. 스냅된 **그 선분의 법선**으로
+         다시 세우고, 방향만 조각 안쪽으로 고른다. */
+      if (bt) {
+        var L = Math.hypot(bt[0], bt[1]);
+        var nx = -bt[1] / L, ny = bt[0] / L;
+        /* ⚠ 조각 **꼭짓점**(두 변이 만나는 자리)에 놓인 너치는 한쪽 변의 법선을 쓰면
+           다른 변에 나란히 눕는다 — 목옆점·겨드랑이 그랬다. 그럴 땐 두 변의 각
+           **이등분선**(안쪽)으로 세운다 (2026-08-15). */
+        var near = [];
+        for (var k2 = 1; k2 < o.length; k2++) {
+          var a2 = o[k2 - 1], b2 = o[k2], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+          var L22 = dx2 * dx2 + dy2 * dy2;
+          var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+          t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
+          if (V.dist(n.p, [a2[0] + t2 * dx2, a2[1] + t2 * dy2]) <= 0.02 && L22)
+            near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+        }
+        if (near.length >= 2) {
+          var f2 = near[0], l2 = near[near.length - 1];
+          var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+          if (bl > 1e-6) {
+            nx = bx / bl; ny = by / bl;
+            if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+          }
+        }
+        if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+        n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+        return;
+      }
       function ok(deg) {
         var r = deg * Math.PI / 180;
         return ptInPoly([n.p[0] + Math.cos(r) * NOTCH_TICK, n.p[1] + Math.sin(r) * NOTCH_TICK], o);
@@ -595,7 +635,7 @@
        ⚠ 이 점은 **봉제로 줄여 박는 구간**의 자리다 — 종이를 접지 않는다 (사용자 2026-08-15).
        그래서 bArm 이 만들어진 **뒤에** 잡는다. */
     var p35 = (function () {
-      var pts = sampleSegs(bArm, 0.02), t = num(opt.mpAt, K.mpAt);
+      var pts = sampleSegs(bArm, 0.02), t = num(opt.mpAtBack, K.mpAtBack);
       return cp(pts[Math.max(0, Math.min(pts.length - 1, Math.round(t * (pts.length - 1))))]);
     })();
     var p36 = [p35[0] - num(opt.mpBack, K.mpBack), p35[1]];
@@ -769,10 +809,6 @@
          아래에서 암홀을 그린 뒤 그 통과점(49번 높이)을 그대로 쓴다: 69(y=11)보다
          아래이므로 「69번 위로 올라가면 안 된다」도 지킨다. */
     /* [39] 앞 MP — 53~68 선 위의 적당한 지점에서 절개선 쪽으로 접어 없앤다 */
-    var fMp = _lerp(f53, f58, num(opt.mpAt, K.mpAt));
-    var fMpDir = V.norm(V.sub(f58, f53));
-    var fMpTo = [fMp[0] + fMpDir[0] * num(opt.mpFront, K.mpFront),
-                 fMp[1] + fMpDir[1] * num(opt.mpFront, K.mpFront)];
     var f69 = _lerp2(f46, f48);
 
     /* 앞 곡선 ─────────────────────────────────────────────────── */
@@ -803,6 +839,18 @@
                         endTan([0.654, -0.756], 1.0),           // 72 에서 45° 로 나간다
                         endTan([0.08, -1], 1.0));               // 53 에는 거의 세로로 닿는다
     })();
+    /* ★ 앞 MP 는 **앞목선 위**다 (위 K.mpAtFront 주석 · 도면 실측). 접는 방향은
+       조각 안쪽(절개선 쪽) — 목선의 법선이다. */
+    var fMp = (function () {
+      var q = sampleSegs(fNeck, 0.02), acc = [0], i;
+      for (i = 1; i < q.length; i++) acc.push(acc[i - 1] + V.dist(q[i], q[i - 1]));
+      var L = acc[acc.length - 1] * num(opt.mpAtFront, K.mpAtFront);
+      for (i = 1; i < acc.length; i++) if (acc[i] >= L) return cp(q[i]);
+      return cp(q[q.length - 1]);
+    })();
+    var fMpDir = V.norm(V.sub(f58, fMp));
+    var fMpTo = [fMp[0] + fMpDir[0] * num(opt.mpFront, K.mpFront),
+                 fMp[1] + fMpDir[1] * num(opt.mpFront, K.mpFront)];
     /* [25] 앞 암홀 — 52 에서 시작해 **49번(앞품)에서 0.5 떨어져** 41 로 */
     var fArmGap = num(opt.frontArmGap, K.frontArmGap);
     var fArm = armholeC(f52, fShDir, [f49[0] + fArmGap, f49[1]], f41, CAL.armF);
@@ -1517,7 +1565,7 @@
       }
       return [at1(c - half), at1(c + half)];
     }
-    var mpBPts = arcPts(g.bArm, num(opt.mpAt, K.mpAt), num(opt.mpBack, K.mpBack) / 2);
+    var mpBPts = arcPts(g.bArm, num(opt.mpAtBack, K.mpAtBack), num(opt.mpBack, K.mpBack) / 2);
 
     /* ★ [19] 어깨 다트 — **통짜와 4조각이 같은 것을 쓴다**.
        예전엔 4조각의 뒤중심 조각 안에서만 만들어, 통짜(=UI 기본 splitPanels 0)에는
@@ -1616,7 +1664,7 @@
       L('mpF', 'dashed', [cp(g.fMp), cp(g.fMpTo)], 'MP ' + r4(num(opt.mpFront, K.mpFront)))
     ]);
     /* 앞 MP 도 같은 규칙 — 진동 위 두 점 (교재 11_앞판이미지) */
-    var mpFPts = arcPts(g.fArm, num(opt.mpAt, K.mpAt), num(opt.mpFront, K.mpFront) / 2);
+    var mpFPts = arcPts(g.fNeck, num(opt.mpAtFront, K.mpAtFront), num(opt.mpFront, K.mpFront) / 2);
 
     /* ★ [27] 겨드랑다트는 이제 **옆선 위 65·66 에서 파인 V(변)** 다 — 제도선(udGuide)이
        아니라 재단선의 일부라 통짜·4조각 양쪽에서 같은 변을 쓴다 (위 geom 의 f65/f66/udTip).
@@ -1674,9 +1722,14 @@
       /* ⚠ **폴리라인으로 펴서** 낸다 — 스플라인 한 도막을 그대로 두면 외곽선 점 간격이
          0.26cm 까지 벌어져 SPEC(0.06) 을 깬다. 이웃 변(fSplitLo)이 이미 0.01 폴리라인
          이라 이 도막만 성기면 그 자리에서 시접 계산이 각진다 (2026-08-14 QA). */
+      /* ★ 이어붙는 자리가 **꺾이지 않게** — 시작 접선을 아래 도막(fSplitLo)의 끝 접선과
+         똑같이 준다 (사용자 지적 2026-08-15 「여기 두 곡선 부드럽게 이어주면 안 될까」).
+         예전에는 68→63 현 방향이라 실제 곡선의 접선과 달라 68 에서 각이 졌다. */
+      var _lo = sampleSegs(fSplitLo, 0.02);
+      var _tanIn = V.norm(V.sub(_lo[_lo.length - 1], _lo[_lo.length - 2]));
       var splitJoin = poly2segs(sampleSegs(
         splineSegs([cp(g.f68), cp(armTop)],
-          endTan(V.sub(g.f68, g.f63), CAL.princess.k0),
+          endTan(_tanIn, CAL.princess.k0),
           endTan(V.sub(armTop, g.f68), 1.0)), 0.02));
       var fSplitOutC = clipHem(fSplitLo.concat(splitJoin), fHemPoly);    // 밑단 → 67'
       pieces.push(mk('frontSide', '앞옆판', [
@@ -1754,6 +1807,40 @@
       if (add.length) pc.internal = pc.internal.concat(add);
     });
 
+    /* ══ 안단 조각 [사용자 지정 2026-08-15 「앞안단 뒤안단 패턴도 만들어줘」] ═══════
+       종이 원형에서 **안단선을 따라 잘라 내는** 그 조각이다. 본판은 그대로 두고
+       (겉감 위에 겹쳐 붙는 별개 조각이다) 같은 겉감으로 좌우 2매씩 재단한다.
+         · 뒤 안단 = 뒷목선 + 어깨(facingSh) + 안단선 + 뒤중심
+         · 앞 안단 = 앞목선 + 어깨(facingSh) + 안단선 + 밑단 일부 + 앞중심(여밈선)
+       ⚠ 안단선(안쪽 가장자리)은 다른 조각과 맞대 꿰매는 선이 아니라 **마감선**이다 —
+         role 'princess'(1.5) 를 빌려 시접을 준다. 0 으로 두면 시접 검사가
+         「못 꿰맨다」로 잡고, hem(3.0) 은 접어 올리는 밑단용이라 과하다. */
+    (function () {
+      var facShV = num(opt.facingSh, K.facingSh);
+      /* 어깨선 위 facingSh 지점 — 본판 안단선의 끝점과 같은 자리라야 이어진다 */
+      var bTop = [g.p38[0] + V.norm(V.sub(g.p26, g.p38))[0] * facShV,
+                  g.p38[1] + V.norm(V.sub(g.p26, g.p38))[1] * facShV];
+      var fTop = [g.f53[0] + V.norm(V.sub(g.f52, g.f53))[0] * facShV,
+                  g.f53[1] + V.norm(V.sub(g.f52, g.f53))[1] * facShV];
+      pieces.push(mk('backFacing', '뒤 안단', [
+        { name: '뒷목',   role: 'neck',     segs: g.bNeck },                 // 2 → 38
+        { name: '어깨선', role: 'shoulder', segs: lineSegs(g.p38, bTop) },   // 38 → 어깨 4.5
+        { name: '안단선', role: 'princess', segs: revSegs(g.bFacing) },      // 어깨 → 뒤중심
+        { name: '뒤중심', role: 'center',   segs: lineSegs([0, num(opt.facingBk, K.facingBk)], g.p2) }
+      ], [[1.5, 1.0], [1.5, num(opt.facingBk, K.facingBk) - 1.0]],
+        [{ p: cp(g.p38), angle: 90, label: '목옆점' }], bGuide.slice()));
+      /* 앞 안단 — 밑단까지 내려간다 (앞단 안단은 밑단에서 마감된다) */
+      var fFacXv = g.f71[0] + num(opt.facingCf, K.facingCf);
+      pieces.push(mk('frontFacing', '앞 안단', [
+        { name: '앞목',   role: 'neck',     segs: revSegs(g.fNeck) },        // 53 → 72 (앞목선)
+        { name: '앞중심', role: 'center',   segs: lineSegs(g.f72, g.fHemCfPt) },
+        { name: '밑단',   role: 'hem',      segs: hemSpan(fHemPoly, g.fHemCfPt[0], fFacXv) },
+        { name: '안단선', role: 'princess', segs: revSegs(g.fFacing) },      // 밑단 → 어깨
+        { name: '어깨선', role: 'shoulder', segs: lineSegs(fTop, g.f53) }
+      ], [[fFacXv - 1.5, g.BL], [fFacXv - 1.5, g.WL]],
+        [{ p: cp(g.f53), angle: 90, label: '목옆점' }], fGuideCommon.slice()));
+    })();
+
     /* ★ MP 두 점 — 진동 위의 눈금 2개 (사용자 지정 2026-08-15).
        ⚠ 어느 조각에 붙는지는 구성마다 다르다 (4조각이면 진동이 둘로 갈린다) —
          조각을 고르지 않고 **외곽선 위에 있는 조각에만** 붙인다. mpB·BP 를 엉뚱한
@@ -1761,21 +1848,47 @@
     /* 앞 진동은 4조각에서 **겨드랑다트를 접느라 회전**한다 (udR) — 회전본도 후보에
        넣어야 앞옆판에서 MP 가 사라지지 않는다 (2026-08-15). */
     var mpFAll = mpFPts.concat(typeof udR === 'function' ? mpFPts.map(udR) : []);
-    [[mpBPts, 'back'], [mpFAll, 'front']].forEach(function (mp) {
+    /* ★ MP 는 **다트꼴 두 선**으로 표시한다 (사용자 지정 2026-08-15 · 그림으로 지시).
+       진동/목선 위의 두 점에서 시작해 한 점으로 모인다 — 그 사이를 봉제로 줄여 박는다.
+         앞  두 점(앞목선 위) → **BP 쪽 58**  (원문 [39] 「53에서 68을 곡자로 연결」)
+         뒤  두 점(진동 위)   → **허리의 절개선 자리 33** (완성이미지 실측 x≈15.8)
+       ⚠ 종이를 접지는 않는다 — 표시만 낸다 (2026-08-15 사용자 정정). */
+    [[mpBPts, 'back', num(opt.mpBack, K.mpBack), g.p33],
+     [mpFAll, 'front', num(opt.mpFront, K.mpFront), g.f58]].forEach(function (mp) {
       pieces.forEach(function (pc) {
         if (pc.id.indexOf(mp[1]) !== 0) return;
-        mp[0].forEach(function (q) {
-          var best = Infinity;
+        function nearest(q) {                       // 외곽선에서 가장 가까운 점의 (거리, 인덱스)
+          var bd = Infinity, bi = -1;
           for (var i = 1; i < pc.outline.length; i++) {
             var a = pc.outline[i - 1], b = pc.outline[i];
             var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
             var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
             t = t < 0 ? 0 : t > 1 ? 1 : t;
             var d = V.dist(q, [a[0] + t * dx, a[1] + t * dy]);
-            if (d < best) best = d;
+            if (d < bd) { bd = d; bi = t < 0.5 ? i - 1 : i; }
           }
-          if (best <= 0.05) pc.notches.push({ p: cp(q), angle: 0, label: 'MP' });
+          return { d: bd, i: bi };
+        }
+        var on = [];
+        mp[0].forEach(function (q) {
+          var r = nearest(q);
+          if (r.d <= 0.05) { pc.notches.push({ p: cp(q), angle: 0, label: 'MP' }); on.push(r.i); }
         });
+        /* ★ 두 점 사이를 **선으로도 낸다** — 사용자 지정 2026-08-15
+           「패턴에는 선으로 표시해 줘야지, 교재 이미지처럼」.
+           MP 는 봉제 때 그 구간을 줄여 박는 자리이므로, 눈금 두 개만으로는
+           「어디부터 어디까지」가 종이에 안 보인다. 진동선 위 그 구간을 덧그린다. */
+        if (on.length === 2) {
+          var i0 = Math.min(on[0], on[1]), i1 = Math.max(on[0], on[1]);
+          var run = pc.outline.slice(i0, i1 + 1);
+          if (run.length >= 2) {
+            /* 두 점에서 꼭짓점으로 모이는 두 선 (위 주석) */
+            [run[0], run[run.length - 1]].forEach(function (q, kk) {
+              pc.internal.push(L('mpSeam' + (kk ? '2' : ''), 'dashed',
+                [cp(q), cp(mp[3])], kk ? 'MP' : 'MP ' + r4(mp[2])));
+            });
+          }
+        }
         fixNotches(pc.notches, pc.outline);
       });
     });
@@ -1809,6 +1922,55 @@
     if (Math.abs(sideFSewn - sideB) > 0.3)
       warnings.push('겨드랑다트를 접은 뒤에도 앞 옆선 ' + r4(sideFSewn) + ' ↔ 뒤 옆선 ' +
         r4(sideB) + ' 이 ' + r4(sideFSewn - sideB) + 'cm 어긋난다 — 옆선을 못 꿰맨다');
+
+    /* ★ 제도선은 **조각 안에 들어오는 구간만** 남긴다 (사용자 지적 2026-08-15
+       「기준선들이 잘못되었는데 수정해줘」 — 앞옆판 위쪽 허공에 앞품선·S~N 안내선이
+       떠 있었다). 조각마다 어떤 선을 줄지 일일이 고르는 방식은 조각 구성이 바뀔 때마다
+       틀어진다(mpB·BP·밑단안단에서 세 번 겪었다). 여기서 **한 번에** 잘라 원천봉쇄한다.
+       ⚠ BP 십자(0.6cm)처럼 짧은 표시가 지워지지 않도록 최소 길이는 0.2 로 둔다. */
+    pieces.forEach(function (pc) {
+      var kept = [];
+      (pc.internal || []).forEach(function (it) {
+        /* ⚠ **기준선(dashed)만** 자른다. 다트·BP 십자 같은 'edge' 표시는 그 자체가
+           재단·봉제 정보라 잘리면 뜻이 깨진다 — 실제로 어깨 다트가 폭 1.5 → 0.199 로
+           잘려 검사에 걸렸다 (2026-08-15). 사용자 지적도 기준선(앞품선·S~N)이었다. */
+        if (it.type !== 'dashed') { kept.push(it); return; }
+        var run = null, runs = [];
+        /* ⚠ 선을 **잘게 나눠서** 판정한다 — 기준선은 점 2개짜리라 그대로 재면
+           「끝점이 밖이니 통째로 버림」이 된다 (실제로 진동선·허리선이 다 사라졌다). */
+        var dense = [];
+        for (var q0 = 1; q0 < it.pts.length; q0++) {
+          var a0 = it.pts[q0 - 1], b0 = it.pts[q0], L0 = V.dist(a0, b0);
+          var n0 = Math.max(1, Math.ceil(L0 / 0.1));
+          for (var t0 = 0; t0 < n0; t0++)
+            dense.push([a0[0] + (b0[0] - a0[0]) * t0 / n0, a0[1] + (b0[1] - a0[1]) * t0 / n0]);
+        }
+        dense.push(cp(it.pts[it.pts.length - 1]));
+        /* ⚠ **경계 위의 점은 안쪽으로 친다** — 어깨 다트의 두 다리는 어깨선 위에 있어
+           point-in-polygon 이 들쭉날쭉하게 false 를 내고, 그러면 다트가 조각조각
+           잘려 사라진다 (실제로 폭 1.5 다트가 0.199 만 남았다 · 2026-08-15). */
+        function inside(q) {
+          if (ptInPoly(q, pc.outline)) return true;
+          for (var i = 1; i < pc.outline.length; i++) {
+            var a = pc.outline[i - 1], b = pc.outline[i];
+            var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+            var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            if (V.dist(q, [a[0] + t * dx, a[1] + t * dy]) <= 0.05) return true;
+          }
+          return false;
+        }
+        dense.forEach(function (q) {
+          if (inside(q)) { if (!run) { run = []; runs.push(run); } run.push(cp(q)); }
+          else run = null;
+        });
+        runs.forEach(function (r, i) {
+          if (r.length < 2 || polyLen(r) < 0.2) return;
+          kept.push({ id: it.id + (i ? '_' + (i + 1) : ''), type: it.type, pts: r, label: it.label });
+        });
+      });
+      pc.internal = kept;
+    });
 
     return {
       pieces: pieces, warnings: warnings, notes: [],

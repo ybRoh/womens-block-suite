@@ -301,7 +301,9 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
        27° 미만이면 §7 의 모서리 시접이 0.30 밑으로 떨어진다. */
     ['splitStartAng', 27, 34.7, '[16] 27번에서 그리거나 내려오거나 (도면 실측 27.0~34.7°)'],
     ['hemUp',        5.0, 5.0, '[14] 29번에서 5cm · [27] 59번에서 5cm'],
-    ['mpAt',         0.0, 1.0, '[17] 암홀쪽 적당한곳 (비율)'],
+    /* MP 자리 — 앞뒤가 다르고 앞은 목선 위다 (2026-08-15 실측 · engine.js K 주석) */
+    ['mpAtBack',     0.7, 0.95, '[17] 뒤 MP — 진동 호길이 비율 (도면 0.844~0.873)'],
+    ['mpAtFront',    0.3, 0.5,  '[39] 앞 MP — **앞목선** 호길이 비율 (도면 0.377~0.410)'],
     ['mpBack',       0.5, 0.8, '[17] 약 0.5~0.8'],
     ['mpFront',      0.5, 1.0, '[39] 0.5~1'],
     ['neckOut',      1.5, 1.5, '[18] 24번에서 1.5'],
@@ -566,10 +568,13 @@ console.log('══════════════════════�
 head('4. 조각 구성과 닫힘');
 SIZES.forEach(function (sz) {
   var m = E.measuresForSize(sz), bad = [], soft = [], worstGap = 0, worstStep = 0;
+  /* 안단 조각 2장은 **구성과 무관하게** 늘 따라온다 (사용자 지정 2026-08-15
+     「앞안단 뒤안단 패턴도 만들어줘」) — 본판을 자르는 것이 아니라 별개 조각이다. */
   var WANT = {
-    0: [['back', '뒤판'], ['front', '앞판']],
+    0: [['back', '뒤판'], ['front', '앞판'], ['backFacing', '뒤 안단'], ['frontFacing', '앞 안단']],
     /* 이름은 사용자 지정 2026-08-14 — 「앞판 앞옆판 뒤판 뒤옆판」 (기본이 4조각이 됐다) */
-    1: [['back', '뒤판'], ['backSide', '뒤옆판'], ['front', '앞판'], ['frontSide', '앞옆판']]
+    1: [['back', '뒤판'], ['backSide', '뒤옆판'], ['front', '앞판'], ['frontSide', '앞옆판'],
+        ['backFacing', '뒤 안단'], ['frontFacing', '앞 안단']]
   };
   [0, 1].forEach(function (sp) {
     var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
@@ -845,14 +850,16 @@ SIZES.forEach(function (sz) {
     /* ⚠ 2026-08-15 「밑단 안단」 두 줄(facHemB·facHemF)은 사라졌다 — 그 보라선이 곧
        밑단이고 조각이 거기서 잘린다. 남는 안단은 docs §6 의 둘(어깨 4~5 · 앞단 6~7)뿐.
        옆 조각(backSide·frontSide)에는 안단선이 아예 없다. */
-    var want = { back: ['facB'], backSide: [], front: ['facF'], frontSide: [] };
+    var want = { back: ['facB'], backSide: [], front: ['facF'], frontSide: [],
+                 backFacing: [], frontFacing: [] };   // 안단 조각은 그 선이 곧 외곽선이다
     [0, 1].forEach(function (sp) {
       var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
       d.pieces.forEach(function (p) {
         var got = (p.internal || []).filter(function (it) { return /^fac/.test(it.id); });
         var ids = got.map(function (it) { return it.id.replace(/_\d+$/, ''); });
         /* 비분할(sp0)이면 뒤판 한 장이 뒤 안단 둘을, 앞판 한 장이 앞 안단 둘을 갖는다 */
-        var exp = sp ? (want[p.id] || []) : (p.id === 'back' ? ['facB'] : ['facF']);
+        var exp = want[p.id] !== undefined ? want[p.id]
+                : (p.id === 'back' ? ['facB'] : p.id === 'front' ? ['facF'] : []);
         exp.forEach(function (id) {
           if (ids.indexOf(id) < 0) bad.push('sp' + sp + ' ' + p.id + ' 에 안단선 ' + id + ' 이 없다');
         });
@@ -884,12 +891,17 @@ SIZES.forEach(function (sz) {
        교재 자리(옆선 위 65~66)로 내리면서 접어 꿰매는 재단선이 됐기 때문이다.
        그래서 이 표에서 뺐고, 대신 아래 WANTE 가 **변으로 있는지**를 못 박는다.
        (표에서만 빼고 변 검사를 안 만들면 그 순간 아무도 안 보는 선이 된다.) */
+    /* mpSeam = MP 를 **선으로** 낸 것 (사용자 지정 2026-08-15 「선으로 표시해 줘야지」).
+       눈금 두 개만으로는 어디부터 어디까지 박는지가 종이에 안 보인다 — 표에 넣어
+       사라지지 않게 못 박는다. */
     var WANTI = {
       0: { back:      ['splitB1', 'splitB2', 'shDartB', 'mpB'],
-           front:     ['splitF1', 'splitF2', 'mpF', 'bpF'] },
+           front:     ['splitF1', 'splitF2', 'mpF', 'bpF', 'mpSeam'] },
       1: { back:      ['shDartB'],
            backSide:  ['mpB'],
-           front:     ['mpF', 'bpF'] }
+           /* 앞 MP 는 2026-08-15 부터 **앞목선 위**라 앞판(중심)에 붙는다 */
+           front:     ['mpF', 'bpF', 'mpSeam'],
+           frontSide: [] }
     };
     /* 조각마다 반드시 있어야 하는 **변** — 이름으로 못 박는다 */
     /* ⚠ 4조각(sp1)에서는 겨드랑다트를 **회전해 절개선에 붙였다** (사용자 지정

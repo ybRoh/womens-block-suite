@@ -83,7 +83,8 @@ head('1. 다트가 조각에 그려졌는가 (55호) — 값만 있고 안 그�
     /* ⚠ 4조각에서는 **앞판(중심)에 다트가 없는 것이 정상**이다 — 허리다트는 절개선으로,
        겨드랑다트는 앞옆판으로 갔다. 「모든 조각에 다트가 있어야 한다」로 두면 옳게 옮긴
        것을 결함으로 잡는다 (2026-08-15). 뒤판은 어깨다트가 남아 있어야 한다. */
-    ok('조각 ' + p.name, dt.lines.length > 0 || /옆|Side|^앞판$/.test(p.name),
+    /* 안단 조각에는 다트가 없다 — 목·어깨·안단선·중심으로만 닫힌 조각이다 */
+    ok('조각 ' + p.name, dt.lines.length > 0 || /옆|Side|^앞판$|안단/.test(p.name),
        '다트선 ' + dt.lines.length + '개 · 다트너치 ' + dt.notches.length + '개' +
        (dt.lines.length ? ' — ' + dt.lines.map(function (x) { return x.label || x.id; }).join(', ') : ''),
        /옆|Side/.test(p.name));
