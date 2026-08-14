@@ -6,7 +6,7 @@
 <title>조끼 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-14 20:57 -->
+     재생성: python3 조끼/build.py     생성일: 2026-08-14 21:21 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -825,7 +825,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-14 20:57'; window.ND_APP = '조끼';</script>
+<script>window.ND_BUILD = '2026-08-14 21:21'; window.ND_APP = '조끼';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1537,8 +1537,15 @@ td.n.n-fail{color:var(--red)}
     var f67 = [f49[0] + fArmGap, f49[1]];         // 절개선 시작 = 암홀 통과점 (곡선 위)
     var f68 = cp(f58);
     /* [24] 옆라인 41 → 56 → 16 (「뒤판과 같은 형태」) */
-    var fSide = splineSegs([f41, f56, fHemB],
-                           endTan(V.sub(f56, f41), CAL.side.k0), endTan([0, 1], CAL.side.k1));
+    /* ★ [27] 겨드랑다트를 **앞옆 절개선으로 넘긴다** (사용자 결정 2026-08-14).
+       [20] 이 41 을 13 에서 유차 올려 잡으므로 앞 옆선이 뒤보다 **유차만큼 길다**
+       (55호 37.14 ↔ 34.65). 원문 [27] 은 65·66 으로 그 분량을 겨드랑에 다트로
+       두는 예를 들지만 「공식이나 원칙은 없다」고 명시한다.
+       → 옆선에서 **닫고**(옆선을 뒤와 같은 높이 BL 에서 시작) 절개선 쪽에서 **연다**.
+         41~fSideTop 사이의 세로 구간이 곧 다트분이고, 아래 fUnderDart 가 그 두 다리다. */
+    var fSideTop = [f41[0], BL];
+    var fSide = splineSegs([fSideTop, f56, fHemB],
+                           endTan(V.sub(f56, fSideTop), CAL.side.k0), endTan([0, 1], CAL.side.k1));
     /* 앞도 뒤와 같은 규칙 — **62 가 앵커다** ([29] 「62에서 교차」 · 위 bSplit 주석).
        표준 체형에서는 옮김이 0 이라 60·61 이 둘 다 59 이므로, 두 곡선은 62 에서
        만난 뒤 밑단까지 같은 자리로 내려간다 — 정답지에서 62 아래로 초록선이
@@ -1611,7 +1618,8 @@ td.n.n-fail{color:var(--red)}
       p27: p27, p27a: p27a, p28: p28, p29: p29, p30: p30, p31: p31, p32: p32, p33: p33, p34: p34,
       p35: p35, p36: p36, p37: p37, p38: p38, p39: p39,
       f41: f41, f42: f42, f43: f43, f44: f44, f45: f45, f46: f46, f47: f47, f48: f48,
-      fMp: fMp, fMpTo: fMpTo,
+      fMp: fMp, fMpTo: fMpTo, fSideTop: fSideTop,
+      fUnderDart: [cp(f41), cp(fSideTop)],   // 겨드랑다트 두 다리 (분량 = 유차)
       f49: f49, f50: f50, f51: f51, f52: f52, f53: f53, f54: f54, f55: f55, f56: f56,
       f57: f57, f58: f58, f59: f59, f60: f60, f61: f61, f62: f62, f63: f63, f64: f64,
       f65: f65, f66: f66, f67: f67, f68: f68, f69: f69, f70: f70, f71: f71, f72: f72,
@@ -2122,18 +2130,32 @@ td.n.n-fail{color:var(--red)}
             외곽선에서 10cm 떨어진 허공에 찍혔다 (2026-08-14 suite-verify). */
         [{ p: cp(g.f53), angle: 90, label: '목옆점' }].concat(nF.a),
         fGuideCf.concat([L('cfF', 'dashed', [[0, g.f44[1]], [0, g.HL]], '앞중심 기초선')])));
+      /* ★ 겨드랑다트 — 41(암홀 끝) → fSideTop(옆선 시작) 사이의 세로 구간이 다트분이다.
+         **변으로 넣는다** — 접어서 꿰매는 선이므로 재단선의 일부다(제도선이 아니다).
+         분량 = 유차. 이걸 접으면 앞 옆선이 뒤와 같아진다(전 호수 차 0.003).
+         사용자 결정(2026-08-14): 「겨드랑다트는 앞옆 절개선에 넣어줘」 —
+         옆선에서 닫고 절개선 쪽 여유로 흡수한다. */
       pieces.push(mk('frontSide', '앞옆', [
-        { name: '진동',   role: 'armhole',  segs: fArmLow },
-        { name: '옆선',   role: 'side',     segs: g.fSide },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
-        { name: '절개선', role: 'princess', segs: revSegs(g.fSplitOut) }
+        { name: '진동',       role: 'armhole',  segs: fArmLow },
+        { name: '겨드랑다트', role: 'dart',     segs: lineSegs(g.f41, g.fSideTop) },
+        { name: '옆선',       role: 'side',     segs: g.fSide },
+        { name: '밑단',       role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
+        { name: '절개선',     role: 'princess', segs: revSegs(g.fSplitOut) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
-        [{ p: cp(g.f41), angle: 180, label: '겨드랑' }].concat(nF.b), fGuideCommon));
+        [{ p: cp(g.f41), angle: 180, label: '다트 다리' },
+         { p: cp(g.fSideTop), angle: 180, label: '다트 다리' }].concat(nF.b),
+        fGuideCommon.concat([
+          L('udF', 'edge', [cp(g.f41), cp(g.f58)], '겨드랑다트 → BP'),
+          L('udF2', 'edge', [cp(g.fSideTop), cp(g.f58)], '겨드랑다트 → BP')
+        ])));
     } else {
       pieces.push(mk('front', '앞판', [
         { name: '앞목',   role: 'neck',     segs: g.fNeck },
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.f53, g.f52) },
         { name: '진동',   role: 'armhole',  segs: g.fArm },
+        /* 통짜에도 겨드랑다트가 들어가야 한다 — 절개판에만 넣었더니 여기서
+           진동↔옆선이 2.54 벌어졌다 (2026-08-14) */
+        { name: '겨드랑다트', role: 'dart', segs: lineSegs(g.f41, g.fSideTop) },
         { name: '옆선',   role: 'side',     segs: g.fSide },
         { name: '밑단',   role: 'hem',      segs: revSegs(g.fHem) },
         { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
