@@ -1070,7 +1070,7 @@
     fn('bwB', '등품/2', '등품/2', g.backW / 2, 'back', [g.p11[0] - 3, g.BL / 2]);
 
     /* ══ 앞판 ══════════════════════════════════════════════════ */
-    var nF = levelPair(g.fSplitIn, [0, g.WL], g.fSplitOut, [g.p16[0], g.WL],
+    var nF = levelPair(g.fSplitIn, [0, g.WL], g.fSplitOut, [g.f42[0], g.WL],
                [['BP', g.bustLen], ['허리', g.WL], ['엉덩이', g.HL]]);
     /* ★ BP·MP 는 **앞중심 조각의 표시**다. 공통 fGuide 에 넣어 앞옆에도 붙였더니
        조각 밖 1.1~5.7cm 허공에 떠 있었다 (검산기가 잡음 · 2026-08-14 QA).
@@ -1189,8 +1189,10 @@
         /* 완성 치수 — 다트분을 뺀 반폭 × 2 ×2 */
         chestFinish: r4(2 * ((g.p13[0] - g.cbIn) + g.f41[0])),
         waistFinish: r4(2 * ((g.p19[0] - g.cbIn - g.backDart) + (g.f56[0] - g.frontDart))),
+        /* 완성 엉덩이 — **여밈분은 빼고** 잰다(겹치는 분량이라 둘레에 안 더해진다).
+           앞은 42 에서 끝난다(원문 [40] 의 「16」은 앞판에선 42다). */
         hipFinish:   r4(2 * ((g.p16[0] - g.cbIn - Math.abs(g.p31[0] - g.p32[0])) +
-                             (g.p16[0] - Math.abs(g.f60[0] - g.f61[0]))))
+                             (g.f42[0] - Math.abs(g.f60[0] - g.f61[0]))))
       }
     };
   }
