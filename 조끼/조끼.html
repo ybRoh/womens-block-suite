@@ -6,7 +6,7 @@
 <title>조끼 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-14 17:56 -->
+     재생성: python3 조끼/build.py     생성일: 2026-08-14 18:04 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -825,7 +825,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-14 17:56'; window.ND_APP = '조끼';</script>
+<script>window.ND_BUILD = '2026-08-14 18:04'; window.ND_APP = '조끼';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -1364,7 +1364,11 @@ td.n.n-fail{color:var(--red)}
     /* [40] 밑단 = 71~16. 앞처짐 때문에 **기울어진 직선**이다 (뒤 밑단은 H선에 수평).
        ★ 59·60·61 은 그 밑단 위에 있어야 한다. HL 에 못 박아 두면 절개선이 밑단보다
          1.36 위에서 끝나 4조각이 닫히지 않는다 (2026-08-14 QA). */
-    var fHemA = f71, fHemB = [p16[0], HL];
+    /* [40] 「71번과 16번을 연결하여 밑단」 — 다만 **앞판의 16 은 42번**이다.
+       뒤판 16(H/4+여유를 뒤중심에서 잰 것)을 그대로 쓰면 앞은 여밈분만큼 더 나가
+       완성 엉덩이가 H 보다 9 커진다. 사용자가 화면에서 「앞뒤판 엉덩이선이 하나는
+       맞고 하나는 적용 안 됐다」고 짚었다 (2026-08-14). 앞은 42 에서 끝난다. */
+    var fHemA = f71, fHemB = [f42[0], HL];
     function onFrontHem(x) { return [x, fHemA[1] + (fHemB[1] - fHemA[1]) * (x - fHemA[0]) / (fHemB[0] - fHemA[0])]; }
     /* [26] BP 57 = (유폭/2, 유장) · 58 = +1.5~2 · 59 = 58 에서 직선으로 내린 곳(밑단) */
     var f57 = [bustW / 2, bustLen];
@@ -1904,7 +1908,7 @@ td.n.n-fail{color:var(--red)}
     var fGuideCommon = [
       L('blF', 'dashed', [[0, g.f41[1]], [g.f41[0], g.f41[1]]], '진동선'),
       L('wlF', 'dashed', [[0, g.WL], [g.f55[0], g.WL]], '허리선'),
-      L('hlF', 'dashed', [[0, g.HL], [g.p16[0], g.HL]], '엉덩이선'),
+      L('hlF', 'dashed', [[0, g.HL], [g.f42[0], g.HL]], '엉덩이선'),
       L('fwF', 'dashed', [[g.f46[0], g.f44[1]], [g.f46[0], g.f41[1]]], '앞품선'),
       /* [22] 앞 어깨기울기 안내선 S~N = 48~51. 제도 확인용 보조선이라 점선으로만 낸다
          (52 는 [23] 이 20번에서 잡으므로 이 선이 어깨 끝을 정하지는 않는다). */
@@ -1941,7 +1945,7 @@ td.n.n-fail{color:var(--red)}
       pieces.push(mk('frontSide', '앞옆', [
         { name: '진동',   role: 'armhole',  segs: fArmLow },
         { name: '옆선',   role: 'side',     segs: g.fSide },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.f61) },   // 절개선(Out)이 61 에서 끝난다
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
         { name: '절개선', role: 'princess', segs: revSegs(g.fSplitOut) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
         [{ p: cp(g.f41), angle: 180, label: '겨드랑' }].concat(nF.b), fGuideCommon));
