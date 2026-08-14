@@ -15,10 +15,8 @@
 (function (global) {
   'use strict';
 
-  /* 소매길이는 engine.js 가 measurements 가 아니라 opt 로 받습니다
-     (draftNoDart(m, {sleeveLen})). 그래서 UI 는 이 키만 opt 로 넘깁니다.
-     엔진이 나중에 MEAS_KEYS 에 편입하면 자동으로 measurements 쪽으로 갑니다. */
-  var OPT_MEASURE_KEYS = [];   // 소매 제외 (2026-08-07)
+  /* measurements 가 아니라 opt 로 넘기는 치수 키. 조끼는 없다(소매가 없으므로). */
+  var OPT_MEASURE_KEYS = [];
 
   /* 라벨은 숫자가 아니라 표기이므로 사본이어도 어긋날 위험이 없습니다.
      엔진이 MEAS_LABEL 을 주면 그쪽이 우선입니다. */
@@ -27,33 +25,45 @@
     frontW: '앞품', bpLen: '유장', bpSpan: '유폭'
   };
   var FIELD_NOTE = { frontLen: '앞길이 − 등길이 = 앞 등길이 차이치수', bpLen: '앞목 옆점에서 잰다' };
-  var SLEEVE_KEYS = {};                        // 소매 제외 (2026-08-07)
+  /* ★ 2026-08-14 — 소매 관련 상태·입력란을 전부 걷어냈다. **조끼에는 소매가 없다.**
+     엔진에서도 sleeveGeom/SLEEVE_TYPE 을 지웠으므로 UI 에 남기면 무동작 상자가 된다.
+     (engine-verify.js §6 이 sleeveType 이 되살아나는지 감시한다) */
   /* 스타일 값 — 교재가 범위로 준 것을 사용자가 고를 수 있게 UI 로 뺐다.
      ★ **엔진이 실제로 읽는 opt 키만** 넣는다 (engine.js 의 `num(opt.xxx, K.xxx)` 자리).
        원형2 에서 복붙한 ease/shoulderEase/dartAmount/dartRise 가 올라가 있었는데
        토르소 엔진은 그 키를 하나도 안 읽어 **입력란 4개가 전부 무동작**이었다
        (값을 바꿔도 outline 해시가 안 변한다 — 2026-08-12 QA). 화면에 있는 입력란이
        아무것도 안 하면 그건 거짓말이다. 키를 늘리려면 엔진에 `num(opt.…)` 을 먼저 넣어라. */
+  /* ★ 2026-08-14 — 목록을 **조끼 엔진의 K 로 다시 썼다.**
+     예전 목록 17개 중 **7개(dartFromCB · dartTipUp · underarmAdd · shDrop ·
+     princessOut · neckDeepAdd · cuffW · capAdd · ctrTwist)가 원피스/소매의
+     K_OLD 키**였다. 조끼 엔진은 그 키를 하나도 안 읽으므로 슬라이더를 움직여도
+     도면이 안 변했다 — 화면에 있는 입력란이 아무것도 안 하면 그건 거짓말이다.
+     engine-verify.js §6 이 이 목록을 엔진 소스의 `num(opt.…)` 와 대조한다.
+     키를 늘리려면 **엔진에 num(opt.…) 을 먼저 넣어라.**
+     단계 번호는 조끼 원문(docs/조끼-제도법-백영례.md)의 것이다. */
   var STYLE_KEYS = [
-    /* 원문(백영례 조끼 제도법)이 「2~2.5」처럼 폭을 준 자리와, 취향으로 정하는 자리.
-       ★ 엔진이 실제로 읽는 opt 키만 넣는다 (engine.js 의 `num(opt.xxx, K.xxx)` 자리). */
-    { k: 'backDart',    label: '허리 다트분',   min: 1.0, max: 4.0, step: 0.05, hint: '원문 2~2.5 · 남는 양으로 잡는 값  [8]' },
-    { k: 'dartFromCB',  label: '다트 위치',     min: 5.0, max: 13,  step: 0.1,  hint: '9번에서 나간 양(8~9) · 안으로 올수록 타이트  [18]' },
-    { k: 'dartTipUp',   label: '다트 끝 높이',  min: 0,   max: 15,  step: 0.5,  hint: 'H선에서 위로 · 원문 5  [20]' },
-    { k: 'hipEase',     label: '엉덩이 여유',   min: 0,   max: 5,   step: 0.1,  hint: '**도면 1** · 본문은 1.5  [9]' },
-    { k: 'waistEase',   label: '허리 여유',     min: 0,   max: 5,   step: 0.1,  hint: '원문 1.5  [8]' },
-    { k: 'underarmAdd', label: '겨드랑 여유',   min: 0,   max: 4,   step: 0.1,  hint: '겨드랑 = 유B/4 + 이 값 · 원문 1.5  [7]' },
-    { k: 'shDrop',      label: '어깨 기울기',   min: 1.0, max: 4.5, step: 0.1,  hint: '어깨/2 자리에서 내려오는 양 · 원문 2  [12]' },
-    { k: 'shDart',      label: '어깨 다트분',   min: 0,   max: 3,   step: 0.1,  hint: '원문 1.5  [14]' },
-    { k: 'princessOut', label: '절개 통과점',   min: 0,   max: 5,   step: 0.1,  hint: '28번에서 나간 양(2~2.5)  [16]' },
-    { k: 'armFromBW',   label: '암홀↔등품선',   min: 0,   max: 3,   step: 0.1,  hint: '42번에서 떨어지는 거리 · 원문 1  [27]' },
-    { k: 'frontShDrop', label: '앞 어깨 기울기', min: 2,  max: 8,   step: 0.1,  hint: '앞품선에서 아래로 · 원문 4.8  [32]' },
-    { k: 'neckDeepAdd', label: '앞목 깊이 가감', min: -2, max: 4,   step: 0.1,  hint: '앞목 깊이 = B/12 + 이 값 · 원문 0.5  [42]' },
-    { k: 'bpOut',       label: 'BP 다트 중심',  min: 0.5, max: 4,   step: 0.05, hint: 'BP 에서 나간 양(1.5~2)  [34]' },
-    { k: 'frontDrop',   label: '앞처짐',        min: 0,   max: 5,   step: 0.1,  hint: '3번에서 아래로 · 원문 2  [37]' },
-    { k: 'cuffW',       label: '소매부리',      min: 18,  max: 32,  step: 0.5,  hint: '원문 24 (자켓이면 26)' },
-    { k: 'capAdd',      label: '소매산 가감',   min: -3,  max: 3,   step: 0.1,  hint: '소매통에서 역산한 소매산에 더한다' },
-    { k: 'ctrTwist',    label: '소매 중심 틀기', min: 0,  max: 3,   step: 0.05, hint: '반인치 1.25 — 한 장으로 두 장 느낌  [15]' }
+    { k: 'armDepthAdd', label: '진동 깊이 가감', min: 0,  max: 4,   step: 0.1,  hint: '진동선 = B/4 + 이 값 · 원문 1.5  [2]' },
+    { k: 'cbIn',        label: '뒤중심 들임',   min: 0,   max: 3,   step: 0.1,  hint: '4·5·3 에서 나가는 양 · 원문 1.5  [5]' },
+    { k: 'chestEase',   label: '겨드랑 여유',   min: 0,   max: 4,   step: 0.05, hint: '13 = 유B/4 + 이 값 · 원문 1.5~2  [7]' },
+    { k: 'waistEase',   label: '허리 여유',     min: 0,   max: 5,   step: 0.05, hint: '18 = 17 + 이 값 · 원문 1.5~2  [9]' },
+    { k: 'hipEase',     label: '엉덩이 여유',   min: 0,   max: 5,   step: 0.1,  hint: '16 = 15 + 이 값 · 원문 1.5  [8]' },
+    { k: 'backDart',    label: '뒤 허리 다트분', min: 1.0, max: 4.0, step: 0.05, hint: '19 = 18 + 이 값 · 원문 2~2.5  [9]' },
+    { k: 'shDart',      label: '뒤 어깨 다트분', min: 0,  max: 3,   step: 0.1,  hint: '21 = 20 + 이 값 · 원문 1.5  [10]' },
+    { k: 'shDartLen',   label: '뒤 어깨 다트길이', min: 4, max: 12, step: 0.5,  hint: '40 = 다트길이 · 원문 7  [19]' },
+    { k: 'shSlope',     label: '어깨 기울기',   min: 1.0, max: 2.5, step: 0.05, hint: '22 = 12 에서 내려온 양 · 원문 1.3~1.5  [10]' },
+    { k: 'shScoop',     label: '어깨 파기',     min: 0,   max: 3,   step: 0.1,  hint: '26 = 21 에서 · 52 = 20 에서 · 원문 1.5  [12][23]' },
+    { k: 'armFromBW',   label: '암홀↔등품선',   min: 0.3, max: 1.5, step: 0.05, hint: '암홀이 27 에서 떨어지는 양 · 원문 0.5~1  [13]' },
+    { k: 'frontArmGap', label: '앞암홀↔앞품선', min: 0.2, max: 1.2, step: 0.05, hint: '앞암홀이 49 에서 떨어지는 양 · 원문 0.5  [25]' },
+    { k: 'splitIn',     label: '절개선 위치',   min: 1.5, max: 4,   step: 0.1,  hint: '28 = 11 에서 안쪽 · 원문 2~3  [14]' },
+    { k: 'hemUp',       label: '다트 끝 높이',  min: 2,   max: 12,  step: 0.5,  hint: '30·62 = 밑단에서 위로 · 원문 5  [14][27]' },
+    { k: 'neckOut',     label: '옆목 파기',     min: 0,   max: 3,   step: 0.1,  hint: '38 = 24 에서 나간 양 · 원문 1.5  [18]' },
+    { k: 'frontShDrop', label: '앞 어깨기울기 안내', min: 2, max: 8, step: 0.1, hint: '48 = 47 아래로 · 원문 4.5  [21]' },
+    { k: 'fNeckDrop',   label: '앞목 내림',     min: 0,   max: 3,   step: 0.1,  hint: '51 = 50 에서 내려온 양 · 원문 1  [22]' },
+    { k: 'fNeckOut',    label: '앞 옆목 파기',  min: 0,   max: 3,   step: 0.1,  hint: '53 = 51 에서 나간 양 · 원문 1.5  [23]' },
+    { k: 'bpOut',       label: 'BP 절개 중심',  min: 0.5, max: 4,   step: 0.05, hint: '58 = BP 에서 나간 양 · 원문 1.5~2  [26]' },
+    { k: 'frontDrop',   label: '앞처짐',        min: 0,   max: 5,   step: 0.1,  hint: '70 = 3 에서 아래로 · 원문 2.5  [38]' },
+    { k: 'frontWrap',   label: '앞여밈분',      min: 1,   max: 4,   step: 0.1,  hint: '얇은 원단 2 · 두꺼운 원단 2.5  [38]' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {
@@ -348,7 +358,6 @@
   /** 조각 구성 select 에 현재 값을 반영합니다 (2조각 / 4조각) */
   function syncSplit() {
     if (els && els.split) els.split.value = String(state.split || 0);
-    if (els && els.sleeveType) els.sleeveType.value = state.sleeveType || 'one';
   }
 
   function buildStyleFields() {
@@ -419,8 +428,7 @@
 
   var state = {
     size: '55호',
-    split: 0,              // 0 = 몸판 통짜 2조각(원본) · 1 = 프린세스 절개 4조각
-    sleeveType: 'one',     // 'one' 한 장 소매(원문) · 'two' 두 장 소매
+    split: 0,              // 0 = 몸판 통짜 2조각(원본) · 1 = 암홀라인 절개 4조각
     custom: false,
     m: null,
     printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄
@@ -469,7 +477,6 @@
     styleOpt(opt);
     for (var ok in sp.opt) if (sp.opt.hasOwnProperty(ok)) opt[ok] = sp.opt[ok];
     opt.splitPanels = state.split;      // 조각 구성(2/4)은 스타일과 함께 넘긴다
-    opt.sleeveType  = state.sleeveType; // 소매 종류(한 장/두 장)
     try {
       var d = E.draftVest(sp.m, opt);
       if (!d || !d.pieces || !d.pieces.length) throw new Error('draftVest 가 pieces 를 반환하지 않았습니다.');
@@ -936,12 +943,8 @@
      ═══════════════════════════════════════════════════════════════════ */
   function buildFields() {
     var keys = state.m ? measureKeys(state.m) : [];
-    var html = '', sleeveStarted = false;
+    var html = '';
     keys.forEach(function (k) {
-      if (SLEEVE_KEYS[k] && !sleeveStarted) {
-        sleeveStarted = true;
-        html += '<div class="fields-divider">소매</div>';
-      }
       html += '<div class="field" data-key="' + k + '">' +
         '<label for="nd_' + k + '">' + esc(labelOf(k)) +
         (FIELD_NOTE[k] ? '<span class="sublab">' + esc(FIELD_NOTE[k]) + '</span>' : '') + '</label>' +
@@ -1261,8 +1264,6 @@
   function loadPick() {
     var sp = storeGet('split');
     if (sp === 0 || sp === 1) state.split = sp;
-    var st = storeGet('sleeveType');
-    if (st === 'one' || st === 'two') state.sleeveType = st;
     var ex = storeGet('printExclude');
     if (!ex || typeof ex.length !== 'number') return;
     state.printExclude = {};
@@ -1496,12 +1497,6 @@
      이벤트
      ═══════════════════════════════════════════════════════════════════ */
   function bind() {
-    if (els.sleeveType) els.sleeveType.addEventListener('change', function () {
-      state.sleeveType = els.sleeveType.value === 'two' ? 'two' : 'one';
-      storeSet('sleeveType', state.sleeveType);
-      /* 조각이 통째로 바뀐다 (소매 1장 ↔ 큰소매+작은소매) — 인쇄 선택도 다시 맞춘다 */
-      recompute(true);
-    });
     if (els.split) els.split.addEventListener('change', function () {
       state.split = +els.split.value ? 1 : 0;
       storeSet('split', state.split);
@@ -1697,7 +1692,7 @@
       fields: $('ndFields'), resetBtn: $('ndResetBtn'), resetSize: $('ndResetSize'),
       seamPreset: $('ndSeamPreset'), seamRoles: $('ndSeamRoles'),
       seamApplied: $('ndSeamApplied'), seamAppliedSrc: $('ndSeamAppliedSrc'), seamAppliedBody: $('ndSeamAppliedBody'),
-      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), split: $('ndSplit'), sleeveType: $('ndSleeveType'),
+      styleBox: $('ndStyle'), styleReset: $('ndStyleReset'), split: $('ndSplit'),
       printMode: $('ndPrintMode'), rollRow: $('ndRollRow'), rollMaxRow: $('ndRollMaxRow'), rollMax: $('ndRollMax'), rollWidth: $('ndRollWidth'),
       overlapRow: $('ndOverlapRow'), overlap: $('ndOverlap'), calib: $('ndCalib'), printBtn: $('ndPrintBtn'),
       pdfBtn: $('ndPdfBtn'),
