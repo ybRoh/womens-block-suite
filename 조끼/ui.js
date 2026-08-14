@@ -56,6 +56,7 @@
     { k: 'armFromBW',   label: '암홀↔등품선',   min: 0.3, max: 1.5, step: 0.05, hint: '암홀이 27 에서 떨어지는 양 · 원문 0.5~1  [13]' },
     { k: 'frontArmGap', label: '앞암홀↔앞품선', min: 0.2, max: 1.2, step: 0.05, hint: '앞암홀이 49 에서 떨어지는 양 · 원문 0.5  [25]' },
     { k: 'splitIn',     label: '절개선 위치',   min: 1.5, max: 4,   step: 0.1,  hint: '28 = 11 에서 안쪽 · 원문 2~3  [14]' },
+    { k: 'splitStartAng', label: '절개선 시작각', min: 20, max: 45, step: 0.5, hint: '27a 에서 나가는 각(°) · 도면 27~34.7 · 27 밑이면 모서리 시접이 무너진다  [16]' },
     { k: 'hemUp',       label: '다트 끝 높이',  min: 2,   max: 12,  step: 0.5,  hint: '30·62 = 밑단에서 위로 · 원문 5  [14][27]' },
     { k: 'neckOut',     label: '옆목 파기',     min: 0,   max: 3,   step: 0.1,  hint: '38 = 24 에서 나간 양 · 원문 1.5  [18]' },
     { k: 'frontShDrop', label: '앞 어깨기울기 안내', min: 2, max: 8, step: 0.1, hint: '48 = 47 아래로 · 원문 4.5  [21]' },
@@ -63,7 +64,19 @@
     { k: 'fNeckOut',    label: '앞 옆목 파기',  min: 0,   max: 3,   step: 0.1,  hint: '53 = 51 에서 나간 양 · 원문 1.5  [23]' },
     { k: 'bpOut',       label: 'BP 절개 중심',  min: 0.5, max: 4,   step: 0.05, hint: '58 = BP 에서 나간 양 · 원문 1.5~2  [26]' },
     { k: 'frontDrop',   label: '앞처짐',        min: 0,   max: 5,   step: 0.1,  hint: '70 = 3 에서 아래로 · 원문 2.5  [38]' },
-    { k: 'frontWrap',   label: '앞여밈분',      min: 1,   max: 4,   step: 0.1,  hint: '얇은 원단 2 · 두꺼운 원단 2.5  [38]' }
+    { k: 'frontWrap',   label: '앞여밈분',      min: 1,   max: 4,   step: 0.1,  hint: '얇은 원단 2 · 두꺼운 원단 2.5  [38]' },
+    /* MP(형지접어줄임) — 엔진에는 있는데 화면에 없던 손잡이 (2026-08-14 최종대조) */
+    { k: 'mpAt',        label: 'MP 자리',       min: 0.2, max: 0.9, step: 0.05, hint: '35 = 암홀 위 비율 · 앞은 53~68 위 · 원문 「적당한 곳」  [17][39]' },
+    { k: 'mpBack',      label: '뒤 MP',         min: 0.3, max: 1.2, step: 0.05, hint: '35→36 접어 줄이는 양 · 원문 0.5~0.8  [17]' },
+    { k: 'mpFront',     label: '앞 MP',         min: 0.3, max: 1.5, step: 0.05, hint: '앞이 뜨는 것을 막는 양 · 원문 0.5~1  [39]' },
+    /* 안단선 — 정답지 15_앞뒤판완성이미지 의 보라선 (본문에는 없다) */
+    { k: 'facingSh',    label: '안단 어깨',     min: 2,   max: 8,   step: 0.1,  hint: '어깨선 위 · 옆목점에서 · 도면 4~5  [15]' },
+    { k: 'facingCf',    label: '안단 앞단',     min: 4,   max: 10,  step: 0.1,  hint: '앞단(여밈선)에서 안으로 · 도면 6~7  [15]' },
+    { k: 'facingBk',    label: '안단 뒤중심',   min: 3,   max: 10,  step: 0.1,  hint: '2번에서 아래로 (뒷목 안단) · 도면 6~7  [15]' },
+    { k: 'facingHemS',  label: '밑단안단 옆',   min: 3,   max: 14,  step: 0.5,  hint: '옆선에서 위로 · 앞뒤 공통 · 도면 9  [15]' },
+    { k: 'facingHemCf', label: '밑단안단 앞중심', min: 4, max: 18,  step: 0.5,  hint: '여밈선에서 위로 · 도면 12  [15]' },
+    { k: 'facingHemCb', label: '밑단안단 뒤중심', min: 3, max: 14,  step: 0.5,  hint: '뒤중심에서 위로 · 도면 8  [15]' },
+    { k: 'facingHemF',  label: '밑단안단 꼭짓점', min: 2, max: 10,  step: 0.5,  hint: '안단선과 만나는 자리의 높이 · 도면 4.5  [15]' }
   ];
   /** 기본값은 **엔진 K 에서 읽는다** — UI 에 숫자를 또 적으면 엔진과 어긋난다 */
   function styleDefaults() {
