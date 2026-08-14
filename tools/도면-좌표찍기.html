@@ -38,7 +38,8 @@ canvas{position:absolute;inset:0;cursor:crosshair}
 <aside>
   <h1>도면 좌표 찍기</h1>
   <p class="hint">교재 도면 위에서 번호점을 클릭해 <b>정답지</b>를 만듭니다.
-    보정점을 찍고 그 <b>제도 좌표</b>를 적으면 축척·회전·거울이 자동으로 풀립니다.<br>
+    보정점을 찍고 그 <b>제도 좌표</b>를 적으면 축척·회전·거울이 자동으로 풀립니다.
+    도면이 비균등하게 늘어났으면 <b>어파인</b>으로 바꾸세요(가로·세로 축척이 달라도 맞춥니다).<br>
     <b>보정점은 3개 이상, 한 직선에서 벗어나게</b> — 일직선이면 거울 여부가 안 갈립니다.</p>
 
   <h2>① 도면 이미지</h2>
@@ -55,6 +56,10 @@ canvas{position:absolute;inset:0;cursor:crosshair}
 
   <h2>③ 보정점 <span id="calN" style="color:var(--mu)"></span></h2>
   <table id="calT"><thead><tr><th>#</th><th>제도 x</th><th>제도 y</th><th></th></tr></thead><tbody></tbody></table>
+  <div class="modes" style="margin-top:8px">
+    <button id="mdSim" class="on">닮음 (축척 하나)</button>
+    <button id="mdAff">어파인 (가로·세로 다름)</button>
+  </div>
   <div id="res">보정점을 3개 이상 찍으세요 (한 직선 위에 두지 말 것).</div>
 
   <h2>④ 번호점</h2>
@@ -90,57 +95,105 @@ var cal=[], pts=[], curves=[], curCv=null, overlay=null, T=null;
 var $=function(id){return document.getElementById(id);};
 
 /* ── 좌표 변환 ────────────────────────────────────────────────────────
-   보정점 (픽셀 p, 제도 q) 들로 **닮음변환**을 최소제곱으로 푼다.
-   복소수로 두면 회전+축척이 곱 하나다:  w = a·z + b   (거울이면 z 대신 conj(z))
-   두 경우를 다 풀어 잔차가 작은 쪽을 고른다 — **거울 여부가 자동으로 결정된다.** */
-function solve(){
-  if(cal.length<2){T=null;return null;}
+   보정점 (픽셀 p, 제도 q) 로 변환을 최소제곱으로 푼다. 두 모형을 다 푼다:
+
+     닮음(similarity) — 축척 하나 · 회전 · 이동 · 거울.  점 2개면 풀린다.
+     어파인(affine)   — 가로·세로 **축척이 달라도** 되고 기울어짐도 흡수. 점 3개.
+
+   ★ 스캔·재작도된 도면은 **비균등하게 늘어나 있는 경우가 있다.**
+     원피스 뒤판이 그랬다 — 열 간격으로 잰 축척 23.3 px/cm 와 뒤중심선으로 잰
+     28.7 px/cm 가 23% 달랐다. 닮음으로는 절대 안 맞고, 억지로 맞추면 정답지가 틀린다.
+   ⚠ 어파인은 점 3개면 **항상 잔차 0** 이다(미지수 6 = 식 6). 과적합이니
+     **4개 이상** 찍어서 잔차를 봐야 의미가 있다. 도구가 그렇게 경고한다.
+   ⚠ 거울 여부는 두 모형 다 **보정점이 삼각형일 때만** 결정된다(det 부호).
+     일직선이면 판별 불능 — 아래 tri 지수로 경고한다.                        */
+var MODEL='sim';                                  // 'sim' | 'aff'
+
+function mat(M,t,p){ return [M[0]*p[0]+M[1]*p[1]+t[0], M[2]*p[0]+M[3]*p[1]+t[1]]; }
+function inv(M,t){ var det=M[0]*M[3]-M[1]*M[2];
+  if(Math.abs(det)<1e-12) return null;
+  var I=[M[3]/det,-M[1]/det,-M[2]/det,M[0]/det];
+  return {M:I, t:[-(I[0]*t[0]+I[1]*t[1]), -(I[2]*t[0]+I[3]*t[1])]}; }
+/** 2×2 의 특이값 — 긴 축/짧은 축 축척. 비등방 비율 = s1/s2 */
+function sv(M){ var a=M[0],b=M[1],c=M[2],d=M[3];
+  var E=(a*a+b*b+c*c+d*d)/2, F=(a*a+b*b-c*c-d*d)/2, G=a*c+b*d;
+  var q=Math.sqrt(F*F+G*G);
+  return [Math.sqrt(Math.max(E+q,0)), Math.sqrt(Math.max(E-q,0))]; }
+function resid(M,t){ var r=0;
+  cal.forEach(function(k){ var g=mat(M,t,k.px); r=Math.max(r,Math.hypot(g[0]-k.xy[0],g[1]-k.xy[1])); });
+  return r; }
+
+function solveSim(){
+  if(cal.length<2) return null;
   function fit(conj){
     var n=cal.length, zr=0,zi=0,wr=0,wi=0,i;
     for(i=0;i<n;i++){ zr+=cal[i].px[0]; zi+=(conj?-1:1)*cal[i].px[1]; wr+=cal[i].xy[0]; wi+=cal[i].xy[1]; }
     zr/=n; zi/=n; wr/=n; wi/=n;
-    var nr=0,ni=0,d=0;
+    var nr=0,ni=0,dd=0;
     for(i=0;i<n;i++){
       var a=cal[i].px[0]-zr, b=(conj?-1:1)*cal[i].px[1]-zi;
       var c=cal[i].xy[0]-wr, e=cal[i].xy[1]-wi;
-      nr+=a*c+b*e; ni+=a*e-b*c; d+=a*a+b*b;
+      nr+=a*c+b*e; ni+=a*e-b*c; dd+=a*a+b*b;
     }
-    if(d<1e-9) return null;
-    var ar=nr/d, ai=ni/d;
+    if(dd<1e-9) return null;
+    var ar=nr/dd, ai=ni/dd;
     var br=wr-(ar*zr-ai*zi), bi=wi-(ar*zi+ai*zr);
-    var r=0;
-    for(i=0;i<n;i++){
-      var x=cal[i].px[0], y=(conj?-1:1)*cal[i].px[1];
-      var gx=ar*x-ai*y+br, gy=ar*y+ai*x+bi;
-      r=Math.max(r, Math.hypot(gx-cal[i].xy[0], gy-cal[i].xy[1]));
-    }
-    return {ar:ar,ai:ai,br:br,bi:bi,conj:conj,res:r};
+    var M = conj ? [ar,ai,ai,-ar] : [ar,-ai,ai,ar];
+    return {M:M, t:[br,bi], res:resid(M,[br,bi])};
   }
   var A=fit(false), B=fit(true);
-  var best = (!A)?B : (!B)?A : (A.res<=B.res?A:B);
-  /* ★ 거울 여부는 보정점이 **삼각형을 이룰 때만** 결정된다.
-     일직선(예: 앞중심선 위의 점들만) 이면 정상/거울 잔차가 **둘 다 0** 이라
-     한쪽을 고를 수 없고, 조각이 통째로 뒤집힌 채 통과한다.
-     — 이번 원피스 소매가 정확히 그렇게 거울상으로 나갔다 (2026-08-14). */
+  var best=(!A)?B:(!B)?A:(A.res<=B.res?A:B);
+  if(!best) return null;
+  best.kind='sim'; best.resA=A?A.res:null; best.resB=B?B.res:null;
+  return best;
+}
+/** 3×3 정규방정식 — [Σx² Σxy Σx; Σxy Σy² Σy; Σx Σy n] · [a b e]ᵀ = [ΣxX ΣyX ΣX]ᵀ */
+function lsq3(getT){
+  var n=cal.length, sxx=0,sxy=0,syy=0,sx=0,sy=0,sxt=0,syt=0,st=0,i;
+  for(i=0;i<n;i++){ var x=cal[i].px[0], y=cal[i].px[1], t=getT(cal[i]);
+    sxx+=x*x; sxy+=x*y; syy+=y*y; sx+=x; sy+=y; sxt+=x*t; syt+=y*t; st+=t; }
+  var A=[[sxx,sxy,sx],[sxy,syy,sy],[sx,sy,n]], B=[sxt,syt,st];
+  for(i=0;i<3;i++){                                   // 가우스 소거 (부분 피벗)
+    var p=i; for(var r=i+1;r<3;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r;
+    if(Math.abs(A[p][i])<1e-12) return null;
+    var tm=A[i];A[i]=A[p];A[p]=tm; var tb=B[i];B[i]=B[p];B[p]=tb;
+    for(var r2=i+1;r2<3;r2++){ var f=A[r2][i]/A[i][i];
+      for(var c2=i;c2<3;c2++) A[r2][c2]-=f*A[i][c2]; B[r2]-=f*B[i]; }
+  }
+  var out=[0,0,0];
+  for(i=2;i>=0;i--){ var v=B[i]; for(var c3=i+1;c3<3;c3++) v-=A[i][c3]*out[c3]; out[i]=v/A[i][i]; }
+  return out;
+}
+function solveAff(){
+  if(cal.length<3) return null;
+  var X=lsq3(function(k){return k.xy[0];}), Y=lsq3(function(k){return k.xy[1];});
+  if(!X||!Y) return null;
+  var M=[X[0],X[1],Y[0],Y[1]], t=[X[2],Y[2]];
+  return {kind:'aff', M:M, t:t, res:resid(M,t)};
+}
+function solve(){
+  var S=solveSim(), A=solveAff();
+  var t = (MODEL==='aff') ? (A||S) : (S||A);
+  if(!t){ T=null; SIM=S; AFF=A; return null; }
+  /* 보정점이 삼각형인가 — 거울(det 부호)을 결정할 수 있는 조건 */
   var area=0, mxd=0, i, j, k;
   for(i=0;i<cal.length;i++) for(j=i+1;j<cal.length;j++){
     mxd=Math.max(mxd,Math.hypot(cal[i].px[0]-cal[j].px[0],cal[i].px[1]-cal[j].px[1]));
-    for(k=j+1;k<cal.length;k++){
-      var P=cal[i].px,Q=cal[j].px,R=cal[k].px;
-      area=Math.max(area,Math.abs((Q[0]-P[0])*(R[1]-P[1])-(Q[1]-P[1])*(R[0]-P[0]))/2);
-    }
+    for(k=j+1;k<cal.length;k++){ var P=cal[i].px,Q=cal[j].px,R=cal[k].px;
+      area=Math.max(area,Math.abs((Q[0]-P[0])*(R[1]-P[1])-(Q[1]-P[1])*(R[0]-P[0]))/2); }
   }
-  best.tri = mxd>0 ? area/(mxd*mxd) : 0;
-  best.resA = A?A.res:null; best.resB = B?B.res:null;
-  T=best; return best;
+  t.tri = mxd>0 ? area/(mxd*mxd) : 0;
+  var det=t.M[0]*t.M[3]-t.M[1]*t.M[2];
+  t.conj = det<0;
+  var s=sv(t.M);
+  t.s1=1/(s[1]||1e-9); t.s2=1/(s[0]||1e-9);          // px/cm (긴 축 · 짧은 축)
+  t.aniso = (s[1]>1e-12) ? s[0]/s[1] : Infinity;
+  t.rot = Math.atan2(t.M[2],t.M[0])*180/Math.PI;
+  SIM=S; AFF=A; T=t; return t;
 }
-function toXY(px){ if(!T)return null; var x=px[0], y=(T.conj?-1:1)*px[1];
-  return [T.ar*x-T.ai*y+T.br, T.ar*y+T.ai*x+T.bi]; }
-function toPX(xy){ if(!T)return null;
-  var d=T.ar*T.ar+T.ai*T.ai; if(d<1e-12)return null;
-  var u=xy[0]-T.br, v=xy[1]-T.bi;
-  var x=(T.ar*u+T.ai*v)/d, y=(T.ar*v-T.ai*u)/d;
-  return [x,(T.conj?-1:1)*y]; }
+var SIM=null, AFF=null;
+function toXY(px){ return T ? mat(T.M,T.t,px) : null; }
+function toPX(xy){ if(!T)return null; var I=inv(T.M,T.t); return I?mat(I.M,I.t,xy):null; }
 
 /* ── 그리기 ─────────────────────────────────────────────────────── */
 function resize(){ cv.width=cv.clientWidth*devicePixelRatio; cv.height=cv.clientHeight*devicePixelRatio; draw(); }
@@ -181,18 +234,22 @@ function render(){
   var el=$('res');
   if(!t){ el.className=''; el.textContent='보정점을 2개 이상 찍으세요.'; }
   else{
-    var flat = t.tri < 0.02;                       // 보정점이 거의 일직선
-    var ok = t.res<=0.25 && !flat && cal.length>=3;
+    var flat = t.tri < 0.02;
+    var over = (t.kind==='aff' && cal.length<4);      // 어파인은 점 3개면 항상 잔차 0
+    var ok = t.res<=0.25 && !flat && cal.length>=3 && !over;
     el.className = ok?'ok':'no';
-    var msg='잔차 <b>'+t.res.toFixed(3)+'</b> cm · 축척 '+
-      (1/Math.hypot(t.ar,t.ai)).toFixed(2)+' px/cm · 회전 '+
-      (Math.atan2(t.ai,t.ar)*180/Math.PI).toFixed(1)+'° · '+(t.conj?'<b>거울</b>':'정상');
-    if(cal.length<3) msg+='<br>⚠ 보정점이 2개뿐 — <b>거울 여부를 결정할 수 없습니다.</b> 3개 이상, 한 직선에서 벗어나게 찍으세요.';
+    var msg = (t.kind==='aff'?'<b>어파인</b>':'닮음')+' · 잔차 <b>'+t.res.toFixed(3)+'</b> cm'+
+      '<br>축척 '+t.s1.toFixed(2)+' / '+t.s2.toFixed(2)+' px/cm'+
+      (t.aniso>1.02 ? ' · <b>비등방 '+((t.aniso-1)*100).toFixed(0)+'%</b>' : ' · 균등')+
+      ' · 회전 '+t.rot.toFixed(1)+'° · '+(t.conj?'<b>거울</b>':'정상');
+    if(SIM&&AFF) msg+='<br><span style="color:var(--mu)">닮음 잔차 '+SIM.res.toFixed(3)+
+      ' · 어파인 '+AFF.res.toFixed(3)+' (점 '+cal.length+'개)</span>';
+    if(cal.length<3) msg+='<br>⚠ 보정점이 2개뿐 — <b>거울 여부를 결정할 수 없습니다.</b> 3개 이상, 삼각형으로 찍으세요.';
     else if(flat) msg+='<br>⚠ 보정점이 <b>거의 일직선</b>입니다 (삼각형 지수 '+t.tri.toFixed(3)+
-      '). 거울 여부가 안 갈립니다 — 중심선에서 떨어진 점을 하나 더 찍으세요.';
-    else if(t.res>0.25) msg+='<br>⚠ 잔차가 큽니다 — 보정점 좌표를 확인하세요.';
-    else msg+='<br>정상 잔차 '+t.resA.toFixed(2)+' vs 거울 '+t.resB.toFixed(2)+
-      ' — 차이가 클수록 확실합니다.';
+      '). 거울이 안 갈립니다 — 중심선에서 떨어진 점을 하나 더 찍으세요.';
+    else if(over) msg+='<br>⚠ 어파인은 점 3개면 <b>항상 잔차 0</b>(과적합)입니다. <b>4개 이상</b> 찍어야 의미가 있습니다.';
+    else if(t.res>0.25) msg+='<br>⚠ 잔차가 큽니다 — 보정점 좌표를 확인하거나, 비등방이면 <b>어파인</b>으로 바꿔 보세요.';
+    else if(SIM&&AFF&&SIM.res>0.25&&AFF.res<=0.25) msg+='<br>※ 닮음으로는 안 맞고 어파인으로는 맞습니다 — <b>도면이 비균등하게 늘어난 것</b>입니다.';
     el.innerHTML=msg;
   }
   $('calN').textContent=cal.length?'('+cal.length+')':'';
@@ -284,6 +341,8 @@ function setMode(m){ mode=m;
   $('modeHelp').innerHTML=HELP[m]; }
 $('mCal').onclick=function(){setMode('cal');}; $('mPt').onclick=function(){setMode('pt');};
 $('mCv').onclick=function(){setMode('cv');};
+$('mdSim').onclick=function(){ MODEL='sim'; $('mdSim').className='on'; $('mdAff').className=''; render(); };
+$('mdAff').onclick=function(){ MODEL='aff'; $('mdAff').className='on'; $('mdSim').className=''; render(); };
 $('cvNew').onclick=function(){ var nm=$('cvName').value.trim(); if(!nm)return alert('곡선 이름을 적으세요');
   curCv={name:nm,px:[]}; curves.push(curCv); $('cvName').value=''; setMode('cv'); render(); };
 
@@ -303,8 +362,9 @@ $('ovClr').onclick=function(){ overlay=null; render(); };
 $('exp').onclick=function(){
   var t=solve(); if(!t) return alert('보정점을 2개 이상 찍으세요.');
   var out={ image:$('url').value.trim()||null, unit:'cm',
-    transform:{scale_px_per_cm:1/Math.hypot(t.ar,t.ai), rotation_deg:Math.atan2(t.ai,t.ar)*180/Math.PI,
-               mirrored:t.conj, residual_cm:+t.res.toFixed(4)},
+    transform:{model:t.kind, scale_px_per_cm:+t.s1.toFixed(3), scale2_px_per_cm:+t.s2.toFixed(3),
+               anisotropy:+t.aniso.toFixed(4), rotation_deg:+t.rot.toFixed(2),
+               mirrored:t.conj, residual_cm:+t.res.toFixed(4), n_calib:cal.length},
     calib:cal.map(function(c){return {px:c.px.map(r2),xy:c.xy};}),
     points:{}, curves:{} };
   pts.forEach(function(p){ var q=toXY(p.px); if(q) out.points[p.name]=[r2(q[0]),r2(q[1])]; });
