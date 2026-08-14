@@ -18,6 +18,14 @@
 'use strict';
 var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
 
+/* ★ 두 가지로 쓴다 —
+ *   ① 단독 실행:  node dart-verify.js
+ *   ② engine-verify.js 안에서:
+ *        var DV = require('./dart-verify.js');
+ *        var r = DV.run();          // { fails, warns } 를 돌려준다
+ *   검사를 한 군데에만 두려고 이렇게 했다. 복붙하면 한쪽만 고쳐지고 다른 쪽은
+ *   낡은 채 통과한다 — 이 프로젝트에서 이미 겪은 실수다. */
+function run() {
 var fails = 0, warns = 0;
 function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
 function f(v, w, d) { var s = (+v).toFixed(d === undefined ? 2 : d); while (s.length < w) s = ' ' + s; return s; }
@@ -207,8 +215,19 @@ head('6. 다트 다리 너치 — 접는 자리 표시');
 })();
 
 console.log('');
-console.log('════════════════════════════════════════════════════════════');
-console.log(fails ? ' 실패 ' + fails + '건' + (warns ? ' · 참고 ' + warns + '건' : '')
-                  : ' 전체 통과' + (warns ? ' · 참고 ' + warns + '건' : ''));
-console.log('════════════════════════════════════════════════════════════');
-process.exit(fails ? 1 : 0);
+console.log('  다트 검사 — ' + (fails ? '실패 ' + fails + '건' : '전체 통과') +
+            (warns ? ' · 참고 ' + warns + '건' : ''));
+return { fails: fails, warns: warns };
+}
+
+module.exports = { run: run };
+/* 단독 실행일 때만 바로 돌리고 종료코드를 낸다 */
+if (require.main === module) {
+  var r = run();
+  console.log('');
+  console.log('════════════════════════════════════════════════════════════');
+  console.log(r.fails ? ' 실패 ' + r.fails + '건' + (r.warns ? ' · 참고 ' + r.warns + '건' : '')
+                      : ' 전체 통과' + (r.warns ? ' · 참고 ' + r.warns + '건' : ''));
+  console.log('════════════════════════════════════════════════════════════');
+  process.exit(r.fails ? 1 : 0);
+}
