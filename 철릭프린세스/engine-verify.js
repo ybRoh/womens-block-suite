@@ -1,0 +1,241 @@
+/* ============================================================================
+ * engine-verify.js — 철릭 프린세스 검산
+ *
+ *   이 모듈은 **DXF 도면(`철릭프린세스.dxf` · 66호반 한 벌)을 읽어 공식화한 엔진**이다.
+ *   그래서 검산은 두 가지를 본다:
+ *     ① 66호반에서 **도면과 같은가** (조각 크기 · 허리폭 · 주름 개수 · 랜드마크)
+ *     ② 전 호수에서 **옷으로 성립하는가** (어깨 짝 · 주름 접은 뒤 허리 · 단조성)
+ *
+ *   ⚠ 도면이 한 호수뿐이므로 **좌표를 맞추는 것이 목적이 아니다.**
+ *     엔진은 `B/4 + 상수` · `어깨너비/2` · `B/12` 같은 식으로 세워져 있고,
+ *     여기서는 그 식이 66호반에서 도면을 재현하는지만 확인한다.
+ *
+ *   조각 품질(폐곡선·점 간격·너치·시접·제도선)은 루트의 `suite-verify.js` 가 건다.
+ *
+ *   실행: node engine-verify.js     (실패가 있으면 종료코드 1)
+ * ==========================================================================*/
+'use strict';
+var fs = require('fs'), path = require('path');
+var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
+var GT = JSON.parse(fs.readFileSync(path.join(__dirname, 'cheollik-665-groundtruth.json'), 'utf8'));
+
+var fails = 0, warns = 0;
+function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+function f(v, w, d) { var s = (+v).toFixed(d === undefined ? 2 : d); while (s.length < w) s = ' ' + s; return s; }
+function ok(name, pass, detail, soft) {
+  if (!pass) { if (soft) warns++; else fails++; }
+  console.log('  ' + (pass ? '✓ ' : soft ? '⚠ ' : '✗ ') + pad(name, 22) + detail);
+}
+
+/* ══ 1. 66호반 도면 대조 ═══════════════════════════════════════════════ */
+console.log('════════════════════════════════════════════════════════════');
+console.log(' 1. 66호반 도면 대조 — 식이 도면을 재현하는가');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var m = E.measuresForSize('66호반');
+  var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), M = d.measures;
+  var P = {}; d.pieces.forEach(function (p) { P[p.name] = p; });
+  /* 몸판은 절개했으므로 조각 크기를 도면과 직접 못 견준다 — 소매·깃·치마만 본다.
+     몸판은 아래 §1-B 「자르기 전과 같은 옷인가」가 기본형과 대조한다. */
+  ['긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
+    var p = P[k], t = GT.pieces[k];
+    var dw = p.bbox.w - t.w, dh = p.bbox.h - t.h;
+    ok('크기 ' + k, Math.abs(dw) <= 1.2 && Math.abs(dh) <= 1.2,
+       f(p.bbox.w, 6) + '×' + f(p.bbox.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
+       ' · 차 ' + f(dw, 5) + ' / ' + f(dh, 5));
+  });
+  /* 몸판 높이는 절개해도 안 변한다 — 도면과 견줄 수 있는 유일한 몸판 치수다 */
+  ['뒷면', '뒷옆면'].forEach(function (k) {
+    ok('높이 ' + k, Math.abs(P[k].bbox.h - GT.pieces['뒷판'].h) <= 2.2,
+       f(P[k].bbox.h, 6) + '  기본형 뒷판 ' + f(GT.pieces['뒷판'].h, 6));
+  });
+  var LM = GT.landmark;
+  ok('뒤 허리폭', Math.abs(M.backWaistW - LM['뒷판']['허리폭']) <= 0.05,
+     f(M.backWaistW, 6) + '  도면 ' + f(LM['뒷판']['허리폭'], 6));
+  ok('앞 허리폭', Math.abs(M.frontWaistW - LM['앞판']['허리폭']) <= 0.05,
+     f(M.frontWaistW, 6) + '  도면 ' + f(LM['앞판']['허리폭'], 6));
+  ok('뒷목너비', Math.abs(g.bNeckW - LM['뒷판']['뒷목너비']) <= 0.05,
+     f(g.bNeckW, 6) + '  도면 ' + f(LM['뒷판']['뒷목너비'], 6));
+  ok('어깨점 x', Math.abs(g.bSP[0] - LM['뒷판']['어깨점'][0]) <= 0.05,
+     f(g.bSP[0], 6) + '  도면 ' + f(LM['뒷판']['어깨점'][0], 6) + ' (= 어깨너비/2)');
+  ok('겨드랑 높이', Math.abs((g.bTotal - g.bU[1]) - (LM['뒷판']['겨드랑'][1])) <= 0.15,
+     f(g.bTotal - g.bU[1], 6) + '  도면 ' + f(LM['뒷판']['겨드랑'][1], 6) + ' (허리에서)');
+  /* ★ 주름 — 이 옷의 핵심. 개수가 도면과 같아야 한다 */
+  ok('뒷치마 주름 개수', M.backPleats === GT.pleat.back.n,
+     M.backPleats + '개 · 폭 ' + f(M.backSkirtW, 6) + '  도면 ' + GT.pleat.back.n + '개 · ' + f(GT.pleat.back.skirtW, 6));
+  ok('앞치마 주름 개수', M.frontPleats === GT.pleat.front.n,
+     M.frontPleats + '개 · 폭 ' + f(M.frontSkirtW, 6) + '  도면 ' + GT.pleat.front.n + '개 · ' + f(GT.pleat.front.skirtW, 6));
+  /* ★ 주름분은 **앞뒤가 다르다** — 치마폭 = 허리폭 + 개수 × 주름분 으로 역산한 값이다 */
+  ok('주름분 뒤/앞', Math.abs(K.pleatDepthB - GT.pleat.depthBack) < 5e-4 &&
+     Math.abs(K.pleatDepthF - GT.pleat.depthFront) < 5e-4,
+     f(K.pleatDepthB, 6, 4) + ' / ' + f(K.pleatDepthF, 6, 4) +
+     '  도면 ' + GT.pleat.depthBack + ' / ' + GT.pleat.depthFront);
+  ok('주름 간격', Math.abs(K.pleatStep - GT.pleat.step) < 1e-9,
+     f(K.pleatStep, 5) + '  도면 ' + GT.pleat.step);
+  ok('소매 진동 · 수구', Math.abs(g.sleeveAH - GT.landmark['긴소매']['진동']) <= 0.05 &&
+     Math.abs(g.cuffW - GT.landmark['긴소매']['수구']) <= 0.05,
+     f(g.sleeveAH, 6) + ' / ' + f(g.cuffW, 5) + '  도면 ' + GT.landmark['긴소매']['진동'] + ' / ' + GT.landmark['긴소매']['수구']);
+  /* 기본형 9장에서 몸판 2장이 4장으로 갈려 **11장** 이다 */
+  ok('조각 구성', d.pieces.length === 11 &&
+     ['뒷면', '뒷옆면', '앞옆면', '앞면'].every(function (k) { return !!P[k]; }),
+     d.pieces.length + '장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
+  /* ★ **외곽선 전체를 도면과 겹쳐 잰다** — bbox 만 맞고 모양이 다를 수 있다.
+     정답지의 SPLINE 은 제어점이 아니라 **de Boor 로 평가한 실제 곡선**이다.
+     곡선 앵커를 **실제 곡선에서 촘촘히** 뽑고 주름분을 앞뒤로 나눈 뒤로
+     전 조각이 **0.35 이내**로 들어왔다
+     (뒷판 0.09 · 앞판 0.28 · 소매 0.32 · 깃 0.08 · 앞치마 0.04 · 뒷치마 0.04).
+     ⚠ 상한을 0.4 로 죈다 — 곡선을 건드리다 각지면 여기서 바로 걸린다. */
+  (function () {
+    function norm(pts) {
+      var mnx = Math.min.apply(null, pts.map(function (q) { return q[0]; }));
+      var mny = Math.min.apply(null, pts.map(function (q) { return q[1]; }));
+      var r = pts.map(function (q) { return [q[0] - mnx, q[1] - mny]; });
+      r.push(r[0]); return r;
+    }
+    function dev(A, B) {
+      var mx = 0;
+      A.forEach(function (a) {
+        var b = 1e9;
+        for (var i = 1; i < B.length; i++) {
+          var p = B[i - 1], q = B[i], dx = q[0] - p[0], dy = q[1] - p[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((a[0] - p[0]) * dx + (a[1] - p[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var e = Math.hypot(a[0] - (p[0] + t * dx), a[1] - (p[1] + t * dy));
+          if (e < b) b = e;
+        }
+        if (b > mx) mx = b;
+      });
+      return mx;
+    }
+    /* 몸판은 절개했으므로 도면 외곽선과 직접 못 겹친다 — §1-B 가 기본형과 대조한다 */
+    ['긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
+      var a = norm(P[k].outline), b = norm(GT.pieces[k].outline);
+      var e = Math.max(dev(a, b), dev(b, a));
+      ok('외곽선 ' + k, e <= 0.4, '최대 편차 ' + f(e, 5) + ' cm');
+    });
+  })();
+})();
+
+/* ══ 1-B. 자르기 전과 같은 옷인가 — **기본형과 대조** ═════════════════════
+ *   철릭은 다트가 없으므로 프린세스 절개선은 **순수한 분할선**이다.
+ *   두 조각을 도로 붙이면 기본형 몸판과 한 치도 달라선 안 된다.
+ *   이 검사가 이 모듈의 존재 이유다 — 「절개가 치수를 먹었나」를 잡는다.
+ * ==========================================================================*/
+console.log('');
+console.log('════════════════════════════════════════════════════════════');
+console.log(' 1-B. 자르기 전과 같은 옷인가 — 철릭 기본형과 대조');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var BASE;
+  try { BASE = require('../철릭기본형/engine.js'); }
+  catch (e) { ok('기본형 로드', false, '../철릭기본형/engine.js 를 못 읽는다: ' + e.message); return; }
+  function len(segs) { var p = U.sampleSegs(segs, 0.01), t = 0;
+    for (var i = 1; i < p.length; i++) t += V.dist(p[i], p[i - 1]); return t; }
+  E.SIZES.forEach(function (sz) {
+    var m = E.measuresForSize(sz), g = E.geom(m), b = BASE.geom(BASE.measuresForSize(sz));
+    var bad = [];
+    /* ① 어깨선 — 두 조각 합 = 기본형 */
+    var shB = V.dist(g.bSNP, g.bPrin.top) + V.dist(g.bPrin.top, g.bSP);
+    var shF = V.dist(g.fSNP, g.fPrin.top) + V.dist(g.fPrin.top, g.fSP);
+    if (Math.abs(shB - V.dist(b.bSNP, b.bSP)) > 0.01) bad.push('뒤 어깨 ' + shB.toFixed(3));
+    if (Math.abs(shF - V.dist(b.fSNP, b.fSP)) > 0.01) bad.push('앞 어깨 ' + shF.toFixed(3));
+    /* ② 허리선 — 두 조각 합 = 기본형 허리폭 */
+    var wB = Math.abs(g.bPrin.waist[0] - g.bHem[0]) + Math.abs(g.bWaist[0] - g.bPrin.waist[0]);
+    var wF = Math.abs(g.fPrin.waist[0] - g.fCf[0]) + Math.abs(g.fWaist[0] - g.fPrin.waist[0]);
+    if (Math.abs(wB - b.bWaist[0]) > 0.01) bad.push('뒤 허리 ' + wB.toFixed(3) + ' ≠ ' + b.bWaist[0].toFixed(3));
+    if (Math.abs(wF - b.fWaistW) > 0.01) bad.push('앞 허리 ' + wF.toFixed(3) + ' ≠ ' + b.fWaistW.toFixed(3));
+    /* ③ 절개선 짝 — 같은 곡선을 공유하므로 0 이라야 한다 */
+    var pB = Math.abs(len(g.bPrin.segs) - len(U.revSegs(g.bPrin.segs)));
+    var pF = Math.abs(len(g.fPrin.segs) - len(U.revSegs(g.fPrin.segs)));
+    if (pB > 1e-6 || pF > 1e-6) bad.push('절개선 짝 ' + pB.toFixed(6) + '/' + pF.toFixed(6));
+    /* ④ 절개선이 조각 안에 있나 — 어깨 2등분 · 허리 비율이 0~1 밖으로 나가면 조각이 뒤집힌다 */
+    if (!(g.bPrin.waist[0] > 0.5 && g.bPrin.waist[0] < b.bWaist[0] - 0.5)) bad.push('뒤 절개선이 조각 밖');
+    if (!(g.fPrin.waist[0] > 0.5 && g.fPrin.waist[0] < b.fWaistW - 0.5)) bad.push('앞 절개선이 조각 밖');
+    ok(sz, !bad.length, bad.length ? bad.join(' · ')
+      : '어깨 ' + shB.toFixed(2) + '/' + shF.toFixed(2) + ' · 허리 ' + wB.toFixed(2) + '/' + wF.toFixed(2) +
+        ' · 절개짝 0 · 기본형과 같다');
+  });
+})();
+
+/* ══ 2. 전 호수 — 옷으로 성립하는가 ════════════════════════════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 2. 전 호수 — 옷으로 성립하는가');
+console.log('════════════════════════════════════════════════════════════');
+console.log('   ★ 철릭의 핵심 제약: **주름을 접으면 치마 허리 = 몸판 허리**');
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz);
+  var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), M = d.measures, bad = [];
+  function chk(c, msg) { if (!c) bad.push(msg); }
+  /* 주름을 접은 뒤 치마 허리폭 = 몸판 허리폭 */
+  /* ⚠ 주름분은 **앞뒤가 다르다** — 한쪽 값으로 둘 다 검사하면 앞이 늘 틀린 것처럼 보인다 */
+  var bFold = M.backSkirtW - M.backPleats * M.pleatDepthBack;
+  var fFold = M.frontSkirtW - M.frontPleats * M.pleatDepthFront;
+  chk(Math.abs(bFold - M.backWaistW) < 0.05, '뒷치마 접은 뒤 ' + bFold.toFixed(2) + ' ≠ 허리 ' + M.backWaistW);
+  chk(Math.abs(fFold - M.frontWaistW) < 0.05, '앞치마 접은 뒤 ' + fFold.toFixed(2) + ' ≠ 허리 ' + M.frontWaistW);
+  /* 어깨는 앞뒤가 같아야 꿰맨다 */
+  chk(Math.abs(M.shoulderBack - M.shoulderFront) < 0.15,
+      '어깨 짝 ' + M.shoulderBack + ' ↔ ' + M.shoulderFront);
+  /* 식이 지켜지는가 — 좌표가 아니라 식을 검사한다 */
+  chk(Math.abs(g.bWaist[0] - (m.B / 4 + K.bWaistAdd)) < 1e-6, '뒤 허리폭 식이 안 맞는다');
+  chk(Math.abs(g.fWaist[0] - (m.B / 4 + K.frontWrap)) < 1e-6, '앞 허리폭 식이 안 맞는다');
+  chk(Math.abs(g.bNeckW - (m.B / 12 + K.backNeckAdd)) < 1e-6, '뒷목너비 식이 안 맞는다');
+  chk(Math.abs(g.bSP[0] - (m.shoulderW / 2 - K.shoulderSub)) < 1e-6, '어깨점 식이 안 맞는다');
+  /* 소매가 진동에 붙을 수 있는가 (한복은 아래를 겨드랑으로 처리하므로 0.55~1.05) */
+  var rat = g.sleeveAH / Math.max(M.armholeTotal, 0.1);
+  chk(rat > 0.55 && rat < 1.05, '소매 진동/몸판 진동 ' + rat.toFixed(2));
+  /* V 네크라인이 어깨선 위로 올라가면 안 된다 */
+  chk(g.vBot[1] > g.fSNP[1] + 2.0, 'V 바닥이 목옆점에 너무 가깝다');
+  if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 6) +
+    '허리 뒤/앞 ' + f(M.backWaistW, 6) + '/' + f(M.frontWaistW, 6) +
+    ' · 치마 ' + f(M.backSkirtW, 6) + '(' + M.backPleats + ')/' + f(M.frontSkirtW, 6) + '(' + M.frontPleats + ')' +
+    ' · 총장 ' + f(M.coatLen, 6) +
+    (bad.length ? '\n      → ' + bad.join('\n      → ') : ''));
+});
+
+/* ══ 3. 조각 형태 — 자기교차 · 곡선 늘어짐 ═══════════════════════════════ */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3. 조각 형태 — 자기교차 · 곡선 늘어짐');
+console.log('════════════════════════════════════════════════════════════');
+var RATIO = {};
+E.SIZES.forEach(function (sz) {
+  var m = E.measuresForSize(sz);
+  var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), bad = [];
+  /* 진동은 한 방향으로만 휜다. **한복 진동은 깊게 판다** — 도면 자체가 호/현 1.14 다.
+     1.30 을 넘으면 곡선이 늘어진 것이고, 호수마다 값이 달라져도(비율이 아니라
+     절대값을 박으면 그렇게 된다) 잘못이다 — 아래 전 호수 편차로 함께 본다. */
+  [['뒤 진동', g.bArm], ['앞 진동', g.fArm]].forEach(function (w) {
+    var p = U.sampleSegs(w[1], 0.05), arc = U.polyLen(p), ch = V.dist(p[0], p[p.length - 1]);
+    if (ch > 1 && arc / ch > 1.30) bad.push(w[0] + ' 호/현 ' + (arc / ch).toFixed(3));
+    RATIO[w[0]] = (RATIO[w[0]] || []).concat([arc / ch]);
+  });
+  d.pieces.forEach(function (pc) {
+    var o = pc.outline;
+    for (var i = 0; i < o.length - 3; i += 3)
+      for (var j = i + 6; j < o.length - 1; j += 3) {
+        var a = o[i], b = o[i + 1], c = o[j], e = o[j + 1];
+        var dn = (b[0] - a[0]) * (e[1] - c[1]) - (b[1] - a[1]) * (e[0] - c[0]);
+        if (Math.abs(dn) < 1e-9) continue;
+        var t2 = ((c[0] - a[0]) * (e[1] - c[1]) - (c[1] - a[1]) * (e[0] - c[0])) / dn;
+        var u2 = ((c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0])) / dn;
+        if (t2 > 0.001 && t2 < 0.999 && u2 > 0.001 && u2 < 0.999) { bad.push(pc.name + ' 자기교차'); return; }
+      }
+  });
+  if (bad.length) fails++;
+  console.log('  ' + (bad.length ? '✗ ' : '✓ ') + pad(sz, 6) + '자기교차 없음 · 진동 곡선 정상' +
+    (bad.length ? '\n      → ' + bad.join(' · ') : ''));
+});
+
+/* 진동 곡률이 **호수마다 같은가** — 절대값을 박으면 작은 호수가 더 깊어진다 */
+Object.keys(RATIO).forEach(function (k) {
+  var a = RATIO[k], mn = Math.min.apply(null, a), mx = Math.max.apply(null, a);
+  ok(k + ' 곡률 일정', mx - mn <= 0.02,
+     '호/현 ' + f(mn, 5, 3) + ' ~ ' + f(mx, 5, 3) + ' (전 호수 편차 ' + f(mx - mn, 5, 3) + ')');
+});
+
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(fails ? ' 실패 ' + fails + '건' + (warns ? ' · 참고 ' + warns + '건' : '')
+                  : ' 전체 통과' + (warns ? ' · 참고 ' + warns + '건' : ''));
+console.log('════════════════════════════════════════════════════════════');
+process.exit(fails ? 1 : 0);
