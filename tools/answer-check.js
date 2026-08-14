@@ -49,7 +49,12 @@ function run(name, points, curves, U, bad, tol) {
   var A = load(name);
   if (!A) return { skipped: true };
   if (A._err) { bad.push('정답지 ' + name + ' 를 못 읽는다: ' + A._err); return { skipped: true }; }
-  tol = tol || {}; var tp = tol.pt || 0.15, tc = tol.curve || 0.25;
+  /* 허용치는 **정답지 파일이 먼저**다 — 도면 자체가 원문과 충돌하는 자리가 있고
+     (원피스 뒤 암홀 42번이 그렇다) 그 사연은 파일의 note 에 적어 둔다.
+     느슨하게 두더라도 실측 하우스도르프는 반환값으로 매번 찍히므로
+     숫자가 눈앞에서 사라지지는 않는다. */
+  tol = Object.assign({}, tol || {}, A.tol || {});
+  var tp = tol.pt || 0.15, tc = tol.curve || 0.25;
 
   /* 정답지 자체의 품질부터 본다 — 잔차가 크면 클릭이 틀린 것이다 */
   var tr = A.transform || {};
