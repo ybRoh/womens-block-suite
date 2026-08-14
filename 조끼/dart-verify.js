@@ -248,7 +248,10 @@ head('7. ⑥ 앞 겨드랑다트 [27] 65·66 — 아직 안 넣은 것을 조용
      이 절이 그 조각을 아예 못 봐서 조용히 통과했다 (2026-08-14). */
   var fsId = sp ? 'frontSide' : 'front';
   var fs = d.pieces.filter(function (p) { return p.id === fsId; })[0];
-  var has = fs ? (fs.internal || []).some(function (x) { return /겨드랑/.test(x.label || ''); }) : false;
+  /* ★ 2026-08-14 ⑥ 을 넣었다 — 겨드랑다트는 이제 **재단선의 변**이다(제도선 아님).
+     교재 자리(옆선 위 65~66 → BP 쪽 V)로 내렸고, 접으면 옆선이 이어진다.
+     예전 검사는 internal 의 udF/udF2 제도선을 셌다 — 변으로 옮기면서 같이 옮긴다. */
+  var has = fs ? (fs.edges || []).some(function (e) { return /겨드랑/.test(e.name || ''); }) : false;
   /* 이 다트가 먹어야 할 분량 = 앞 옆선이 뒤보다 긴 만큼. [20] 이 41 을 13 에서 유차
      올려 잡으므로 구조상 그 차는 **유차**다 (engine-verify §5 가 그걸 잰다). */
   ok('sp' + sp + ' ⑥ 앞 겨드랑다트', has,
@@ -261,9 +264,21 @@ head('7. ⑥ 앞 겨드랑다트 [27] 65·66 — 아직 안 넣은 것을 조용
      ' 차 ' + f(M.sideFrontSewn - M.sideBack, 6, 3), !has);
   /* 다트 「다리」가 실제로 두 개 그려졌는가 — 라벨 존재만 보면 가이드선 하나로도
      통과한다(예전에 실제로 그랬다). 두 다리(udF·udF2)를 이름으로 못 박는다. */
-  var legs = fs ? (fs.internal || []).filter(function (x) {
-    return /^udF/.test((x.id || '').replace(/_\d+$/, '')); }).length : 0;
-  ok('sp' + sp + ' └ 겨드랑다트 다리 2개', legs === 2, fsId + ' 에 다리 ' + legs + '개 (udF·udF2)');
+  /* V 가 진짜 두 다리인가 — 꼭짓점에서 꺾이는지 각도로 본다. 변 하나만 그어 놓고
+     이름만 「겨드랑다트」로 달아도 위 검사는 통과한다 (예전에 실제로 그랬다). */
+  var legs = 0, apex = null;
+  if (fs) (fs.edges || []).forEach(function (e) {
+    if (!/겨드랑/.test(e.name || '')) return;
+    var pts = fs.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+    if (pts.length < 3) return;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var a = V.norm(V.sub(pts[i], pts[i - 1])), b = V.norm(V.sub(pts[i + 1], pts[i]));
+      var ang = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
+      if (ang > 30) { legs = 2; apex = pts[i]; }
+    }
+  });
+  ok('sp' + sp + ' └ 겨드랑다트가 V(두 다리)인가', legs === 2,
+     fsId + (apex ? ' 꼭짓점 (' + f(apex[0], 5) + ',' + f(apex[1], 5) + ')' : ' 에서 꺾이는 자리를 못 찾았다'));
 });
 
 console.log('');

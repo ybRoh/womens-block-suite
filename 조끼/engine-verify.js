@@ -321,6 +321,12 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['frontDrop',    2.5, 2.5, '[38] 앞처짐분량 2.5'],
     ['frontWrap',    2.0, 2.5, '[38] 앞여밈분 얇은원단 2 · 두꺼운원단 2.5'],
     ['frontArmGap',  0.5, 0.5, '[25] 49번 앞품에서 0.5'],
+    /* [27] 겨드랑다트 자리 — 원문 「5정도」 · 11_앞판이미지 실측 4.29 (완성이미지의
+       초록 삼각 윗다리 y≈24.2 와 일치). 사용자 확정 2026-08-14. */
+    ['udDrop',       4.0, 5.0, '[27] 65 = 41 에서 5 정도 (도면 실측 4.29)'],
+    ['udTipShort',   0.3, 1.0, '[27] 꼭짓점을 58(절개선)보다 짧게 — 그 점에서 조각이 집힌다'],
+    /* [40] 앞자락 사선 — 정답지 15 의 보라 V 오른쪽 다리 끝(앞중심 12)과 같은 자리 */
+    ['frontPointRise', 10.0, 13.0, '[40] 앞단 아래 사선 — 앞중심에서 올라가는 양 (정답지 라벨 12)'],
     /* ── 안단선 — 본문 [1]~[40] 에 없다. **정답지 15_앞뒤판완성이미지 에 적힌 숫자**가
        근거다. 그려진 길이가 라벨보다 짧은 자리가 있어(어깨 2.54 · 뒤중심 4.3 · 밑단
        8.0~8.2 / 6.9 / 11.35 — 4차 픽셀 실측) 규칙대로 **라벨을 앞세웠다**.
@@ -331,7 +337,6 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['facingCf',     6.0,  7.0, '[15] 안단선 — 앞단에서 6~7 (실측 6.81 · 라벨과 일치)'],
     ['facingBk',     6.0,  7.0, '[15] 뒷목 안단 — 뒤중심에서 6~7 (실측 4.3)'],
     ['facingHemS',   8.0, 10.0, '[15] 밑단 안단 — 옆선 9 (실측 앞 8.0 · 뒤 8.2)'],
-    ['facingHemCf', 11.0, 13.0, '[15] 밑단 안단 — 앞중심 12 (실측 11.35)'],
     ['facingHemCb',  7.0,  9.0, '[15] 밑단 안단 — 뒤중심 8 (실측 6.9)'],
     ['facingHemF',   3.5,  5.5, '[15] 밑단 안단 — 안단선 자리 4.5 (실측 4.5 · 라벨과 일치)']
   ];
@@ -448,14 +453,10 @@ SIZES.forEach(function (sz) {
     ['[27] 62', g.f62, [x59, hemY(x59) - 5],             '59에서 5 올라간 곳'],
     ['[27] 63', g.f63, [x59 + fDart / 2, WL],            'W선에서 앞다트분(56−55) 양쪽'],
     ['[27] 64', g.f64, [x59 - fDart / 2, WL],            'W선에서 앞다트분(56−55) 양쪽'],
-    ['[27] 65', g.f65, [x13, BL - yc + 5],               '41에서 5 내려간 곳'],
-    /* ⚠ 이 두 줄은 **좌표가 식대로인가**만 본다. 66 은 식대로면 밑단보다 2.5 아래
-       허공이라 어떤 조각에도 못 들어가는데 이 검사는 0.0000 으로 통과한다.
-       「종이 위에 있는가」는 §8 이 보지만 §8 은 **조각에 넣은 것**만 도니 66 처럼
-       아예 안 넣은 점은 아무도 안 본다 (결함 ①형). 그래서 그 부재를
-       dart-verify §7 ⑥ 이 따로 센다 — ⑥ 을 넣을 때 이 줄도 「옆선 위의 점인가 ·
-       65 에서 호길이 = 유차인가」로 바꿀 것. 지금 바꾸면 미구현이 실패로 잡힌다. */
-    ['[27] 66', g.f66, [x59, hemY(x59) + yc],            '59에서 유차 내려간 곳(원문 글자대로 · 아직 조각에 없다)'],
+    /* ★ 65·66 은 **옆선 곡선 위의 점**이라 좌표식으로 못 쓴다 — 아래 「겨드랑다트」
+       절이 호길이로 검사한다. 예고대로 옮겼다(2026-08-14 ⑥ 구현): 예전 줄은
+       66 을 「59에서 유차 아래」(= 밑단보다 2.5 아래 **허공**)로 재서, 어떤 조각에도
+       못 들어가는 점을 0.0000 으로 통과시키고 있었다. */
     ['[28] 68', g.f68, [x59, m.bustLen],                 '68 = 58 (앞절개선이 BP 로)'],
     ['[28] 69', g.f69, [fw / 2, ((BL - yc) + (-yc + 4.5)) / 2], '46~48 의 2등분'],
     ['[38] 70', g.f70, [0, HL + 2.5],                    '3에서 앞처짐 2.5'],
@@ -470,6 +471,31 @@ SIZES.forEach(function (sz) {
     if (e > 0.001) bad.push(r[0] + ' (' + r[1][0].toFixed(3) + ',' + r[1][1].toFixed(3) + ') ≠ (' +
       r[2][0].toFixed(3) + ',' + r[2][1].toFixed(3) + ')  ← ' + r[3]);
   });
+  /* [27] 겨드랑다트 — 65·66 은 **옆선 곡선 위**의 점이고, 자리는 호길이로 정해진다
+     (사용자 확정 2026-08-14 · 교재 초록 삼각). 좌표표(T)에서 뺀 대신 여기서 잰다. */
+  (function () {
+    var sd = U.sampleSegs(g.fSide, 0.01);
+    function arcAt(P) {                       // 곡선 위 그 점까지의 호길이 (없으면 -1)
+      var acc = 0, bd = Infinity, ba = -1;
+      for (var i = 0; i < sd.length; i++) {
+        if (i) acc += V.dist(sd[i], sd[i - 1]);
+        var d = V.dist(sd[i], P); if (d < bd) { bd = d; ba = acc; }
+      }
+      return bd <= 0.05 ? ba : -1;
+    }
+    var a65 = arcAt(g.f65), a66 = arcAt(g.f66);
+    if (a65 < 0) bad.push('[27] 65 가 옆선 곡선 위에 없다 (겨드랑다트 다리는 옆선에서 판다)');
+    if (a66 < 0) bad.push('[27] 66 이 옆선 곡선 위에 없다');
+    if (a65 >= 0 && Math.abs(a65 - K.udDrop) > 0.02)
+      bad.push('[27] 65 가 41 에서 호길이 ' + a65.toFixed(3) + ' — udDrop ' + K.udDrop + ' 이라야 한다');
+    if (a65 >= 0 && a66 >= 0 && Math.abs((a66 - a65) - yc) > 0.02)
+      bad.push('[27] 65~66 호길이 ' + (a66 - a65).toFixed(3) + ' ≠ 유차 ' + yc +
+               ' — 이걸 접어야 앞뒤 옆선이 같아진다');
+    /* 꼭짓점은 58(절개선 변) 못미처라야 한다 — 58 까지 파면 앞옆판이 그 점에서 집힌다 */
+    var tipGap = V.dist(g.udTip, g.f58);
+    if (Math.abs(tipGap - K.udTipShort) > 0.02)
+      bad.push('[27] 겨드랑다트 꼭짓점이 58 에서 ' + tipGap.toFixed(3) + ' — udTipShort ' + K.udTipShort);
+  })();
   /* 앞 다트분 = 남는 양(56−55) × fDartUse — 완성이미지 실측 (K 주석) */
   if (finiteOr(bad, '앞 다트분', g.frontDart) && Math.abs(g.frontDart - fDart) > 0.002)
     bad.push('[24] 앞 다트분 ' + g.frontDart.toFixed(3) + ' ≠ (56−55)×fDartUse = ' + fDart.toFixed(3));
@@ -520,7 +546,8 @@ SIZES.forEach(function (sz) {
   var m = E.measuresForSize(sz), bad = [], soft = [], worstGap = 0, worstStep = 0;
   var WANT = {
     0: [['back', '뒤판'], ['front', '앞판']],
-    1: [['back', '뒤중심'], ['backSide', '뒤옆'], ['front', '앞중심'], ['frontSide', '앞옆']]
+    /* 이름은 사용자 지정 2026-08-14 — 「앞판 앞옆판 뒤판 뒤옆판」 (기본이 4조각이 됐다) */
+    1: [['back', '뒤판'], ['backSide', '뒤옆판'], ['front', '앞판'], ['frontSide', '앞옆판']]
   };
   [0, 1].forEach(function (sp) {
     var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
@@ -593,9 +620,14 @@ SIZES.forEach(function (sz) {
      다트를 **옆선에서 닫았으므로 이제 앞뒤 옆선은 같아야 한다.**
      예전 검사는 「차 = 유차」를 기대했다 — 다트를 안 넣던 시절의 기대값이다.
      엔진을 고치고 검사를 안 옮기면 정반대를 요구하게 된다(이 프로젝트 3번째). */
-  if (finiteOr(bad, '옆선 차', M.sideGap)) {
-    if (Math.abs(M.sideGap) > 0.1)
-      bad.push('옆선 차 ' + M.sideGap.toFixed(3) + ' — 겨드랑다트를 닫았으면 앞뒤 옆선이 같아야 한다');
+  /* ★ 2026-08-14 재수정 — 겨드랑다트를 **교재 자리(옆선 위 65~66)** 로 내렸다.
+     이제 앞 옆선은 그려진 길이(sideFront)가 뒤보다 유차만큼 길고, **다트를 뺀
+     sideFrontSewn** 이 뒤와 같아야 한다. 예전 검사는 sideGap(그려진 길이 차)을
+     0 으로 요구했다 — 다트를 옆선 꼭대기에서 닫던 시절의 기대값이다. */
+  if (finiteOr(bad, '봉제 후 옆선', M.sideFrontSewn) && finiteOr(bad, '뒤 옆선', M.sideBack)) {
+    if (Math.abs(M.sideFrontSewn - M.sideBack) > 0.1)
+      bad.push('봉제 후 앞 옆선 ' + M.sideFrontSewn.toFixed(3) + ' ≠ 뒤 옆선 ' +
+               M.sideBack.toFixed(3) + ' — 겨드랑다트를 접으면 두 옆선이 같아야 한다');
   }
 
   /* 너치 짝 — **호길이**로 맞아야 한다. 높이(y)로만 잡으면 곡률이 다른 쪽에서 밀린다 */
@@ -822,13 +854,21 @@ SIZES.forEach(function (sz) {
      ⚠ 다음 사람에게 — 제도선을 옮기거나 조각 구성을 바꾸면 **이 표부터** 고쳐라.
        표에 없는 선은 사라져도 아무도 모른다. */
   (function () {
+    /* ⚠ 겨드랑다트(udF·udF2)는 2026-08-14 **제도선에서 변(edge)으로 승격**됐다 —
+       교재 자리(옆선 위 65~66)로 내리면서 접어 꿰매는 재단선이 됐기 때문이다.
+       그래서 이 표에서 뺐고, 대신 아래 WANTE 가 **변으로 있는지**를 못 박는다.
+       (표에서만 빼고 변 검사를 안 만들면 그 순간 아무도 안 보는 선이 된다.) */
     var WANTI = {
       0: { back:      ['splitB1', 'splitB2', 'shDartB', 'mpB'],
-           front:     ['splitF1', 'splitF2', 'udF', 'udF2', 'mpF', 'bpF'] },
+           front:     ['splitF1', 'splitF2', 'mpF', 'bpF'] },
       1: { back:      ['shDartB'],
            backSide:  ['mpB'],
-           front:     ['mpF', 'bpF'],
-           frontSide: ['udF', 'udF2'] }
+           front:     ['mpF', 'bpF'] }
+    };
+    /* 조각마다 반드시 있어야 하는 **변** — 이름으로 못 박는다 */
+    var WANTE = {
+      0: { front: ['겨드랑다트', '앞단 사선'] },
+      1: { frontSide: ['겨드랑다트'], front: ['앞단 사선'] }
     };
     [0, 1].forEach(function (sp) {
       var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
@@ -840,10 +880,15 @@ SIZES.forEach(function (sz) {
           if (ids.indexOf(id) < 0)
             bad.push('sp' + sp + ' ' + p.id + ' 에 제도선 ' + id + ' 이 없다 — 화면·인쇄에 안 나온다');
         });
+        var enames = (p.edges || []).map(function (e) { return e.name; });
+        ((WANTE[sp] || {})[p.id] || []).forEach(function (nm) {
+          if (enames.indexOf(nm) < 0)
+            bad.push('sp' + sp + ' ' + p.id + ' 에 변 「' + nm + '」 이 없다 — 재단선이 빠졌다');
+        });
       });
       /* 양쪽 구성이 **같은 선을 다 그리는가** — 한쪽만 고치는 실수(복제 잔재)를 막는다.
          정답지 15 는 통짜 한 장 위에 절개선을 그린 그림이라 sp0 이 기준이다. */
-      ['shDartB', 'udF', 'udF2', 'mpB', 'mpF'].forEach(function (id) {
+      ['shDartB', 'mpB', 'mpF'].forEach(function (id) {
         if (!seen[id]) bad.push('sp' + sp + ' 어디에도 제도선 ' + id + ' 이 없다');
       });
     });

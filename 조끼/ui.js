@@ -77,7 +77,10 @@
     { k: 'facingCf',    label: '안단 앞단',     min: 4,   max: 10,  step: 0.1,  hint: '앞단(여밈선)에서 안으로 · 도면 6~7  [15]' },
     { k: 'facingBk',    label: '안단 뒤중심',   min: 3,   max: 10,  step: 0.1,  hint: '2번에서 아래로 (뒷목 안단) · 도면 6~7  [15]' },
     { k: 'facingHemS',  label: '밑단안단 옆',   min: 3,   max: 14,  step: 0.5,  hint: '옆선에서 위로 · 앞뒤 공통 · 도면 9  [15]' },
-    { k: 'facingHemCf', label: '밑단안단 앞중심', min: 4, max: 18,  step: 0.5,  hint: '여밈선에서 위로 · 도면 12  [15]' },
+    /* 앞자락을 사선으로 자르면서(사용자 결정 2026-08-14) 밑단안단의 앞중심 다리는
+       사라졌다 — 그 자리를 정하는 것은 이제 **사선이 올라가는 양**이다.
+       (facingHemCf 는 죽은 상수라 슬라이더에서 뺐다 · engine-verify §10) */
+    { k: 'frontPointRise', label: '앞자락 사선', min: 4, max: 18,  step: 0.5,  hint: '앞단 아래를 자르는 사선이 여밈선에서 올라가는 양 · 도면 12  [40]' },
     { k: 'facingHemCb', label: '밑단안단 뒤중심', min: 3, max: 14,  step: 0.5,  hint: '뒤중심에서 위로 · 도면 8  [15]' },
     { k: 'facingHemF',  label: '밑단안단 꼭짓점', min: 2, max: 10,  step: 0.5,  hint: '안단선과 만나는 자리의 높이 · 도면 4.5  [15]' }
   ];
@@ -444,7 +447,9 @@
 
   var state = {
     size: '55호',
-    split: 0,              // 0 = 몸판 통짜 2조각(원본) · 1 = 암홀라인 절개 4조각
+    split: 1,              /* 1 = 암홀라인 절개 4조각(기본) · 0 = 몸판 통짜 2조각.
+                              사용자 지정 2026-08-14 「절개선이 그려진 형태면 앞판·앞옆판·
+                              뒤판·뒤옆판 4조각이어야 한다」 — 원문도 「이 조끼는 암홀라인」. */
     custom: false,
     m: null,
     printExclude: {},      // 인쇄에서 뺀 조각 id (SPEC §17-1). 비어 있으면 전부 인쇄

@@ -274,6 +274,16 @@
     frontDrop   :  2.5,   // [38] 70 = 3 에서 앞처짐 2.5
     frontWrap   :  2.0,   // [38] 앞여밈분 — 얇은 원단 2 · 두꺼운 2.5
     frontArmGap :  0.5,   // [25] 앞암홀이 49(앞품)에서 0.5 떨어진다
+    /* [27] 겨드랑다트 자리 — 완성이미지의 초록 삼각 그대로 (사용자 확정 2026-08-14
+       「빨간색 다트가 조금 내려와야지」). 65 = 41 에서 옆선 호길이로 udDrop 내려간 곳
+       (원문 「5정도」 · 11_앞판이미지 실측 4.29 · 완성이미지 윗다리 y≈24.2 일치).
+       분량은 유차(66 = 65 + 호길이 유차) — 접으면 앞뒤 옆선이 같아진다.
+       꼭짓점은 58(절개선) 못미처 udTipShort — 58 까지 파면 앞옆판이 거기서 집힌다. */
+    udDrop      :  4.3,
+    udTipShort  :  0.5,
+    /* [40] 앞단 아래 잘라내는 사선이 앞중심에서 올라가는 양 — 안단 라벨 12 와 같은
+       자리다(정답지 15 의 보라 V 오른쪽 다리 끝). 사용자 지정 2026-08-14. */
+    frontPointRise: 12.0,
     /* [28] 앞 절개선이 67 에서 나가는 각(세로 기준 °). 완성이미지 실측 — 67 아래
        첫 2.5cm 의 평균 기울기 21°, 그 뒤 44° 로 깊어졌다가 68 에 세로로 닿는다.
        ⚠ 실측 그대로 21° 를 주면 「절개선↔진동」 모서리 시접이 0.25~0.28 로 무너지고
@@ -313,7 +323,10 @@
     facingCf    :  6.5,   // 앞단(여밈선 71~72)에서 안으로
     facingBk    :  6.5,   // 뒤중심 · 2번에서 아래로
     facingHemS  :  9.0,   // 밑단 안단 — 옆선에서 위로 (앞뒤 공통)
-    facingHemCf : 12.0,   // 밑단 안단 — 앞중심(여밈선)에서 위로
+    /* ⚠ facingHemCf(밑단 안단 앞중심 12) 는 2026-08-14 **삭제**했다 — 앞자락을 사선으로
+       자르면서 그 다리가 사선 위에 얹혀 폭 0 이 됐다. 같은 자리를 정하는 상수는
+       K.frontPointRise 다(정답지 라벨 12 도 그쪽으로 옮겼다). 죽은 상수를 남겨 두면
+       슬라이더가 아무것도 안 움직이는 채로 화면에 남는다 (engine-verify §10 이 잡는다). */
     facingHemCb :  8.0,   // 밑단 안단 — 뒤중심에서 위로
     facingHemF  :  4.5,   // 밑단 안단 — 앞 안단선과 만나는 꼭짓점 높이
     splitPanels :  1      // 1 = 암홀라인 절개 4조각
@@ -734,8 +747,7 @@
          위의 점이라 거기까지 파면 앞옆 조각이 그 점에서 집힌다.
          65 는 지금 [14] 의 hemUp(30번용)을 빌려 쓰고 있다. 넣을 때 전용 상수로 뺄 것 —
          지금은 슬라이더 하나가 30·62·65 셋을 같이 흔든다. */
-    var f65 = [f41[0], f41[1] + num(opt.hemUp, K.hemUp)];
-    var f66 = [f59[0], f59[1] + 유차];            // [27] 「59번에서 유차 내려간 곳」(원문 글자 그대로)
+    /* f65·f66 은 옆선 곡선이 필요해서 **fSide 를 그린 뒤** 아래에서 잡는다. */
     /* [28] 67·68 = 앞절개선. 69 = 46~48 의 2등분 — 그 위로 올라가면 안 된다
        ★ 67 은 **암홀 위의 점**이다 (「암홀쪽에서부터 … 앞절개선」).
          예전에는 (앞품/2, 진동선+1.5) = (16, 21.5) 였는데 그 자리는 암홀 위가 아니라
@@ -789,9 +801,37 @@
        두는 예를 들지만 「공식이나 원칙은 없다」고 명시한다.
        → 옆선에서 **닫고**(옆선을 뒤와 같은 높이 BL 에서 시작) 절개선 쪽에서 **연다**.
          41~fSideTop 사이의 세로 구간이 곧 다트분이고, 아래 fUnderDart 가 그 두 다리다. */
-    var fSideTop = [f41[0], BL];
-    var fSide = splineSegs([fSideTop, f56, fHemB],
-                           endTan(V.sub(f56, fSideTop), CAL.side.k0), endTan([0, 1], CAL.side.k1));
+    /* ★ 2026-08-14 사용자 확정 (완성이미지 초록 삼각과 대조 「빨간색 다트가 조금
+       내려와야지」) — 겨드랑다트를 **교재 자리**에 놓는다:
+         · 옆선은 41 에서 **끊김 없이** 내려온다 (완성이미지 실측 y20→23.83 · 21→23.71)
+         · 65 = 41 에서 옆선 호길이로 udDrop(4.3) 내려간 곳 (원문 「5정도」 · 실측 4.29)
+         · 66 = 65 에서 호길이 **유차**만큼 더 (실측 2.686 = 1.07×유차 · 분량이 유차라야
+           접었을 때 앞뒤 옆선이 같아진다)
+         · 꼭짓점은 58 을 향하되 udTipShort 못미처 멈춘다 — 58 은 절개선 변 위의
+           점이라 거기까지 파면 앞옆판이 그 점에서 집힌다.
+       (이전 판: 41~BL 세로 슬릿으로 옆선 꼭대기에서 닫았다 — 분량은 같고 자리만
+        위였다. 완성이미지의 삼각은 진동선 아래에 있다.) */
+    var fSide = splineSegs([f41, f56, fHemB],
+                           endTan(V.sub(f56, f41), CAL.side.k0), endTan([0, 1], CAL.side.k1));
+    function ptAtArc(segs, target) {              // 곡선 위 호길이 지점
+      var pts = sampleSegs(segs, 0.02), acc = 0;
+      for (var i = 1; i < pts.length; i++) {
+        var d = V.dist(pts[i], pts[i - 1]);
+        if (acc + d >= target) {
+          var t = (target - acc) / d;
+          return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t,
+                  pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t];
+        }
+        acc += d;
+      }
+      return cp(pts[pts.length - 1]);
+    }
+    var f65 = ptAtArc(fSide, num(opt.udDrop, K.udDrop));
+    var f66 = ptAtArc(fSide, num(opt.udDrop, K.udDrop) + 유차);
+    var udDir = V.norm(V.sub(_lerp2(f65, f66), f58));
+    var udTip = V.add(f58, V.mul(udDir, num(opt.udTipShort, K.udTipShort)));
+    var fSideUp  = splitSegsAtPt(fSide, f65, true);        // 41 → 65
+    var fSideLow = splitSegsAtPt(splitSegsAtPt(fSide, f65, false), f66, false);   // 66 → 밑단
     /* 앞도 뒤와 같은 규칙 — **62 가 앵커다** ([29] 「62에서 교차」 · 위 bSplit 주석).
        표준 체형에서는 옮김이 0 이라 60·61 이 둘 다 59 이므로, 두 곡선은 62 에서
        만난 뒤 밑단까지 같은 자리로 내려간다 — 정답지에서 62 아래로 초록선이
@@ -812,7 +852,20 @@
     /* [29] 「64번과 60번을 연결 · 63번과 61번을 연결」 — 뒤와 같이 **62 에서 교차** */
     var fSplitOut = fSplit(f63[0], f61);
     var fSplitIn  = fSplit(f64[0], f60);
-    var fHem = lineSegs(fHemA, fHemB);
+    /* ★ [40] 앞 밑단 — **앞단 아래 삼각을 잘라낸다** (사용자 지정 2026-08-14
+         「너가 그린 점선 여기 잘라야 해, 그래야 조끼가 되지」).
+       교재 도면(15_앞뒤판완성이미지)의 밑단(초록)은 곧은 선이고 V 는 **안단선**(보라)이다 —
+       즉 제도는 사각 밑단으로 끝나고, 조끼로 만들 때 앞단 아래 모서리를 사선으로
+       잘라 **뾰족한 앞자락**을 만든다. 그 사선이 안단선 V 의 오른쪽 다리와 나란하다.
+         · 꼭짓점 = 안단선 세로선(fFacX)이 밑단과 만나는 점
+         · 앞중심 끝 = 거기서 frontPointRise(안단 라벨 12) 올라간 점
+       ⚠ 잘린 뒤에도 밑단 x 폭 합은 그대로라 완성 엉덩이 계산은 안 흔들린다
+         (사선도 role 'hem' 으로 낸다 · engine-verify §9 의 hemSum). */
+    var fFacXh   = f71[0] + num(opt.facingCf, K.facingCf);
+    var fHemPoint = onFrontHem(fFacXh);
+    var fCfEnd    = [f71[0], onFrontHem(f71[0])[1] - num(opt.frontPointRise, K.frontPointRise)];
+    var fHem      = lineSegs(fHemB, fHemPoint);          // 42(옆) → 꼭짓점
+    var fHemPointCut = lineSegs(fHemPoint, fCfEnd);      // 꼭짓점 → 앞중심 (잘라낸 사선)
 
     /* ══ 안단선 ═══════════════════════════════════════════════════════
        정답지(15_앞뒤판완성이미지)의 보라선. 본문에 없고 도면에만 있다 — 값의 출처와
@@ -821,7 +874,8 @@
                  정답지도 허리 아래로는 x 가 4.41 에 못 박혀 있다(세로) — 그래서
                  허리(WL)까지만 곡선이고 그 아래는 직선이다.
          · 뒤  = 어깨(38 에서 facingSh) → 뒤중심 2번에서 facingBk 아래 (뒷목 안단)
-         · 밑단 = 옆선 facingHemS 위 → (앞) 안단선 자리 facingHemF → 앞중심 facingHemCf
+         · 밑단 = 옆선 facingHemS 위 → (앞) 안단선 자리 facingHemF 까지 (앞중심 쪽은
+                   앞자락 사선이 대신한다 · K.frontPointRise)
                                      (뒤) 뒤중심 facingHemCb
            앞뒤가 **옆선에서 같은 높이**라야 이어진다 — 그래서 옆선 값만 하나다.
        ⚠ 조각에 붙일 때는 draftVest 가 **조각 안에 들어오는 구간만** 잘라 준다.
@@ -864,9 +918,11 @@
          힙선보다 1.875 아래라, 같은 4.5 가 1.9cm 다른 자리를 찍었다. 팔 기울기로도
          드러난다 — 도면 0.209/0.761 · 예전 0.338/1.058 · 지금 0.239/0.769.
          바로 위 bHemFacing 이 이미 HL 기준이라 이제 앞뒤 기준이 같다. */
+    /* ★ 앞단 아래를 사선으로 자른 뒤(fHemPointCut)로는 **꼭짓점까지만** 긋는다.
+       예전 세 번째 점(앞중심 12 위)은 이제 잘라낸 사선 **위에 얹혀** 안단 폭이 0 이
+       된다 — 그 구간은 앞단 안단(fFacing 세로선)이 이어받는다. */
     var fHemFacing = lineSegs([xOnAt(fSide, fHemFacSY), fHemFacSY],
-                              [fFacX, HL - num(opt.facingHemF, K.facingHemF)],
-                              [f71[0], f71[1] - num(opt.facingHemCf, K.facingHemCf)]);
+                              [fFacXh, fHemYat(fFacXh) - num(opt.facingHemF, K.facingHemF)]);
 
     return {
       m: m, B: B, 유B: 유B, W: W, H: H, q: q, 유차: 유차,
@@ -881,8 +937,11 @@
       p27: p27, p27a: p27a, p28: p28, p29: p29, p30: p30, p31: p31, p32: p32, p33: p33, p34: p34,
       p35: p35, p36: p36, p37: p37, p38: p38, p39: p39,
       f41: f41, f42: f42, f43: f43, f44: f44, f45: f45, f46: f46, f47: f47, f48: f48,
-      fMp: fMp, fMpTo: fMpTo, fSideTop: fSideTop,
-      fUnderDart: [cp(f41), cp(fSideTop)],   // 겨드랑다트 두 다리 (분량 = 유차)
+      fMp: fMp, fMpTo: fMpTo,
+      /* 겨드랑다트 — 옆선 위 65·66 에서 udTip 으로 모이는 V (분량 = 유차) */
+      fUnderDart: [cp(f65), cp(udTip), cp(f66)], udTip: udTip,
+      fSideUp: fSideUp, fSideLow: fSideLow,
+      fHemPoint: fHemPoint, fCfEnd: fCfEnd, fHemPointCut: fHemPointCut,
       f49: f49, f50: f50, f51: f51, f52: f52, f53: f53, f54: f54, f55: f55, f56: f56,
       f57: f57, f58: f58, f59: f59, f60: f60, f61: f61, f62: f62, f63: f63, f64: f64,
       f65: f65, f66: f66, f67: f67, f68: f68, f69: f69, f70: f70, f71: f71, f72: f72,
@@ -1319,7 +1378,7 @@
          어깨끝(26)과 절개선 시작이 10.7cm 벌어진 채로 조각이 나갔다 (2026-08-14 QA). */
       var bArmUp  = splitSegsAtPt(g.bArm, g.p27a, true);    // 26 → 절개점
       var bArmLow = splitSegsAtPt(g.bArm, g.p27a, false);   // 절개점 → 13
-      pieces.push(mk('back', '뒤중심', [
+      pieces.push(mk('back', '뒤판', [
         { name: '뒷목',   role: 'neck',     segs: g.bNeck },
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.p38, g.p26) },
         { name: '진동',   role: 'armhole',  segs: bArmUp },
@@ -1335,7 +1394,7 @@
              다리 너치가 없는 조각」이 됐다 (dart-verify 가 잡았다 · 2026-08-14). */
           shDartGuide
         ])));
-      pieces.push(mk('backSide', '뒤옆', [
+      pieces.push(mk('backSide', '뒤옆판', [
         { name: '진동',   role: 'armhole',  segs: bArmLow },
         { name: '옆선',   role: 'side',     segs: g.bSide },
         { name: '밑단',   role: 'hem',      segs: lineSegs(g.p14, g.p32) },   // 옆선 끝(14) → 절개선(Out) 끝(32)
@@ -1391,28 +1450,22 @@
       L('bpF2', 'edge', [[g.f57[0], g.f57[1] - 0.6], [g.f57[0], g.f57[1] + 0.6]], 'BP'),
       L('mpF', 'dashed', [cp(g.fMp), cp(g.fMpTo)], 'MP ' + r4(num(opt.mpFront, K.mpFront)))
     ]);
-    /* ★ [27] 겨드랑다트의 두 다리(41·fSideTop → BP 쪽) — **통짜와 4조각이 같은 것을 쓴다**.
-       교재(11_앞판이미지 · 15_앞뒤판완성이미지)는 겨드랑에서 BP 로 모이는 삼각형을
-       뚜렷하게 그려 놓았는데, 엔진은 4조각의 앞옆 조각에만 이 다리를 그려서 UI 기본
-       화면(통짜)에는 삼각형이 안 보였다 — 사용자 지적 2026-08-14 「교재 앞판에
-       겨드랑→BP 삼각 다트가 뚜렷한데 엔진 앞판엔 안 보인다」.
-       ⚠ 자리는 옮기지 않았다. 41~fSideTop 세로 구간은 [27] 을 **앞옆 절개선으로
-         넘긴다**는 앞선 사용자 결정(위 fSideTop 주석)의 결과다. 교재대로 옆선 위
-         y 24.2/26.8 로 내리면 재단물이 바뀌므로 **사용자 확인이 필요한 별건**이다. */
-    var udGuide = [
-      L('udF',  'edge', [cp(g.f41), cp(g.f58)], '겨드랑다트 → BP'),
-      L('udF2', 'edge', [cp(g.fSideTop), cp(g.f58)], '겨드랑다트 → BP')
-    ];
+    /* ★ [27] 겨드랑다트는 이제 **옆선 위 65·66 에서 파인 V(변)** 다 — 제도선(udGuide)이
+       아니라 재단선의 일부라 통짜·4조각 양쪽에서 같은 변을 쓴다 (위 geom 의 f65/f66/udTip).
+       사용자 확정 2026-08-14 「초록색 다트 위치와 네가 그린 빨간색 다트 위치가 틀리잖아,
+       빨간색 다트가 조금 내려와야지」 — 교재(초록)는 진동선 **아래** 옆선에서 BP 로
+       삼각을 그린다. 예전에는 41~진동선 세로 슬릿(진동선 위)이라 자리가 4cm 위였다. */
     if (split) {
       var fArmUp  = splitSegsAtPt(g.fArm, g.f67, true);     // 52 → 절개점(67)
       var fArmLow = splitSegsAtPt(g.fArm, g.f67, false);    // 67 → 41
-      pieces.push(mk('front', '앞중심', [
+      pieces.push(mk('front', '앞판', [
         { name: '앞목',   role: 'neck',     segs: g.fNeck },
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.f53, g.f52) },
         { name: '진동',   role: 'armhole',  segs: fArmUp },
         { name: '절개선', role: 'princess', segs: g.fSplitIn },
-        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f60, g.f71) },   // 절개선(In)이 60 에서 끝난다
-        { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f60, g.fHemPoint) },  // 절개선(In)이 60 에서 끝난다
+        { name: '앞단 사선', role: 'hem',   segs: g.fHemPointCut },                // 잘라낸 앞자락
+        { name: '앞중심', role: 'center',   segs: lineSegs(g.fCfEnd, g.f72) }
       ], [[-g.f71[0] + 2.0, g.BL], [-g.f71[0] + 2.0, g.HL - 3]],
         /* ★ BP 는 **너치가 아니다** — 조각 한가운데라 재단선 위에 못 찍는다.
            (fGuide 의 bpF/bpF2 십자 표시가 BP 자리를 알려 준다. 절개선 위의
@@ -1425,32 +1478,37 @@
          분량 = 유차. 이걸 접으면 앞 옆선이 뒤와 같아진다(전 호수 차 0.003).
          사용자 결정(2026-08-14): 「겨드랑다트는 앞옆 절개선에 넣어줘」 —
          옆선에서 닫고 절개선 쪽 여유로 흡수한다. */
-      pieces.push(mk('frontSide', '앞옆', [
+      pieces.push(mk('frontSide', '앞옆판', [
         { name: '진동',       role: 'armhole',  segs: fArmLow },
-        { name: '겨드랑다트', role: 'dart',     segs: lineSegs(g.f41, g.fSideTop) },
-        { name: '옆선',       role: 'side',     segs: g.fSide },
+        { name: '옆선',       role: 'side',     segs: g.fSideUp },
+        /* [27] 겨드랑다트 — 옆선 위 65~66 에서 58 쪽으로 파인 V (사용자 확정 자리) */
+        { name: '겨드랑다트', role: 'dart',
+          segs: lineSegs(g.f65, g.udTip).concat(lineSegs(g.udTip, g.f66)) },
+        { name: '옆선',       role: 'side',     segs: g.fSideLow },
         { name: '밑단',       role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
         { name: '절개선',     role: 'princess', segs: revSegs(g.fSplitOut) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
-        [{ p: cp(g.f41), angle: 180, label: '다트 다리' },
-         { p: cp(g.fSideTop), angle: 180, label: '다트 다리' }].concat(nF.b),
-        fGuideCommon.concat(udGuide)));
+        [{ p: cp(g.f65), angle: 180, label: '다트 다리' },
+         { p: cp(g.f66), angle: 180, label: '다트 다리' }].concat(nF.b),
+        fGuideCommon.slice()));
     } else {
       pieces.push(mk('front', '앞판', [
         { name: '앞목',   role: 'neck',     segs: g.fNeck },
         { name: '어깨선', role: 'shoulder', segs: lineSegs(g.f53, g.f52) },
         { name: '진동',   role: 'armhole',  segs: g.fArm },
-        /* 통짜에도 겨드랑다트가 들어가야 한다 — 절개판에만 넣었더니 여기서
-           진동↔옆선이 2.54 벌어졌다 (2026-08-14) */
-        { name: '겨드랑다트', role: 'dart', segs: lineSegs(g.f41, g.fSideTop) },
-        { name: '옆선',   role: 'side',     segs: g.fSide },
-        { name: '밑단',   role: 'hem',      segs: revSegs(g.fHem) },
-        { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
+        /* 통짜에도 겨드랑다트가 들어가야 한다 — 4조각과 **같은 변**을 쓴다 */
+        { name: '옆선',   role: 'side',     segs: g.fSideUp },
+        { name: '겨드랑다트', role: 'dart',
+          segs: lineSegs(g.f65, g.udTip).concat(lineSegs(g.udTip, g.f66)) },
+        { name: '옆선',   role: 'side',     segs: g.fSideLow },
+        { name: '밑단',   role: 'hem',      segs: g.fHem },        // 42 → 꼭짓점
+        { name: '앞단 사선', role: 'hem',   segs: g.fHemPointCut },  // 잘라낸 앞자락
+        { name: '앞중심', role: 'center',   segs: lineSegs(g.fCfEnd, g.f72) }
       ], [[-g.f71[0] + 2.0, g.BL], [-g.f71[0] + 2.0, g.HL - 3]],
         [{ p: cp(g.f53), angle: 90, label: '목옆점' },
-         { p: cp(g.f41), angle: 180, label: '다트 다리' },
-         { p: cp(g.fSideTop), angle: 180, label: '다트 다리' }],
-        fGuideCf.concat(udGuide).concat([
+         { p: cp(g.f65), angle: 180, label: '다트 다리' },
+         { p: cp(g.f66), angle: 180, label: '다트 다리' }],
+        fGuideCf.concat([
           L('splitF1', 'dashed', sampleSegs(g.fSplitOut, 0.4), '절개선'),
           L('splitF2', 'dashed', sampleSegs(g.fSplitIn, 0.4), '절개선')])));
     }
@@ -1480,7 +1538,7 @@
       { id: 'facB',    side: 'back',
         label: '안단선 어깨' + _fac('facingSh') + '·뒤중심' + _fac('facingBk'),    segs: g.bFacing },
       { id: 'facHemF', side: 'front',
-        label: '밑단 안단 옆' + _fac('facingHemS') + '·앞중심' + _fac('facingHemCf')
+        label: "밑단 안단 옆" + _fac("facingHemS") + "·꼭짓점" + _fac("facingHemF")
                + '·꼭짓점' + _fac('facingHemF'),                                   segs: g.fHemFacing },
       { id: 'facHemB', side: 'back',
         label: '밑단 안단 옆' + _fac('facingHemS') + '·뒤중심' + _fac('facingHemCb'), segs: g.bHemFacing }
@@ -1520,17 +1578,16 @@
     var shBackSewn = V.dist(g.p38, g.p26) - g.shDart;   // [23] 「다트분을 뺀 어깨」
     var shFront = V.dist(g.f53, g.f52);
 
-    /* ★ 아직 안 고친 것 — **앞 옆선이 뒤 옆선보다 유차만큼 길다.**
-       41 이 13 에서 유차 올라간 점([20])이라 앞 옆선은 구조상 유차만큼 길다.
-       원문 [27] 은 「다트를 넣는 위치와 방법은 여러가지가 있으며 꼭 집어서 어느부분에
-       넣어야 한다는 공식이나 원칙은 없습니다」라며 두 자리를 예로 든다:
-         · 65 = 41 에서 5 내려간 곳 → BP 를 향한 선  (옆 다트)
-         · 66 = 59 에서 **유차** 내려간 곳 → BP 를 향한 선  (밑단 다트)
-       어느 쪽을 쓸지는 원문이 정하지 않았으므로 **엔진이 임의로 고르지 않는다.**
-       대신 그 사실을 경고로 내보낸다 — 조용히 두면 못 꿰매는 패턴이 그대로 나간다. */
-    if (Math.abs(sideF - sideB) > 0.3)
-      warnings.push('앞 옆선이 뒤 옆선보다 ' + r4(sideF - sideB) + 'cm 길다 (유차 ' + r4(g['유차']) +
-        ') — 원문 [27] 이 열어 둔 앞 다트(65 옆다트 / 66 밑단다트)를 아직 넣지 않았다');
+    /* ★ [20] 이 41 을 13 에서 유차 올려 잡으므로 **그려진** 앞 옆선은 구조상 뒤보다
+       유차만큼 길다. 그 분량은 [27] 겨드랑다트(옆선 위 65~66 → BP 쪽 V)가 먹는다 —
+       2026-08-14 사용자 확정으로 교재 자리에 넣었다.
+       ⚠ 그러니 이제 재야 할 것은 「그려진 길이 차」가 아니라 **접은 뒤의 짝**이다.
+         예전 경고는 「앞 다트를 아직 안 넣었다」였고, 다트를 넣은 뒤에도 그대로 떠서
+         전 호수에 낡은 경고를 뿌리고 있었다 (엔진을 옮기고 문구를 안 옮긴 자리). */
+    var sideFSewn = LEN(g.fSideUp) + LEN(g.fSideLow);
+    if (Math.abs(sideFSewn - sideB) > 0.3)
+      warnings.push('겨드랑다트를 접은 뒤에도 앞 옆선 ' + r4(sideFSewn) + ' ↔ 뒤 옆선 ' +
+        r4(sideB) + ' 이 ' + r4(sideFSewn - sideB) + 'cm 어긋난다 — 옆선을 못 꿰맨다');
 
     return {
       pieces: pieces, warnings: warnings, notes: [],
@@ -1549,10 +1606,12 @@
         shoulderBack: r4(V.dist(g.p38, g.p26)), shoulderBackSewn: r4(shBackSewn),
         shoulderFront: r4(shFront), shoulderFrontSewn: r4(shFront),
         shoulderEase: r4(shBackSewn - shFront), shoulderGap: r4(shBackSewn - shFront),
-        /* sideFrontSewn = 「앞 겨드랑다트를 뺀」 앞 옆선. ⑥ 을 아직 안 넣어서 지금은
-           sideFront 그대로다(자리표시자). 넣으면 여기서 다트 분량을 빼야 하고,
-           dart-verify §7 의 「봉제 후 옆선 짝」이 참고에서 **실패**로 승격된다. */
-        sideBack: r4(sideB), sideFront: r4(sideF), sideFrontSewn: r4(sideF),
+        /* sideFrontSewn = 「앞 겨드랑다트를 뺀」 앞 옆선 = 실제로 꿰매는 두 도막의 합.
+           2026-08-14 겨드랑다트를 교재 자리(옆선 65~66)로 옮기면서 **실측이 됐다** —
+           예전엔 sideFront 그대로였고(자리표시자) dart-verify §7 이 그 탓에 참고로만
+           돌았다. 이제 뒤 옆선과 0.1 안으로 맞아야 한다. */
+        sideBack: r4(sideB), sideFront: r4(sideF),
+        sideFrontSewn: r4(LEN(g.fSideUp) + LEN(g.fSideLow)),
         sideGap: r4(sideF - sideB),
         splitBackIn: r4(LEN(g.bSplitIn)), splitBackOut: r4(LEN(g.bSplitOut)),
         splitFrontIn: r4(LEN(g.fSplitIn)), splitFrontOut: r4(LEN(g.fSplitOut)),

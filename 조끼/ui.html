@@ -50,8 +50,10 @@
         <div class="field">
           <label for="ndSplit">조각 구성</label>
           <select id="ndSplit">
-            <option value="0" selected>2조각 — 몸판 통짜 (원본 도면)</option>
-            <option value="1">4조각 — 암홀라인 절개</option>
+            <!-- 기본 4조각 — 사용자 지정 2026-08-14 「절개선이 그려진 형태면 앞판·앞옆판·
+                 뒤판·뒤옆판 4조각이어야 한다」. 원문도 「이 조끼는 암홀라인」(절개형)이다. -->
+            <option value="1" selected>4조각 — 암홀라인 절개 (앞판·앞옆판·뒤판·뒤옆판)</option>
+            <option value="0">2조각 — 몸판 통짜 (제도 원본 그대로)</option>
           </select>
         </div>
         <div class="fields" id="ndStyle"><!-- ui.js 가 STYLE_KEYS 로 생성 --></div>
