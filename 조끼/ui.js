@@ -53,7 +53,7 @@
     { k: 'hipEaseB',    label: '엉덩이 여유(뒤)', min: 0,  max: 5,  step: 0.1,  hint: '16 = 15 + 이 값 · 도면 실측 2.4 (원문 텍스트 1.5)  [8]' },
     { k: 'backDart',    label: '뒤 허리 다트분', min: 1.0, max: 4.0, step: 0.05, hint: '19 = 18 + 이 값 · 원문 2~2.5  [9]' },
     { k: 'shDart',      label: '뒤 어깨 다트분', min: 0,  max: 3,   step: 0.1,  hint: '21 = 20 + 이 값 · 원문 1.5  [10]' },
-    { k: 'shDartLen',   label: '뒤 어깨 다트길이', min: 4, max: 12, step: 0.5,  hint: '40 = 다트길이 · 원문 7  [19]' },
+    { k: 'shDartLen',   label: '뒤 어깨 다트길이', min: 4, max: 16, step: 0.5,  hint: '40 = 다트길이 · 원문 7 · 기본 12(BP 쪽까지)  [19]' },
     { k: 'shSlope',     label: '어깨 기울기',   min: 1.0, max: 2.5, step: 0.05, hint: '22 = 12 에서 내려온 양 · 원문 1.3~1.5  [10]' },
     { k: 'shScoop',     label: '어깨 파기',     min: 0,   max: 3,   step: 0.1,  hint: '26 = 21 에서 · 52 = 20 에서 · 원문 1.5  [12][23]' },
     { k: 'armFromBW',   label: '암홀↔등품선',   min: 0.3, max: 1.5, step: 0.05, hint: '암홀이 27 에서 떨어지는 양 · 원문 0.5~1  [13]' },

@@ -144,7 +144,13 @@ head('3. 다트 자리·길이 — 원문 번호점');
        '(' + f(g.p39[0], 5) + ',' + f(g.p39[1], 5) + ')  38~22 의 2등분 (' +
        f(mid[0], 5) + ',' + f(mid[1], 5) + ')');
   } else ok('① 어깨다트 중심 39', false, '39 번이 geom 에 없다');
-  ok('① 어깨다트 길이', Math.abs(g.shDartLen - 7) <= 0.01, f(g.shDartLen, 6) + '  원문 [19] 7');
+  /* 폭은 원문 고정(1.5) · 길이는 사용자 지정으로 연장 가능 — 「폭은 고정하고 길이만
+     길게」(2026-08-14). 다트 끝이 진동선을 넘어가면 등에서 뜨므로 그건 막는다. */
+  ok('① 어깨다트 길이', g.shDartLen >= 7 && g.shDartLen <= 16,
+     f(g.shDartLen, 6) + '  원문 [19] 7 · 사용자 지정 연장 (상한 16)');
+  var dTipY = g.p39 ? g.p39[1] + g.shDartLen : NaN;
+  ok('① └ 다트 끝이 진동선 위인가', !(dTipY > g.BL),
+     '다트 끝 y ' + f(dTipY, 6) + ' ↔ 진동선 ' + f(g.BL, 6));
   /* ② 뒤 허리다트 33·34 가 다트분만큼 벌어졌나 */
   if (g.p33 && g.p34) {
     var wB = Math.abs(g.p33[0] - g.p34[0]);
@@ -236,49 +242,58 @@ head('6. 다트 다리 너치 — 접는 자리 표시');
      '어깨 다트 ' + foldTotal + '개 — 0 이면 위 §6 이 공허하게 통과한다');
 });
 
-/* ══ 7. ⑥ 앞 겨드랑다트 — 목록에 넣었으니 **센다** ══════════════════════
- *   여기 없으면 위 §1·§5 는 앞옆 조각을 「다트 없는 조각」으로 보고 그냥 통과한다.
- *   목록에 없는 것은 아무도 못 잡는다 — 그래서 부재를 명시적으로 센다. */
-head('7. ⑥ 앞 겨드랑다트 [27] 65·66 — 아직 안 넣은 것을 조용히 넘기지 않는다');
+/* ══ 7. ⑥ 앞 겨드랑다트 — 구성마다 **처리 방식이 다르다** ═══════════════
+ *   · 통짜(sp0)  절개선이 제도선일 뿐이라 회전할 데가 없다 → 다트를 **변으로 둔다**
+ *   · 4조각(sp1) 사용자 지정 2026-08-14 「여기 다트는 회전해서 붙여줘요」 →
+ *                꼭짓점을 피벗으로 돌려 **닫는다**. 그래서 다트 변이 없는 것이 정상이고,
+ *                대신 ① 옆선이 한 줄이고 ② 그 길이가 뒤 옆선과 같아야 한다.
+ *   ⚠ 「없으면 실패」로만 두면 회전으로 닫은 것을 미구현으로 오진한다. 구성별로
+ *     **무엇이 맞는지**를 갈라서 센다 (이 프로젝트에서 반대 요구가 두 번 부딪혔다). */
+head('7. ⑥ 앞 겨드랑다트 — 통짜는 변으로 · 4조각은 회전해 닫았는가');
 [0, 1].forEach(function (sp) {
   var m = E.measuresForSize('55호');
   var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp }), M = d.measures;
-  /* ★ 겨드랑다트가 붙는 조각은 구성에 따라 다르다 — 4조각이면 앞옆, 통짜면 앞판.
-     예전엔 frontSide 만 찾았고 opt 도 안 넘겨서, 통짜에는 다리가 하나도 없는데도
-     이 절이 그 조각을 아예 못 봐서 조용히 통과했다 (2026-08-14). */
   var fsId = sp ? 'frontSide' : 'front';
   var fs = d.pieces.filter(function (p) { return p.id === fsId; })[0];
-  /* ★ 2026-08-14 ⑥ 을 넣었다 — 겨드랑다트는 이제 **재단선의 변**이다(제도선 아님).
-     교재 자리(옆선 위 65~66 → BP 쪽 V)로 내렸고, 접으면 옆선이 이어진다.
-     예전 검사는 internal 의 udF/udF2 제도선을 셌다 — 변으로 옮기면서 같이 옮긴다. */
-  var has = fs ? (fs.edges || []).some(function (e) { return /겨드랑/.test(e.name || ''); }) : false;
-  /* 이 다트가 먹어야 할 분량 = 앞 옆선이 뒤보다 긴 만큼. [20] 이 41 을 13 에서 유차
-     올려 잡으므로 구조상 그 차는 **유차**다 (engine-verify §5 가 그걸 잰다). */
-  ok('sp' + sp + ' ⑥ 앞 겨드랑다트', has,
-     has ? fsId + ' 조각에 있다'
-         : fsId + ' 조각에 **없다** — 앞 옆선이 뒤보다 ' + f(M.sideFront - M.sideBack, 5, 3) +
-           'cm 길다 (유차 ' + M['유차'] + ')');
-  /* 다트를 넣으면 이 짝이 0.1 안으로 들어와야 한다. 넣기 전에는 참고, 넣은 뒤엔 실패. */
+  var dartEdges = fs ? (fs.edges || []).filter(function (e) { return /겨드랑/.test(e.name || ''); }) : [];
+  var sideEdges = fs ? (fs.edges || []).filter(function (e) { return e.role === 'side'; }) : [];
+  function edgeLen(e) {
+    var a = fs.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1), L = 0;
+    for (var i = 1; i < a.length; i++) L += V.dist(a[i], a[i - 1]);
+    return L;
+  }
+  if (!sp) {
+    /* 통짜 — 다트가 변으로 있고 V(두 다리)라야 한다 */
+    ok('sp0 ⑥ 겨드랑다트 변', dartEdges.length === 1,
+       dartEdges.length ? fsId + ' 조각에 있다' : fsId + ' 조각에 **없다** — 앞 옆선이 뒤보다 ' +
+       f(M.sideFront - M.sideBack, 5, 3) + 'cm 길다 (유차 ' + M['유차'] + ')');
+    var legs = 0, apex = null;
+    dartEdges.forEach(function (e) {
+      var pts = fs.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+      for (var i = 1; i < pts.length - 1; i++) {
+        var a = V.norm(V.sub(pts[i], pts[i - 1])), b = V.norm(V.sub(pts[i + 1], pts[i]));
+        var ang = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
+        if (ang > 30) { legs = 2; apex = pts[i]; }
+      }
+    });
+    ok('sp0 └ V(두 다리)인가', legs === 2,
+       apex ? '꼭짓점 (' + f(apex[0], 5) + ',' + f(apex[1], 5) + ')' : '꺾이는 자리를 못 찾았다');
+  } else {
+    /* 4조각 — 회전해 닫았으므로 다트 변이 **없어야** 하고 옆선이 한 줄이라야 한다 */
+    ok('sp1 ⑥ 겨드랑다트를 회전해 닫았나', dartEdges.length === 0 && sideEdges.length === 1,
+       dartEdges.length ? '앞옆판에 다트 변이 아직 남아 있다 (회전 전 상태)'
+                        : '앞옆판 옆선 ' + sideEdges.length + '줄 · 다트 변 0개');
+    var sideL = sideEdges.length === 1 ? edgeLen(sideEdges[0]) : NaN;
+    /* 회전은 강체 변환이라 옆선 길이는 「다트를 뺀 값」 그대로여야 한다.
+       허용 0.25 — 외곽선은 폴리라인 샘플이라 곡선 이음부에서 그만큼 차이가 난다. */
+    ok('sp1 └ 접은 옆선 = 뒤 옆선', isFinite(sideL) && Math.abs(sideL - M.sideBack) <= 0.25,
+       '앞옆판 옆선 ' + f(sideL, 6) + ' ↔ 뒤 ' + f(M.sideBack, 6) +
+       ' 차 ' + f(sideL - M.sideBack, 6, 3));
+  }
+  /* 구성과 무관하게 — 접은 뒤 옆선 짝은 늘 맞아야 한다 */
   ok('sp' + sp + ' └ 봉제 후 옆선 짝', Math.abs(M.sideFrontSewn - M.sideBack) <= 0.1,
      '앞(다트 뺀 뒤) ' + f(M.sideFrontSewn, 6) + ' ↔ 뒤 ' + f(M.sideBack, 6) +
-     ' 차 ' + f(M.sideFrontSewn - M.sideBack, 6, 3), !has);
-  /* 다트 「다리」가 실제로 두 개 그려졌는가 — 라벨 존재만 보면 가이드선 하나로도
-     통과한다(예전에 실제로 그랬다). 두 다리(udF·udF2)를 이름으로 못 박는다. */
-  /* V 가 진짜 두 다리인가 — 꼭짓점에서 꺾이는지 각도로 본다. 변 하나만 그어 놓고
-     이름만 「겨드랑다트」로 달아도 위 검사는 통과한다 (예전에 실제로 그랬다). */
-  var legs = 0, apex = null;
-  if (fs) (fs.edges || []).forEach(function (e) {
-    if (!/겨드랑/.test(e.name || '')) return;
-    var pts = fs.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
-    if (pts.length < 3) return;
-    for (var i = 1; i < pts.length - 1; i++) {
-      var a = V.norm(V.sub(pts[i], pts[i - 1])), b = V.norm(V.sub(pts[i + 1], pts[i]));
-      var ang = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
-      if (ang > 30) { legs = 2; apex = pts[i]; }
-    }
-  });
-  ok('sp' + sp + ' └ 겨드랑다트가 V(두 다리)인가', legs === 2,
-     fsId + (apex ? ' 꼭짓점 (' + f(apex[0], 5) + ',' + f(apex[1], 5) + ')' : ' 에서 꺾이는 자리를 못 찾았다'));
+     ' 차 ' + f(M.sideFrontSewn - M.sideBack, 6, 3));
 });
 
 console.log('');

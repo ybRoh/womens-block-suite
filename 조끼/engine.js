@@ -253,7 +253,14 @@
     mpBack      :  0.65,  // [17] MP 0.5~0.8 (뒤 · 겨드랑~등의 살을 보고 정한다)
     mpFront     :  0.75,  // [39] MP 0.5~1 (앞 · 카라가 없거나 목파임이 큰 옷은 앞이 뜬다)
     neckOut     :  1.5,   // [18] 38 = 24 에서 1.5
-    shDartLen   :  7.0,   // [19] 40 = 다트길이 7
+    /* [19] 40 = 다트길이. 원문은 7 이지만 **사용자 지정 2026-08-14**:
+       「어깨 다트 길이는 BP 근처까지 가야 옷맵시가 예쁘게 되니 폭은 고정하고
+        길이만 길게」 → 폭은 [10] 1.5 그대로 두고 길이만 늘린다.
+       12 = 어깨선에서 내려 **견갑골을 지나 진동선 절반**까지 (55호 다트 끝 y≈10.1,
+       앞판 BP 높이 25 를 향하는 방향). 실무에서 뒤 어깨다트는 8~13 이 상한이다 —
+       그보다 길면 다트 끝이 등 한가운데서 뾰족하게 뜬다. 더 길게 쓰려면 UI
+       「뒤 어깨 다트길이」 슬라이더로(최대 16) 올릴 수 있다. */
+    shDartLen   : 12.0,
     /* ── 앞판 [20]~[40] ─────────────────────────────────────── */
     frontShDrop :  4.5,   // [21] 48 = 47 에서 4.5 아래
     fNeckDrop   :  1.0,   // [22] 51 = 50 에서 1 내려온 곳
@@ -828,8 +835,18 @@
     }
     var f65 = ptAtArc(fSide, num(opt.udDrop, K.udDrop));
     var f66 = ptAtArc(fSide, num(opt.udDrop, K.udDrop) + 유차);
-    var udDir = V.norm(V.sub(_lerp2(f65, f66), f58));
-    var udTip = V.add(f58, V.mul(udDir, num(opt.udTipShort, K.udTipShort)));
+    /* ★ 꼭짓점은 **두 다리가 같은 길이**가 되는 자리(65~66 의 수직이등분선 위)라야 한다.
+       접어서 꿰매는 다트이므로 다리 길이가 다르면 접었을 때 한쪽이 삐져나온다 —
+       58 에서 그냥 뒤로 물리면 |tip−65| ≠ |tip−66| 이라 회전으로 닫을 때 0.17cm
+       어긋났다 (2026-08-14 사용자 지정 「다트는 회전해서 붙여줘요」 구현 중 발견).
+       깊이는 58(절개선) 못미처 udTipShort — 거기까지 파면 앞옆판이 그 점에서 집힌다. */
+    var udMid = _lerp2(f65, f66);
+    var udN = (function () {
+      var e = V.norm(V.sub(f66, f65)), n = [-e[1], e[0]];
+      if ((f58[0] - udMid[0]) * n[0] + (f58[1] - udMid[1]) * n[1] < 0) n = [-n[0], -n[1]];
+      return n;                                   // 65~66 에 수직 · BP(58) 쪽
+    })();
+    var udTip = V.add(udMid, V.mul(udN, V.dist(f58, udMid) - num(opt.udTipShort, K.udTipShort)));
     var fSideUp  = splitSegsAtPt(fSide, f65, true);        // 41 → 65
     var fSideLow = splitSegsAtPt(splitSegsAtPt(fSide, f65, false), f66, false);   // 66 → 밑단
     /* 앞도 뒤와 같은 규칙 — **62 가 앵커다** ([29] 「62에서 교차」 · 위 bSplit 주석).
@@ -1294,6 +1311,20 @@
     for (var i = 0; i < pts.length; i++) if (V.dist(pts[i], P) < V.dist(pts[bi], P)) bi = i;
     return poly2segs(head ? pts.slice(0, bi + 1) : pts.slice(bi));
   }
+  /** 세그먼트열을 점 변환 f 로 옮긴다 (다트 회전에 쓴다 — 강체 변환이라 길이는 보존된다) */
+  function mapSegs(segs, f) {
+    return segs.map(function (s) {
+      return { p0: f(s.p0), c1: f(s.c1), c2: f(s.c2), p1: f(s.p1) };
+    });
+  }
+  /** P 를 중심으로 ang(rad) 회전하는 함수 */
+  function rotAbout(P, ang) {
+    var c = Math.cos(ang), s = Math.sin(ang);
+    return function (q) {
+      var dx = q[0] - P[0], dy = q[1] - P[1];
+      return [P[0] + dx * c - dy * s, P[1] + dx * s + dy * c];
+    };
+  }
   function draftVest(m, opt) {
     opt = opt || {};
     var g = geom(m, opt), seam = normSeam(opt.seam);
@@ -1478,18 +1509,46 @@
          분량 = 유차. 이걸 접으면 앞 옆선이 뒤와 같아진다(전 호수 차 0.003).
          사용자 결정(2026-08-14): 「겨드랑다트는 앞옆 절개선에 넣어줘」 —
          옆선에서 닫고 절개선 쪽 여유로 흡수한다. */
+      /* ★ 겨드랑다트를 **회전해서 절개선에 붙인다** (사용자 지정 2026-08-14
+         「여기 다트는 회전해서 붙여줘요」).
+         다트를 V 로 벌린 채 두면 앞옆판 옆선이 파여 봉제가 번거롭고, 교재의 완성
+         조각과도 다르다. 종이패턴에서 하는 그대로 — 다트 꼭짓점(udTip)을 **피벗**으로
+         다트 위쪽(진동 + 옆선 윗도막)을 돌려 두 다리를 맞붙인다:
+           · 옆선은 41 → 밑단 **한 줄**로 이어진다 (길이는 그대로 = 뒤 옆선과 같다)
+           · 그 분량은 절개선 위쪽이 열리는 것으로 옮겨간다 — 이게 「절개선에 붙인다」다
+           · 회전은 강체 변환이라 진동·밑단·절개선 하단의 **길이는 하나도 안 변한다**
+         열린 구간은 절개선을 68(BP 옆)에서 회전된 진동 끝까지 다시 그어 메운다. */
+      var udAng = (function () {
+        var a1 = Math.atan2(g.f65[1] - g.udTip[1], g.f65[0] - g.udTip[0]);
+        var a2 = Math.atan2(g.f66[1] - g.udTip[1], g.f66[0] - g.udTip[0]);
+        var d = a2 - a1;                                   // 65 를 66 에 겹치는 회전
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        return d;
+      })();
+      var udR      = rotAbout(g.udTip, udAng);
+      var fArmRot  = mapSegs(fArmLow, udR);                // 진동 (67' → 41')
+      var fSideRot = mapSegs(g.fSideUp, udR);              // 옆선 윗도막 (41' → 66)
+      var fSplitLo = splitSegsAtPt(revSegs(g.fSplitOut), g.f68, true);   // 61 → 68 (그대로)
+      var armTop   = fArmRot[0].p0;                        // 회전된 진동의 시작점
+      /* 68 → 회전된 진동 끝. 시작 접선은 원래 절개선의 것을 이어받아 꺾이지 않게 하고,
+         끝은 진동에 자연스럽게 닿게 한다 (여기서 벌어진 다트분이 흡수된다). */
+      /* ⚠ **폴리라인으로 펴서** 낸다 — 스플라인 한 도막을 그대로 두면 외곽선 점 간격이
+         0.26cm 까지 벌어져 SPEC(0.06) 을 깬다. 이웃 변(fSplitLo)이 이미 0.01 폴리라인
+         이라 이 도막만 성기면 그 자리에서 시접 계산이 각진다 (2026-08-14 QA). */
+      var splitJoin = poly2segs(sampleSegs(
+        splineSegs([cp(g.f68), cp(armTop)],
+          endTan(V.sub(g.f68, g.f63), CAL.princess.k0),
+          endTan(V.sub(armTop, g.f68), 1.0)), 0.02));
       pieces.push(mk('frontSide', '앞옆판', [
-        { name: '진동',       role: 'armhole',  segs: fArmLow },
-        { name: '옆선',       role: 'side',     segs: g.fSideUp },
-        /* [27] 겨드랑다트 — 옆선 위 65~66 에서 58 쪽으로 파인 V (사용자 확정 자리) */
-        { name: '겨드랑다트', role: 'dart',
-          segs: lineSegs(g.f65, g.udTip).concat(lineSegs(g.udTip, g.f66)) },
-        { name: '옆선',       role: 'side',     segs: g.fSideLow },
-        { name: '밑단',       role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
-        { name: '절개선',     role: 'princess', segs: revSegs(g.fSplitOut) }
+        { name: '진동',   role: 'armhole',  segs: fArmRot },
+        { name: '옆선',   role: 'side',     segs: fSideRot.concat(g.fSideLow) },  // 다트를 접어 한 줄
+        { name: '밑단',   role: 'hem',      segs: lineSegs(g.f42, g.f61) },   // 절개선(Out)이 61 에서 끝난다
+        { name: '절개선', role: 'princess', segs: fSplitLo.concat(splitJoin) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
-        [{ p: cp(g.f65), angle: 180, label: '다트 다리' },
-         { p: cp(g.f66), angle: 180, label: '다트 다리' }].concat(nF.b),
+        /* 다트를 접어 없앴으니 다리 너치도 없다 — 대신 **접어 붙인 자리**를 하나 찍어
+           앞판(중심)의 짝 너치와 맞춘다 (nF.b 가 BP·허리·엉덩이 높이를 낸다). */
+        [{ p: cp(g.f66), angle: 180, label: '겨드랑다트 접은 자리' }].concat(nF.b),
         fGuideCommon.slice()));
     } else {
       pieces.push(mk('front', '앞판', [

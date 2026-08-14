@@ -246,7 +246,12 @@ SIZES.forEach(function (sz) {
     var dc = [(drawn[0][0] + drawn[2][0]) / 2, (drawn[0][1] + drawn[2][1]) / 2];
     var legs = V.dist(drawn[0], drawn[2]), lenD = V.dist(dc, drawn[1]);
     if (Math.abs(legs - 1.5) > 0.02) bad.push('[19] 어깨 다트 벌린 폭 ' + legs.toFixed(3) + ' ≠ [10] 다트 1.5');
-    if (Math.abs(lenD - 7.0) > 0.02) bad.push('[19] 어깨 다트 길이 ' + lenD.toFixed(3) + ' ≠ 원문 7');
+    /* ★ 길이는 **K 를 따라간다** — 사용자 지정 2026-08-14 「폭은 고정하고 길이만 길게」
+       (원문 7 → 12 · BP 쪽까지). 원문 고정으로 남는 것은 폭 1.5 뿐이다.
+       ⚠ 7.0 리터럴로 두면 슬라이더를 움직이는 순간 전 호수가 실패한다 — 값을 K 로
+         옮기고 검사를 안 옮기면 늘 이렇게 된다 (이 프로젝트에서 반복된 자리). */
+    if (Math.abs(lenD - K.shDartLen) > 0.02)
+      bad.push('[19] 어깨 다트 길이 ' + lenD.toFixed(3) + ' ≠ K.shDartLen ' + K.shDartLen);
     if (distPoly(dc, [g.p38, g.p26]) > 0.02)
       bad.push('[19] 어깨 다트 중심이 어깨선(38~26) 위에 없다 — 다트가 봉제선 밖에 선다');
     if (V.dist(dc, g.p39) > 0.05)
@@ -300,7 +305,10 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['mpBack',       0.5, 0.8, '[17] 약 0.5~0.8'],
     ['mpFront',      0.5, 1.0, '[39] 0.5~1'],
     ['neckOut',      1.5, 1.5, '[18] 24번에서 1.5'],
-    ['shDartLen',    7.0, 7.0, '[19] 다트길이 7'],
+    /* [19] 원문은 7 이지만 **사용자 지정 2026-08-14** 로 늘렸다 — 「BP 근처까지 가야
+       옷맵시가 예쁘다」. 폭(shDart 1.5)은 원문 그대로 고정이고 길이만 움직인다.
+       상한 16 은 봉제 한계다(그보다 길면 다트 끝이 등에서 뜬다). */
+    ['shDartLen',    7.0, 16.0, '[19] 다트길이 — 원문 7 · 사용자 지정으로 BP 쪽까지 연장'],
     ['frontShDrop',  4.5, 4.5, '[21] 47번 아래로 4.5'],
     ['fNeckDrop',    1.0, 1.0, '[22] 50번에서 1 내려온곳'],
     ['fShScoop',     1.5, 1.5, '[23] 20번점에서 1.5'],
@@ -491,10 +499,21 @@ SIZES.forEach(function (sz) {
     if (a65 >= 0 && a66 >= 0 && Math.abs((a66 - a65) - yc) > 0.02)
       bad.push('[27] 65~66 호길이 ' + (a66 - a65).toFixed(3) + ' ≠ 유차 ' + yc +
                ' — 이걸 접어야 앞뒤 옆선이 같아진다');
-    /* 꼭짓점은 58(절개선 변) 못미처라야 한다 — 58 까지 파면 앞옆판이 그 점에서 집힌다 */
-    var tipGap = V.dist(g.udTip, g.f58);
-    if (Math.abs(tipGap - K.udTipShort) > 0.02)
-      bad.push('[27] 겨드랑다트 꼭짓점이 58 에서 ' + tipGap.toFixed(3) + ' — udTipShort ' + K.udTipShort);
+    /* ★ 꼭짓점은 **두 다리가 같은 길이**가 되는 자리라야 한다 — 접어서 꿰매는 다트라
+       다리 길이가 다르면 접었을 때 한쪽이 삐져나온다 (실제로 0.17 어긋나 외곽선
+       점 간격 검사에 걸렸다 · 2026-08-14 회전 구현 중 발견).
+       ⚠ 예전 검사는 「58 에서 udTipShort 떨어졌는가」였다 — 등거리 자리로 옮기면
+         58 과의 거리는 호수마다 달라지므로 그 검사는 성립하지 않는다. 재는 것을
+         **깊이(58 못미처)와 대칭성**으로 바꾼다. */
+    var legA = V.dist(g.udTip, g.f65), legB = V.dist(g.udTip, g.f66);
+    if (Math.abs(legA - legB) > 0.02)
+      bad.push('[27] 겨드랑다트 두 다리가 다르다 ' + legA.toFixed(3) + ' ↔ ' + legB.toFixed(3) +
+               ' — 접으면 한쪽이 삐져나온다');
+    var mid = [(g.f65[0] + g.f66[0]) / 2, (g.f65[1] + g.f66[1]) / 2];
+    var depth = V.dist(g.udTip, mid), toBP = V.dist(g.f58, mid);
+    if (Math.abs((toBP - depth) - K.udTipShort) > 0.02)
+      bad.push('[27] 겨드랑다트 깊이가 58 에서 ' + (toBP - depth).toFixed(3) +
+               ' 못미처 — udTipShort ' + K.udTipShort + ' 이라야 한다');
   })();
   /* 앞 다트분 = 남는 양(56−55) × fDartUse — 완성이미지 실측 (K 주석) */
   if (finiteOr(bad, '앞 다트분', g.frontDart) && Math.abs(g.frontDart - fDart) > 0.002)
@@ -866,9 +885,13 @@ SIZES.forEach(function (sz) {
            front:     ['mpF', 'bpF'] }
     };
     /* 조각마다 반드시 있어야 하는 **변** — 이름으로 못 박는다 */
+    /* ⚠ 4조각(sp1)에서는 겨드랑다트를 **회전해 절개선에 붙였다** (사용자 지정
+       2026-08-14 「여기 다트는 회전해서 붙여줘요」) — 그래서 앞옆판에 다트 변이
+       없는 것이 정상이고, 대신 옆선이 **한 줄**이라야 한다(아래 §5 가 길이를 잰다).
+       통짜(sp0)는 절개선이 제도선일 뿐이라 회전할 수 없어 다트를 그대로 둔다. */
     var WANTE = {
       0: { front: ['겨드랑다트', '앞단 사선'] },
-      1: { frontSide: ['겨드랑다트'], front: ['앞단 사선'] }
+      1: { front: ['앞단 사선'] }
     };
     [0, 1].forEach(function (sp) {
       var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
