@@ -188,8 +188,12 @@
                 backW: 1.0, frontW: 1.0, bustLen: 0.5, bustW: 0.5,
                 sleeveLen: 1.0, hipLen: 0.0, dressLen: 1.5, sleeveW: 1.0 };
   var SIZE_STEP = { '44호': -1, '55호': 0, '66호': 1, '77호': 2, '88호': 3 };
+  /* ★ 조끼는 **소매가 없다.** 원피스에서 복제하며 sleeveLen·sleeveW·dressLen 이
+     따라왔는데 어디에도 안 쓰여 「입력란이 거짓말하는」 상태였다(검산기가 흔들어
+     확인해 잡았다 · 2026-08-14 QA). 밑단은 원문대로 **엉덩이선**이므로
+     조끼길이는 hipLen 이 정한다 — 따로 둘 치수가 아니다. */
   var MEAS_KEYS = ['B', '유B', 'W', 'H', 'backLen', 'shoulderW', 'backW', 'frontW',
-                   'bustLen', 'bustW', 'sleeveLen', 'hipLen', 'dressLen', 'sleeveW'];
+                   'bustLen', 'bustW', 'hipLen'];
   var MEAS_LABEL = {
     B: '상동(윗가슴둘레)', 유B: '유상동(젖가슴둘레)', W: '중동(허리둘레)', H: '하동(엉덩이둘레)',
     backLen: '등길이', shoulderW: '어깨너비', backW: '등품', frontW: '앞품',
@@ -1064,13 +1068,14 @@
     /* ══ 앞판 ══════════════════════════════════════════════════ */
     var nF = levelPair(g.fSplitIn, [0, g.WL], g.fSplitOut, [g.p16[0], g.WL],
                [['BP', g.bustLen], ['허리', g.WL], ['엉덩이', g.HL]]);
-    var fGuide = [
+    /* ★ BP·MP 는 **앞중심 조각의 표시**다. 공통 fGuide 에 넣어 앞옆에도 붙였더니
+       조각 밖 1.1~5.7cm 허공에 떠 있었다 (검산기가 잡음 · 2026-08-14 QA).
+       조각마다 「그 조각 안에 있는 표시만」 준다. */
+    var fGuideCommon = [
       L('blF', 'dashed', [[0, g.f41[1]], [g.f41[0], g.f41[1]]], '진동선'),
       L('wlF', 'dashed', [[0, g.WL], [g.f55[0], g.WL]], '허리선'),
       L('hlF', 'dashed', [[0, g.HL], [g.p16[0], g.HL]], '엉덩이선'),
       L('fwF', 'dashed', [[g.f46[0], g.f44[1]], [g.f46[0], g.f41[1]]], '앞품선'),
-      L('bpF', 'edge', [[g.f57[0] - 0.6, g.f57[1]], [g.f57[0] + 0.6, g.f57[1]]], 'BP'),
-      L('bpF2', 'edge', [[g.f57[0], g.f57[1] - 0.6], [g.f57[0], g.f57[1] + 0.6]], 'BP'),
       /* [22] 앞 어깨기울기 안내선 S~N = 48~51. 제도 확인용 보조선이라 점선으로만 낸다
          (52 는 [23] 이 20번에서 잡으므로 이 선이 어깨 끝을 정하지는 않는다). */
       L('snF', 'dashed', [g.f48, g.f51], 'S~N 안내선'),
@@ -1079,8 +1084,13 @@
       /* [39] 앞 MP — 「53번에서 68번을 곡자로 연결하여 적당한 지점에」.
          목파임이 큰 옷은 앞이 뜨므로 0.5~1 을 접어 없앤다. 뒤 MP 와 짝이다.
          적당한 지점 = 53~68 의 중간(mpAt) 으로 잡고, 접는 방향은 절개선 쪽이다. */
-      L('mpF', 'dashed', [cp(g.fMp), cp(g.fMpTo)], 'MP ' + r4(num(opt.mpFront, K.mpFront)))
     ];
+    /* 앞중심에만 붙는 표시 — BP 십자 · 앞 MP */
+    var fGuideCf = fGuideCommon.concat([
+      L('bpF', 'edge', [[g.f57[0] - 0.6, g.f57[1]], [g.f57[0] + 0.6, g.f57[1]]], 'BP'),
+      L('bpF2', 'edge', [[g.f57[0], g.f57[1] - 0.6], [g.f57[0], g.f57[1] + 0.6]], 'BP'),
+      L('mpF', 'dashed', [cp(g.fMp), cp(g.fMpTo)], 'MP ' + r4(num(opt.mpFront, K.mpFront)))
+    ]);
     if (split) {
       var fArmUp  = splitSegsAtPt(g.fArm, g.f67, true);     // 52 → 절개점(67)
       var fArmLow = splitSegsAtPt(g.fArm, g.f67, false);    // 67 → 41
@@ -1097,14 +1107,14 @@
             BP 높이 너치는 nF 가 따로 낸다.) 예전에는 f57 을 너치로 넣어
             외곽선에서 10cm 떨어진 허공에 찍혔다 (2026-08-14 suite-verify). */
         [{ p: cp(g.f53), angle: 90, label: '목옆점' }].concat(nF.a),
-        fGuide.concat([L('cfF', 'dashed', [[0, g.f44[1]], [0, g.HL]], '앞중심 기초선')])));
+        fGuideCf.concat([L('cfF', 'dashed', [[0, g.f44[1]], [0, g.HL]], '앞중심 기초선')])));
       pieces.push(mk('frontSide', '앞옆', [
         { name: '진동',   role: 'armhole',  segs: fArmLow },
         { name: '옆선',   role: 'side',     segs: g.fSide },
         { name: '밑단',   role: 'hem',      segs: lineSegs(g.p16, g.f61) },   // 절개선(Out)이 61 에서 끝난다
         { name: '절개선', role: 'princess', segs: revSegs(g.fSplitOut) }
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
-        [{ p: cp(g.f41), angle: 180, label: '겨드랑' }].concat(nF.b), fGuide));
+        [{ p: cp(g.f41), angle: 180, label: '겨드랑' }].concat(nF.b), fGuideCommon));
     } else {
       pieces.push(mk('front', '앞판', [
         { name: '앞목',   role: 'neck',     segs: g.fNeck },
@@ -1115,7 +1125,7 @@
         { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
       ], [[-g.f71[0] + 2.0, g.BL], [-g.f71[0] + 2.0, g.HL - 3]],
         [{ p: cp(g.f53), angle: 90, label: '목옆점' }],
-        fGuide));
+        fGuideCf));
     }
     fn('fwF', '앞품/2', '앞품/2', g.frontW / 2, 'front', [g.f46[0] - 3, g.BL / 2]);
     fn('bpF', 'BP', '(유폭/2, 유장)', g.bustLen, 'front', [g.f57[0] + 1, g.f57[1] + 1]);

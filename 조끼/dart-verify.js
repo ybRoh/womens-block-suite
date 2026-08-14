@@ -107,13 +107,16 @@ head('2. 다트 분량 — 원문 범위');
   ok('⑤ 앞 MP', mpF !== undefined && mpF >= 0.5 && mpF <= 1.0,
      (mpF === undefined ? '없다(undefined)' : f(mpF, 6)) + '  원문 [39] 0.5~1');
   /* ★ 값이 있어도 **그려지지 않으면 종이엔 없다** — 이게 이번 지적의 핵심이었다 */
+  /* ⚠ MP 는 **그 선이 놓인 조각**에만 있어야 한다. 처음엔 4조각 전부에 요구했는데,
+     그러면 앞 MP 를 앞옆에도 붙이게 되고 검산기가 「조각 밖 허공」으로 잡는다.
+     → 뒤 MP 는 뒤쪽 어딘가에, 앞 MP 는 앞쪽 어딘가에 **한 번씩** 있으면 된다. */
   var dd = E.draftVest(m, { seam: E.SEAM_DEFAULT });
-  ['뒤중심', '뒤옆', '앞중심', '앞옆'].forEach(function (nm) {
-    var pc = dd.pieces.filter(function (x) { return x.name === nm; })[0];
-    if (!pc) return;
-    var has = (pc.internal || []).some(function (x) { return /MP/.test(x.label || ''); });
-    ok('MP 선이 ' + nm + ' 에', has, has ? '그려져 있다' : '**없다** — 값만 있고 안 그렸다');
-  });
+  function mpIn(pref) {
+    return dd.pieces.filter(function (x) { return x.name.indexOf(pref) === 0; })
+      .some(function (pc) { return (pc.internal || []).some(function (x) { return /MP/.test(x.label || ''); }); });
+  }
+  ok('뒤 MP 선이 그려졌나', mpIn('뒤'), mpIn('뒤') ? '뒤 조각에 있다' : '**없다** — 값만 있고 안 그렸다');
+  ok('앞 MP 선이 그려졌나', mpIn('앞'), mpIn('앞') ? '앞 조각에 있다' : '**없다** — 값만 있고 안 그렸다');
   function num(v) { return typeof v === 'number' ? v : NaN; }
 })();
 
