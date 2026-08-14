@@ -106,9 +106,12 @@ head('2. 다트 분량 — 원문 범위');
   if (f56 && f55) {
     var fd = Math.abs(f56[0] - f55[0]);
     var fin = 2 * ((g.p19[0] - g.cbIn - g.backDart) + (f56[0] - g.frontDart));
-    var want = g.W + 4 * K.waistEase;
-    ok('③ 앞 허리다트 = 남는 양', Math.abs(fin - want) <= 0.02,
-       '다트 ' + f(fd, 5) + ' · 완성 허리 ' + f(fin, 6) + ' = W + 여유×4 (' + f(want, 6) + ')');
+    /* 완성이미지 실측(2026-08-14) — 다트는 남는 양의 fDartUse(0.8)만 접는다.
+       안 접은 몫 2×(1−fDartUse)×남는양 은 앞 허리 여유로 남는다 (engine-verify §9 와 동식). */
+    var want = g.W + 4 * K.waistEase + 2 * (1 - K.fDartUse) * fd;
+    ok('③ 앞 허리다트 = 남는 양 × fDartUse', Math.abs(fin - want) <= 0.02,
+       '다트 ' + f(g.frontDart, 5) + ' = 남는 양 ' + f(fd, 5) + ' × ' + K.fDartUse +
+       ' · 완성 허리 ' + f(fin, 6) + ' (기대 ' + f(want, 6) + ')');
   } else {
     ok('③ 앞 허리다트 = 남는 양', false, '56 번이 geom 에 없다 — 「남는 양」을 못 잰다');
   }
@@ -179,27 +182,33 @@ E.SIZES.forEach(function (sz) {
   function num(v) { return typeof v === 'number' ? v : NaN; }
 });
 
-/* ══ 5. 전 호수에서 다트가 다 있나 ══════════════════════════════════ */
+/* ══ 5. 전 호수에서 다트가 다 있나 ══════════════════════════════════
+ *  ★ **sp0·sp1 둘 다** 돈다. 예전엔 opt 에 splitPanels 를 안 넘겨 늘 K 기본값
+ *    (=1, 4조각)만 봤는데, 사용자가 화면에서 보는 것은 **sp0(통짜)** 다
+ *    (ui.html 의 selected 가 0). 그래서 통짜에 어깨다트·겨드랑다트 다리가
+ *    통째로 없어도 이 검사가 「전체 통과」를 냈다 (2026-08-14 사용자 지적). */
 head('5. 전 호수 다트 개수 — 호수 따라 있다 없다 하면 안 된다');
 (function () {
-  var counts = {};
-  E.SIZES.forEach(function (sz) {
-    var d = E.draftVest(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT });
-    d.pieces.forEach(function (p) {
-      var n = dartsOf(p).lines.length;
-      (counts[p.name] = counts[p.name] || []).push(n);
+  [0, 1].forEach(function (sp) {
+    var counts = {};
+    E.SIZES.forEach(function (sz) {
+      var d = E.draftVest(E.measuresForSize(sz), { seam: E.SEAM_DEFAULT, splitPanels: sp });
+      d.pieces.forEach(function (p) {
+        var n = dartsOf(p).lines.length;
+        (counts[p.name] = counts[p.name] || []).push(n);
+      });
     });
-  });
-  Object.keys(counts).forEach(function (k) {
-    var a = counts[k], same = a.every(function (v) { return v === a[0]; });
-    ok('조각 ' + k, same, a.join(' / ') + '  (44·55·66·77·88호)');
+    Object.keys(counts).forEach(function (k) {
+      var a = counts[k], same = a.every(function (v) { return v === a[0]; });
+      ok('sp' + sp + ' 조각 ' + k, same, a.join(' / ') + '  (44·55·66·77·88호)');
+    });
   });
 })();
 
 /* ══ 6. 다트 다리 너치 ═════════════════════════════════════════════ */
 head('6. 다트 다리 너치 — 접는 자리 표시');
-(function () {
-  var d = E.draftVest(E.measuresForSize('55호'), { seam: E.SEAM_DEFAULT });
+[0, 1].forEach(function (sp) {
+  var d = E.draftVest(E.measuresForSize('55호'), { seam: E.SEAM_DEFAULT, splitPanels: sp });
   var any = 0;
   /* ⚠ 「다트」가 라벨에 들어간 선이 다 접는 다트는 아니다 — `다트 끝`(절개 끝 표시)과
      MP 는 다리가 없다. **접는 다트**(어깨 다트)가 있는 조각만 다리 너치를 요구한다.
@@ -209,12 +218,12 @@ head('6. 다트 다리 너치 — 접는 자리 표시');
     var nt = dartsOf(p).notches;
     any += nt.length;
     if (fold.length)
-      ok('조각 ' + p.name, nt.length >= 2,
+      ok('sp' + sp + ' 조각 ' + p.name, nt.length >= 2,
          '접는 다트 ' + fold.length + '개 · 다리 너치 ' + nt.length + '개 (두 곳이라야 한다)');
     else
-      ok('조각 ' + p.name, true, '접는 다트 없음 — 절개선이 다트를 먹는다 (다리 너치 불필요)', true);
+      ok('sp' + sp + ' 조각 ' + p.name, true, '접는 다트 없음 — 절개선이 다트를 먹는다 (다리 너치 불필요)', true);
   });
-  ok('다트 너치 총합', any > 0, any + '개');
+  ok('sp' + sp + ' 다트 너치 총합', any > 0, any + '개');
   /* ★ **공허한 통과 방지** — 위 검사는 「접는 다트가 있는 조각만」 본다. 그래서
      다트가 **통째로 사라지면** 조건이 공허해져 전부 통과해 버린다.
      실제로 그랬다: 어깨 다트를 bGuide 에서 빼다가 뒤중심에서도 없어졌는데
@@ -223,30 +232,39 @@ head('6. 다트 다리 너치 — 접는 자리 표시');
   d.pieces.forEach(function (p) {
     foldTotal += (p.internal || []).filter(function (x) { return /어깨 다트/.test(x.label || ''); }).length;
   });
-  ok('접는 다트 최소 1개', foldTotal >= 1,
+  ok('sp' + sp + ' 접는 다트 최소 1개', foldTotal >= 1,
      '어깨 다트 ' + foldTotal + '개 — 0 이면 위 §6 이 공허하게 통과한다');
-})();
+});
 
 /* ══ 7. ⑥ 앞 겨드랑다트 — 목록에 넣었으니 **센다** ══════════════════════
  *   여기 없으면 위 §1·§5 는 앞옆 조각을 「다트 없는 조각」으로 보고 그냥 통과한다.
  *   목록에 없는 것은 아무도 못 잡는다 — 그래서 부재를 명시적으로 센다. */
 head('7. ⑥ 앞 겨드랑다트 [27] 65·66 — 아직 안 넣은 것을 조용히 넘기지 않는다');
-(function () {
+[0, 1].forEach(function (sp) {
   var m = E.measuresForSize('55호');
-  var d = E.draftVest(m, { seam: E.SEAM_DEFAULT }), M = d.measures;
-  var fs = d.pieces.filter(function (p) { return p.id === 'frontSide'; })[0];
+  var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp }), M = d.measures;
+  /* ★ 겨드랑다트가 붙는 조각은 구성에 따라 다르다 — 4조각이면 앞옆, 통짜면 앞판.
+     예전엔 frontSide 만 찾았고 opt 도 안 넘겨서, 통짜에는 다리가 하나도 없는데도
+     이 절이 그 조각을 아예 못 봐서 조용히 통과했다 (2026-08-14). */
+  var fsId = sp ? 'frontSide' : 'front';
+  var fs = d.pieces.filter(function (p) { return p.id === fsId; })[0];
   var has = fs ? (fs.internal || []).some(function (x) { return /겨드랑/.test(x.label || ''); }) : false;
   /* 이 다트가 먹어야 할 분량 = 앞 옆선이 뒤보다 긴 만큼. [20] 이 41 을 13 에서 유차
      올려 잡으므로 구조상 그 차는 **유차**다 (engine-verify §5 가 그걸 잰다). */
-  ok('⑥ 앞 겨드랑다트', has,
-     has ? '앞옆 조각에 있다'
-         : '앞옆 조각에 **없다** — 앞 옆선이 뒤보다 ' + f(M.sideFront - M.sideBack, 5, 3) +
-           'cm 길다 (유차 ' + M['유차'] + ') · [27] 이 자리를 안 정해 사용자 결정 대기', true);
+  ok('sp' + sp + ' ⑥ 앞 겨드랑다트', has,
+     has ? fsId + ' 조각에 있다'
+         : fsId + ' 조각에 **없다** — 앞 옆선이 뒤보다 ' + f(M.sideFront - M.sideBack, 5, 3) +
+           'cm 길다 (유차 ' + M['유차'] + ')');
   /* 다트를 넣으면 이 짝이 0.1 안으로 들어와야 한다. 넣기 전에는 참고, 넣은 뒤엔 실패. */
-  ok('└ 봉제 후 옆선 짝', Math.abs(M.sideFrontSewn - M.sideBack) <= 0.1,
+  ok('sp' + sp + ' └ 봉제 후 옆선 짝', Math.abs(M.sideFrontSewn - M.sideBack) <= 0.1,
      '앞(다트 뺀 뒤) ' + f(M.sideFrontSewn, 6) + ' ↔ 뒤 ' + f(M.sideBack, 6) +
      ' 차 ' + f(M.sideFrontSewn - M.sideBack, 6, 3), !has);
-})();
+  /* 다트 「다리」가 실제로 두 개 그려졌는가 — 라벨 존재만 보면 가이드선 하나로도
+     통과한다(예전에 실제로 그랬다). 두 다리(udF·udF2)를 이름으로 못 박는다. */
+  var legs = fs ? (fs.internal || []).filter(function (x) {
+    return /^udF/.test((x.id || '').replace(/_\d+$/, '')); }).length : 0;
+  ok('sp' + sp + ' └ 겨드랑다트 다리 2개', legs === 2, fsId + ' 에 다리 ' + legs + '개 (udF·udF2)');
+});
 
 console.log('');
 console.log('  다트 검사 — ' + (fails ? '실패 ' + fails + '건' : '전체 통과') +

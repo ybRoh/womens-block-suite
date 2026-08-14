@@ -47,7 +47,10 @@
     { k: 'cbIn',        label: '뒤중심 들임',   min: 0,   max: 3,   step: 0.1,  hint: '4·5·3 에서 나가는 양 · 원문 1.5  [5]' },
     { k: 'chestEase',   label: '겨드랑 여유',   min: 0,   max: 4,   step: 0.05, hint: '13 = 유B/4 + 이 값 · 원문 1.5~2  [7]' },
     { k: 'waistEase',   label: '허리 여유',     min: 0,   max: 5,   step: 0.05, hint: '18 = 17 + 이 값 · 원문 1.5~2  [9]' },
-    { k: 'hipEase',     label: '엉덩이 여유',   min: 0,   max: 5,   step: 0.1,  hint: '16 = 15 + 이 값 · 원문 1.5  [8]' },
+    /* 뒤판 여유(hipEaseB)를 노출한다 — 16번·절개선 밑단 벌어짐이 눈에 보이게 움직인다.
+       앞판 hipEase(1.5)는 표준 체형에서 옮김이 0 이라 슬라이더로 두면 무동작이 된다
+       (suite-verify UI 계약 · 2026-08-14). */
+    { k: 'hipEaseB',    label: '엉덩이 여유(뒤)', min: 0,  max: 5,  step: 0.1,  hint: '16 = 15 + 이 값 · 도면 실측 2.4 (원문 텍스트 1.5)  [8]' },
     { k: 'backDart',    label: '뒤 허리 다트분', min: 1.0, max: 4.0, step: 0.05, hint: '19 = 18 + 이 값 · 원문 2~2.5  [9]' },
     { k: 'shDart',      label: '뒤 어깨 다트분', min: 0,  max: 3,   step: 0.1,  hint: '21 = 20 + 이 값 · 원문 1.5  [10]' },
     { k: 'shDartLen',   label: '뒤 어깨 다트길이', min: 4, max: 12, step: 0.5,  hint: '40 = 다트길이 · 원문 7  [19]' },

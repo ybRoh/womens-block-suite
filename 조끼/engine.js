@@ -224,14 +224,26 @@
     cbIn        :  1.5,   // [5] 4·5·3 에서 1.5 나간 곳 = 7·8·9
     /* ── 뒤판 [6]~[19] ───────────────────────────────────────── */
     chestEase   :  1.75,  // [7] 13 = 유B/4 + 1.5~2
-    hipEase     :  1.5,   // [8] 16 = 15 + 여유 1.5
-    waistEase   :  1.75,  // [9] 18 = 17 + 여유 1.5~2
-    backDart    :  2.25,  // [9] 19 = 18 + 다트분 2~2.5
+    hipEase     :  1.5,   // [8] 16 = 15 + 여유 1.5 (앞판 [27] 의 「앞의 16」도 이 값)
+    /* [8] **뒤판이 실제로 쓴** 여유 — 완성이미지·9_뒤판이미지2 실측 14~16 = **2.41**
+       ([15] 주석의 「31~32 벌어짐 2.46 · 차 0.05」와 같은 실측). 원문 텍스트는 1.5 라
+       쓰지만 그린 도면은 2.4 를 옮겼다 — 뒤 절개선 밑단 벌어짐이 여기서 나오므로
+       이미지와 맞추려면 이 값이라야 한다. 앞판은 hipEase(1.5)를 그대로 쓴다:
+       H/4+1.5 = 42번 x 라 옮김이 정확히 0 — 완성이미지의 「앞 밑단 벌어짐 0」과 맞다. */
+    hipEaseB    :  2.4,
+    waistEase   :  2.0,   /* [9] 18 = 17 + 여유 1.5~2. 완성이미지 실측 — 허리 옆선
+                             22.78 = W/4 + 2.0 + 다트 2.1 (+뒤중심 1.5). 1.75 면 옆선
+                             허리가 실측보다 0.4 안으로 파인다. 절개 다리 벌어짐(2.07)과
+                             동시에 맞는 조합은 여유 2.0 · 다트 2.1 뿐이다. */
+    backDart    :  2.1,   // [9] 19 = 18 + 다트분 2~2.5 (완성이미지 실측 2.07)
     shDart      :  1.5,   // [10] 21 = 20 + 다트 1.5
     shSlope     :  1.4,   // [10] 22 = 12 에서 어깨기울기 1.3~1.5
     shScoop     :  1.5,   // [12] 26 = 21 에서 안으로 1.5
     armFromBW   :  0.75,  // [13] 암홀이 27 에서 0.5~1 떨어진다
-    splitIn     :  2.5,   // [14] 28 = 11 에서 2~3 안쪽
+    /* [14] 28 = 11 에서 2~3 안쪽. 완성이미지(15) 실측 — 절개선 교차점(30번)의 x 가
+       뒤중심에서 14.82 = 등품선 − **2.93** (bSplit 주석의 927/973px 실측과 같은 값).
+       2.5 로 두면 전체 절개선이 실측보다 0.4~0.5 옆선 쪽으로 밀린다 (2026-08-14 QA). */
+    splitIn     :  2.93,
     /* [16] 절개선이 27a 에서 나가는 각(세로 기준 °). 암홀은 27a 에서 세로로 접하므로
        이 값이 곧 「절개선↔진동」 모서리의 내각이다. 도면 실측 27.0°(9_뒤판이미지2) ~
        34.7°(4_뒤판이미지 · 「내려와서 그리는」 변형). 모서리 시접이 여기에 직결된다. */
@@ -247,27 +259,56 @@
     fNeckDrop   :  1.0,   // [22] 51 = 50 에서 1 내려온 곳
     fShScoop    :  1.5,   // [23] 52 = 20 에서 1.5 내려온 곳
     fNeckOut    :  1.5,   // [23] 53 = 51 에서 1.5 나간 곳
-    bpOut       :  1.75,  // [26] 58 = 57(BP) 에서 1.5~2
+    bpOut       :  1.5,   /* [26] 58 = 57(BP) 에서 1.5~2. 완성이미지 실측 — 앞 절개
+                             중심선(58~59)이 BP+1.25~1.3 에 있다. 원문 하한 1.5 를 쓴다
+                             (1.75 면 허리 다리 중심이 실측보다 0.45 옆선 쪽). */
     /* [27] 앞다트분 — **기본은 「남는 양」**(56 − 55)이라 이 값은 안 쓰인다.
        opt.frontDart 로 덮어쓸 때만 쓰이는 참고값이다. (fSplitDrop 은 삭제 —
        67 을 암홀 위 점으로 옮기면서 아무도 안 읽는 상수가 됐다) */
     frontDart   :  2.5,
+    /* [24]·[27] 남는 양(56−55) 중 **다트로 쓰는 몫**. 완성이미지 실측 — 허리(WL)에서
+       앞 절개 두 다리 벌어짐 2.88, 남는 양은 3.60 (= 등솔선 1.5 + 뒤다트 2.1).
+       나머지 0.7 은 여유로 남는다. 1.0 으로 두면 다리가 실측보다 0.36 씩 벌어지고,
+       덤으로 [24] 참고 「보통 앞다트가 2~3」 도 벗어난다(3.6). 0.8 × 3.6 = 2.88 ✓ */
+    fDartUse    :  0.8,
     frontDrop   :  2.5,   // [38] 70 = 3 에서 앞처짐 2.5
     frontWrap   :  2.0,   // [38] 앞여밈분 — 얇은 원단 2 · 두꺼운 2.5
     frontArmGap :  0.5,   // [25] 앞암홀이 49(앞품)에서 0.5 떨어진다
+    /* [28] 앞 절개선이 67 에서 나가는 각(세로 기준 °). 완성이미지 실측 — 67 아래
+       첫 2.5cm 의 평균 기울기 21°, 그 뒤 44° 로 깊어졌다가 68 에 세로로 닿는다.
+       ⚠ 실측 그대로 21° 를 주면 「절개선↔진동」 모서리 시접이 0.25~0.28 로 무너지고
+         (실패기준 0.30 · engine-verify §4), 25° 도 44호가 0.29 다. 봉제가 우선이라
+         **27°** 로 올린다 — 공교롭게 뒤판 도면(9_뒤판이미지2)의 시작각과 같다.
+         y15 에서 도면과 ~1.0 차이가 나지만 y19 아래는 통과점이 다시 잡아 준다. */
+    fSplitStartAng: 27,
+    /* 앞목선 볼록량 — 완성이미지 실측. V 넥이지만 **직선이 아니라 바깥으로 부푼
+       곡선**이다 (53 에서 거의 세로로 내려오다 72 로 휘어 들어간다). 현(53~72) 길이에
+       대한 수직 볼록 비율: 53 쪽 37% 지점 0.074 (55호 1.77cm) · 72 쪽 75% 지점
+       0.050 (1.20cm). 직선(0/0)이면 목이 실측보다 최대 2.1 깊게 파인다. */
+    fNeckBow1   :  0.074,
+    fNeckBow2   :  0.050,
+    /* [18] 뒤목선 통과점 — 완성이미지 실측 (7.73, −1.0) = 37→38 의 x 80% · y 40% 자리.
+       통과점 없이 2→37→38 만 걸면 곡선이 기초선에 너무 오래 붙었다가 급히 꺾여
+       뒤중심 쪽이 실측보다 최대 0.6~0.9 깊다 (2026-08-14 QA). */
+    bNeckMidX   :  0.80,
+    bNeckMidY   :  0.40,
     /* ── 안단선 [정답지 15_앞뒤판완성이미지 의 보라선] ────────────────────
        원문 본문 [1]~[40] 에는 안단이 없다. **정답지에만** 있고 doc §6 이 「어깨에서
        4~5 · 앞단에서 6~7」로 옮겨 적었다. 아래 값은 정답지에 **적힌 숫자**(라벨)다.
        2026-08-14 정답지 픽셀 실측을 나란히 적어 둔다 — 축척은 격자선으로 세웠으므로
        (진동깊이 22.5 = 461px · 등길이 38 = 785px · 유차선 −2.5 = 52px 위)
        어긋남은 축척이 아니라 **손그림의 눈금**이다. 규칙대로 라벨을 앞세운다:
-         어깨     라벨 4~5 → 4.5   실측 앞 2.54 · 뒤 3.5
-         앞단     라벨 6~7 → 6.5   실측 6.81      ← 라벨과 일치
-         뒤중심   라벨 6~7 → 6.5   실측 4.3
-         밑단 옆       라벨 9      실측 앞 8.0 · 뒤 8.2  (앞뒤가 옆선에서 만나야 하니 한 값)
-         밑단 앞중심   라벨 12     실측 11.35
-         밑단 뒤중심   라벨 8      실측 6.9
-         밑단 안단선자리 라벨 4.5  실측 4.5       ← 라벨과 일치 */
+         어깨     라벨 4~5 → 4.5   실측 앞 2.51 · 뒤 2.68
+         앞단     라벨 6~7 → 6.5   실측 6.75      ← 라벨 범위 안
+         뒤중심   라벨 6~7 → 6.5   실측 4.34
+         밑단 옆       라벨 9      실측 앞 8.03 · 뒤 8.13 (앞뒤가 옆선에서 만나야 하니 한 값)
+         밑단 앞중심   라벨 12     실측 11.72
+         밑단 뒤중심   라벨 8      실측 6.97
+         밑단 안단선자리 라벨 4.5  실측 4.24 — 단 **힙선에서** 잰 값이다
+       ⚠ 2026-08-14 재실측으로 위 표를 고쳤다. 예전 표는 어깨 뒤 3.5·앞단 6.81·
+         밑단앞중심 11.35 로 적혀 있었고, 특히 맨 아래를 「실측 4.5 ← 라벨과 일치」로
+         적었는데 그 4.5 는 **힙선 기준**이라 밑단 기준으로는 6.31 이다. 코드가
+         밑단 기준으로 쓰고 있어 1.9cm 어긋나 있었다 (fHemFacing 주석 참고). */
     facingSh    :  4.5,   // 어깨선 위 · 옆목점(앞 53 · 뒤 38)에서 잰다
     facingCf    :  6.5,   // 앞단(여밈선 71~72)에서 안으로
     facingBk    :  6.5,   // 뒤중심 · 2번에서 아래로
@@ -306,6 +347,10 @@
     capBack : { k0: 0.408, k1: 0.653 },
     capFront: { k0: 0.394, k1: 0.600 },
     side    : { k0: 1.00, k1: 1.00 },
+    /* 안단선 — 완성이미지 보라선에 맞춘 장력. 앞은 목선처럼 세로로 내려오다 휘고,
+       뒤는 어깨→뒤중심을 거의 곧게 잇는다 (장력 1/1 이면 2.0 까지 부풀었다). */
+    facF    : { k0: 0.90, k1: 1.00 },
+    facB    : { k0: 0.55, k1: 0.70 },
     /* 절개선 — k0 는 **작게**. 소매산 접선을 이어받되(각이 안 지게) 세게 주면
        절개점 바로 아래에서 3.5 나 밖으로 튄다(정답지 도면의 부풀림은 0.66). */
     twoSeam : { k0: 0.90, k1: 1.10 }
@@ -427,7 +472,7 @@
     var p14 = [p13[0], HL];
     /* [8] 15 = 9 + H/4 · 16 = +여유 */
     var p15 = [p9[0] + H / 4, HL];
-    var p16 = [p15[0] + num(opt.hipEase, K.hipEase), HL];
+    var p16 = [p15[0] + num(opt.hipEaseB, K.hipEaseB), HL];   // 뒤판 실측 여유 (K 주석)
     /* [9] 17 = 8 + W/4 · 18 = +여유 · 19 = +다트분 */
     var p17 = [p8[0] + W / 4, WL];
     var p18 = [p17[0] + num(opt.waistEase, K.waistEase), WL];
@@ -481,7 +526,10 @@
        ⚠ 예전에는 37 에서 시작해 등솔선 끝(2)과 2.33cm 벌어져 있었다 — 그 구간이
          어느 변에도 안 속해 시접이 목선이 아니라 뒤중심 값으로 나갔다. */
     var bShDir = V.norm(V.sub(p26, p38));
-    var bNeck = splineSegs([p2, p37, p38],
+    /* 통과점(완성이미지 실측 7.73,−1.0) — K.bNeckMidX/Y 주석 참고 */
+    var bNeckMid = [p37[0] + (p38[0] - p37[0]) * num(opt.bNeckMidX, K.bNeckMidX),
+                    p38[1] * num(opt.bNeckMidY, K.bNeckMidY)];
+    var bNeck = splineSegs([p2, p37, bNeckMid, p38],
                            endTan([1, 0], 1.0), endTan(neckEndTan(p38, p26, p37), 1.0));
     /* 뒤 암홀 [13] — 26 에서 시작해 27 에서 0.5~1 떨어져 통과 → **13**(겨드랑)
        ★ 끝점은 11 이 아니라 **13** 이다. 11 은 등품/2 자리의 작도점(27·28 을 잡는 데 쓴다)일
@@ -507,8 +555,15 @@
     var bArmN = [-bShDir[1], bShDir[0]];                       // 어깨선 법선(암홀 안쪽)
     if ((p27a[0] - p26[0]) * bArmN[0] + (p27a[1] - p26[1]) * bArmN[1] < 0)
       bArmN = [-bArmN[0], -bArmN[1]];
+    /* 아랫도막 통과점 — 완성이미지 실측 (19.52, y19) = 27a→13 상자의 x 18.5% · y 66.8%.
+       통과점 없이 접선만으로 풀면 곡선이 27a 아래에서 **최안쪽(18.5)보다 0.16 더 안으로**
+       파고들었다가(18.34 @ y17 — 「그 아래로는 밖으로만 나간다」는 실측과 모순) 늦게
+       치솟는다: 실측 18.66@y15 · 18.96@y17 · 19.52@y19 · 21.0@y21 vs 예전 18.40 ·
+       18.34 · 18.48 · 19.33 (최대 1.7 차). 2026-08-14 완성이미지 QA. */
+    var bArmLowMid = [p27a[0] + (p13[0] - p27a[0]) * 0.185,
+                      p27a[1] + (p13[1] - p27a[1]) * 0.668];
     var bArm = splineSegs([p26, p27a], endTan(bArmN, CAL.arm.k0), endTan([0, 1], CAL.arm.kA))
-       .concat(splineSegs([p27a, p13], endTan([0, 1], CAL.arm.kB), endTan([1, 0], CAL.arm.k1)));
+       .concat(splineSegs([p27a, bArmLowMid, p13], endTan([0, 1], CAL.arm.kB), endTan([1, 0], CAL.arm.k1)));
     /* [17] 35 = 암홀 위의 적당한 곳. **현(26~11)이 아니라 곡선 위**라야 한다 —
        예전엔 현에서 잡아 암홀선에서 0.60~0.64 떠 있었다 (engine-verify 가 잡음).
        그래서 bArm 이 만들어진 **뒤에** 잡는다. */
@@ -529,8 +584,11 @@
          옆선 시작 13 과 끝 14 의 x 가 **같은 픽셀**, 15·16 눈금은 그보다 바깥에 떠 있다).
        ⚠ 이 한 줄이 뒤 옆선을 0.203 길게 만들어 §5 「옆선 차 2.297 ≠ 유차 2.5」의
          정체였다 — 앞 다트 미구현 탓으로 읽히고 있었다. */
+    /* 끝접선 [0,1] — 완성이미지 실측: 옆선이 밑단 4~5cm 위에서 이미 제 폭(23.9)에
+       닿고 **수직으로** 내려온다 (19→14 현 방향이면 y47~51 에서 0.55 안쪽).
+       앞판(fSide)은 처음부터 [0,1] 도착이라 이걸로 앞뒤가 같은 규칙이 된다. */
     var bSide = splineSegs([p13, p19, p14], endTan(V.sub(p19, p13), CAL.side.k0),
-                                            endTan(V.sub(p14, p19), CAL.side.k1));
+                                            endTan([0, 1], CAL.side.k1));
     /* 뒤 절개선 [16] — **암홀 위**에서 시작해 28 → 33/34 → 31/32 (암홀라인)
        ★ 시작점은 27 자체가 아니라 **암홀이 27 높이를 지나는 점**이다. 27 은 등품선
          위(x=17.75)에 있고 암홀은 거기서 0.75 밖(18.5)으로 지나간다.
@@ -661,7 +719,7 @@
          이렇게 해야 완성 허리가 앞뒤 모두 정확히 W/4+여유 가 된다.
        ⚠ 예전에는 K.frontDart 2.5 고정이었다 — 그 값과 옆라인이 서로 모르는 사이라
          완성 허리가 식과 안 맞았다. opt.frontDart 로 덮어쓸 수는 있게 남긴다. */
-    var frontDart = num(opt.frontDart, f56[0] - f55[0]);
+    var frontDart = num(opt.frontDart, (f56[0] - f55[0]) * num(opt.fDartUse, K.fDartUse));
     var fSplitWaistX = f58[0];                    // 58 에서 수직으로 내린 절개 중심선
     var f63 = [fSplitWaistX + frontDart / 2, WL], f64 = [fSplitWaistX - frontDart / 2, WL];
     /* [27] 65 = 41 에서 5 내려간 곳 · 66 = 59 에서 유차 내려간 곳 — **⑥ 앞 겨드랑다트**의
@@ -700,7 +758,25 @@
          53→72 직선의 예측 (7.52, 0.51) 과 일치한다.
        ⚠ 예전 코드는 원피스에서 복제한 **라운드 목선**(깊이 B/6+0.5)이었고, 시작점이
          (0, 13) 이라 앞중심선(72)과 15.6cm 벌어져 조각이 닫히지 않았다. */
-    var fNeck = lineSegs(f72, f53);
+    /* ★ 직선이 아니라 **바깥으로 부푼 곡선**이다 — 완성이미지(15) 실측 y1~19 열 개
+         지점이 현에서 최대 1.9 떠 있다 (K.fNeckBow1/2 주석). 53 에서 거의 세로
+         (기울기 ~5°)로 내려오다 72 로 45° 가까이 휘어 들어간다. 11_앞판이미지의
+         「직선 예측과 일치」 실측점 (7.4, 0.51) 은 53 바로 아래 — 곡선의 세로 구간
+         위라 직선과 구분이 안 되던 것이었다. */
+    var fNeck = (function () {
+      var b1 = num(opt.fNeckBow1, K.fNeckBow1), b2 = num(opt.fNeckBow2, K.fNeckBow2);
+      if (!(b1 > 0) && !(b2 > 0)) return lineSegs(f72, f53);
+      var ch = V.sub(f53, f72), L = Math.hypot(ch[0], ch[1]);
+      var u = [ch[0] / L, ch[1] / L], n = [-u[1], u[0]];        // 바깥(어깨 쪽) 법선
+      if (n[0] < 0) n = [-n[0], -n[1]];
+      var A1 = [f53[0] - u[0] * L * 0.37 + n[0] * L * b1,       // 53 쪽 37% 지점
+                f53[1] - u[1] * L * 0.37 + n[1] * L * b1];
+      var A2 = [f53[0] - u[0] * L * 0.75 + n[0] * L * b2,       // 72 쪽 75% 지점
+                f53[1] - u[1] * L * 0.75 + n[1] * L * b2];
+      return splineSegs([f72, A2, A1, f53],
+                        endTan([0.654, -0.756], 1.0),           // 72 에서 45° 로 나간다
+                        endTan([0.08, -1], 1.0));               // 53 에는 거의 세로로 닿는다
+    })();
     /* [25] 앞 암홀 — 52 에서 시작해 **49번(앞품)에서 0.5 떨어져** 41 로 */
     var fArmGap = num(opt.frontArmGap, K.frontArmGap);
     var fArm = armholeC(f52, fShDir, [f49[0] + fArmGap, f49[1]], f41, CAL.armF);
@@ -720,9 +796,17 @@
        표준 체형에서는 옮김이 0 이라 60·61 이 둘 다 59 이므로, 두 곡선은 62 에서
        만난 뒤 밑단까지 같은 자리로 내려간다 — 정답지에서 62 아래로 초록선이
        **한 줄뿐인** 것과 같다. H 를 키워 옮김이 살아나면 62 아래에서 다시 갈라진다. */
+    /* 시작각 — 완성이미지 실측 21° (K.fSplitStartAng 주석). 예전엔 67→68 현 방향
+       (~28°)이라 67 바로 아래를 1.4 잘라먹었다: 실측 16.53@y15 vs 예전 15.08. */
+    var fSplitAng = num(opt.fSplitStartAng, K.fSplitStartAng) * Math.PI / 180;
+    var fSplitDir = [-Math.sin(fSplitAng), Math.cos(fSplitAng)];
+    /* 통과점 — 완성이미지 실측 (11.11, y21) = 67→68 상자의 x 77% · y 68%.
+       접선만으로는 중간이 실측보다 0.5~0.7 옆선 쪽으로 부풀었다 (2026-08-14 QA). */
+    var fSplitMid = [f67[0] + (f68[0] - f67[0]) * 0.77,
+                     f67[1] + (f68[1] - f67[1]) * 0.68];
     function fSplit(waistX, hemPt) {
-      return splineSegs([f67, f68, [waistX, WL], f62, hemPt],
-                        endTan(V.sub(f68, f67), CAL.princess.k0),
+      return splineSegs([f67, fSplitMid, f68, [waistX, WL], f62, hemPt],
+                        endTan(fSplitDir, CAL.princess.k0),
                         endTan(V.sub(hemPt, f62), CAL.princess.k1));
     }
     /* [29] 「64번과 60번을 연결 · 63번과 61번을 연결」 — 뒤와 같이 **62 에서 교차** */
@@ -760,19 +844,28 @@
       return fHemA[1] + (x - fHemA[0]) * (fHemB[1] - fHemA[1]) / (fHemB[0] - fHemA[0]);
     };
     var fFacing = splineSegs([fFacTop, [fFacX, WL]],
-                    endTan(V.sub(f72, f53), 1), endTan([0, 1], 1))
+                    endTan(V.sub(f72, f53), CAL.facF.k0), endTan([0, 1], CAL.facF.k1))
                   .concat(lineSegs([fFacX, WL], [fFacX, fHemYat(fFacX)]));
-    /* 뒤 안단선(뒷목 안단) — 뒤중심에는 직각으로 닿는다 */
+    /* 뒤 안단선(뒷목 안단) — 뒤중심에는 직각으로 닿는다.
+       ⚠ 장력 1/1 은 완성이미지의 보라선보다 훨씬 깊게 부풀었다(최대 2.0) —
+         도면은 어깨→뒤중심을 거의 곧게 잇는다. CAL.facB 로 뺐다 (2026-08-14 QA). */
     var bFacTop = [p38[0] + bShDir[0] * facSh, p38[1] + bShDir[1] * facSh];
     var bFacing = splineSegs([bFacTop, [0, num(opt.facingBk, K.facingBk)]],
-                    endTan(V.sub(p2, p38), 1), endTan([-1, 0], 1));
+                    endTan(V.sub(p2, p38), CAL.facB.k0), endTan([-1, 0], CAL.facB.k1));
     /* 밑단 안단선 */
     var bHemFacY = HL - facHemS, bHemFacCbY = HL - num(opt.facingHemCb, K.facingHemCb);
     var bHemFacing = lineSegs([xOnAt(bSide, bHemFacY), bHemFacY],
                               [xOnAt(bCbLow, bHemFacCbY), bHemFacCbY]);
     var fHemFacSY = fHemYat(f42[0]) - facHemS;
+    /* ★ 꼭짓점(안단선과 만나는 자리)은 **힙선(HL)에서** 위로 잰다 — 밑단이 아니다.
+       정답지 15 실측: 지시선이 (432,1350.7) ↔ **(432,1438)=힙선** 을 잇는다. 밑단이
+       아니라 힙선에 걸려 있다 (2026-08-14 픽셀 실측).
+       ⚠ 예전에는 fHemYat(fFacX)(=밑단) 기준이었다. 그 자리의 앞 밑단은 앞처짐 때문에
+         힙선보다 1.875 아래라, 같은 4.5 가 1.9cm 다른 자리를 찍었다. 팔 기울기로도
+         드러난다 — 도면 0.209/0.761 · 예전 0.338/1.058 · 지금 0.239/0.769.
+         바로 위 bHemFacing 이 이미 HL 기준이라 이제 앞뒤 기준이 같다. */
     var fHemFacing = lineSegs([xOnAt(fSide, fHemFacSY), fHemFacSY],
-                              [fFacX, fHemYat(fFacX) - num(opt.facingHemF, K.facingHemF)],
+                              [fFacX, HL - num(opt.facingHemF, K.facingHemF)],
                               [f71[0], f71[1] - num(opt.facingHemCf, K.facingHemCf)]);
 
     return {
@@ -1212,6 +1305,14 @@
          허공에 떴다 — 앞판은 같은 이유로 이미 fGuideCommon/fGuideCf 로 갈라 두었는데
          뒤판만 안 고쳐진 자리였다 (2026-08-14 QA). */
     var mpBGuide = L('mpB', 'dashed', [cp(g.p35), cp(g.p36)], 'MP ' + r4(num(opt.mpBack, K.mpBack)));
+    /* ★ [19] 어깨 다트 — **통짜와 4조각이 같은 것을 쓴다**.
+       예전엔 4조각의 뒤중심 조각 안에서만 만들어, 통짜(=UI 기본 splitPanels 0)에는
+       어깨 다트가 통째로 없었다. 사용자가 화면에서 「교재와 많이 다르다」고 지적한
+       것의 하나다 (2026-08-14). 4조각 코드를 복사하지 않고 **변수 하나를 양쪽이
+       나눠 쓰게** 해서 한쪽만 고쳐지는 일(복제 잔재)을 막는다. */
+    var shDartGuide  = L('shDartB', 'edge', [dL, dTip, dR], '어깨 다트');
+    var shDartNotch  = [{ p: cp(dL), angle: 90, label: '다트 다리' },
+                        { p: cp(dR), angle: 90, label: '다트 다리' }];
     if (split) {
       /* ★ 암홀라인 절개는 **암홀 위에서** 갈라진다 — 암홀도 두 조각으로 나눠야 한다.
          예전에는 뒤중심에 암홀이 아예 없고 뒤옆이 암홀을 통째로 가져가, 뒤중심의
@@ -1226,14 +1327,13 @@
         { name: '밑단',   role: 'hem',      segs: lineSegs(g.p31, g.p9) },   // 절개선(In)이 31 에서 끝난다
         { name: '등솔선', role: 'center',   segs: revSegs(g.bCb.concat(g.bCbLow)) }
       ], [[2.0, g.BL], [2.0, g.HL - 3]],
-        [{ p: cp(g.p38), angle: 90, label: '목옆점' },
-         { p: cp(dL), angle: 90, label: '다트 다리' }, { p: cp(dR), angle: 90, label: '다트 다리' }].concat(nB.a),
+        [{ p: cp(g.p38), angle: 90, label: '목옆점' }].concat(shDartNotch).concat(nB.a),
         bGuide.concat([
           L('cbB', 'dashed', [[0, 0], [0, g.HL]], '뒤중심 기초선'),
           /* [19] 어깨 다트는 **뒤중심에만** 넣는다 — 암홀라인 절개라 어깨는 뒤중심이
              통째로 갖는다. 공통 bGuide 에 두었더니 뒤옆에도 딸려가 「다트는 있는데
              다리 너치가 없는 조각」이 됐다 (dart-verify 가 잡았다 · 2026-08-14). */
-          L('shDartB', 'edge', [dL, dTip, dR], '어깨 다트')
+          shDartGuide
         ])));
       pieces.push(mk('backSide', '뒤옆', [
         { name: '진동',   role: 'armhole',  segs: bArmLow },
@@ -1251,8 +1351,16 @@
         { name: '밑단',   role: 'hem',      segs: revSegs(g.bHem) },
         { name: '등솔선', role: 'center',   segs: revSegs(g.bCb.concat(g.bCbLow)) }
       ], [[2.0, g.BL], [2.0, g.HL - 3]],
-        [{ p: cp(g.p38), angle: 90, label: '목옆점' }, { p: cp(g.p13), angle: 180, label: '겨드랑' }],
-        bGuide.concat([mpBGuide])));   // 비분할이면 뒤판 한 장이 35 를 갖는다
+        [{ p: cp(g.p38), angle: 90, label: '목옆점' }, { p: cp(g.p13), angle: 180, label: '겨드랑' }]
+          .concat(shDartNotch),
+        /* ★ 통짜에도 **절개선을 제도선으로** 그린다. 교재 15_앞뒤판완성이미지 는
+           통짜 한 장 위에 절개선을 그려 놓았는데, 엔진은 splitPanels 로 갈라야만
+           절개선이 나와 「화면에 절개선이 안 보인다」는 지적을 받았다 (2026-08-14).
+           ★ 어깨 다트도 같이 낸다 — 통짜는 어깨를 통째로 가지므로 [19] 다트가
+             이 조각의 것이다. 4조각에만 있어서 UI 기본 화면에는 없었다. */
+        bGuide.concat([mpBGuide, shDartGuide,
+          L('splitB1', 'dashed', sampleSegs(g.bSplitOut, 0.4), '절개선'),
+          L('splitB2', 'dashed', sampleSegs(g.bSplitIn, 0.4), '절개선')])));
     }
     fn('blB', '진동깊이', 'B/4 + 1.5', g.BL, 'back', [1.0, g.BL - 1.0]);
     fn('bwB', '등품/2', '등품/2', g.backW / 2, 'back', [g.p11[0] - 3, g.BL / 2]);
@@ -1283,6 +1391,18 @@
       L('bpF2', 'edge', [[g.f57[0], g.f57[1] - 0.6], [g.f57[0], g.f57[1] + 0.6]], 'BP'),
       L('mpF', 'dashed', [cp(g.fMp), cp(g.fMpTo)], 'MP ' + r4(num(opt.mpFront, K.mpFront)))
     ]);
+    /* ★ [27] 겨드랑다트의 두 다리(41·fSideTop → BP 쪽) — **통짜와 4조각이 같은 것을 쓴다**.
+       교재(11_앞판이미지 · 15_앞뒤판완성이미지)는 겨드랑에서 BP 로 모이는 삼각형을
+       뚜렷하게 그려 놓았는데, 엔진은 4조각의 앞옆 조각에만 이 다리를 그려서 UI 기본
+       화면(통짜)에는 삼각형이 안 보였다 — 사용자 지적 2026-08-14 「교재 앞판에
+       겨드랑→BP 삼각 다트가 뚜렷한데 엔진 앞판엔 안 보인다」.
+       ⚠ 자리는 옮기지 않았다. 41~fSideTop 세로 구간은 [27] 을 **앞옆 절개선으로
+         넘긴다**는 앞선 사용자 결정(위 fSideTop 주석)의 결과다. 교재대로 옆선 위
+         y 24.2/26.8 로 내리면 재단물이 바뀌므로 **사용자 확인이 필요한 별건**이다. */
+    var udGuide = [
+      L('udF',  'edge', [cp(g.f41), cp(g.f58)], '겨드랑다트 → BP'),
+      L('udF2', 'edge', [cp(g.fSideTop), cp(g.f58)], '겨드랑다트 → BP')
+    ];
     if (split) {
       var fArmUp  = splitSegsAtPt(g.fArm, g.f67, true);     // 52 → 절개점(67)
       var fArmLow = splitSegsAtPt(g.fArm, g.f67, false);    // 67 → 41
@@ -1314,10 +1434,7 @@
       ], [[g.f58[0] + 3.0, g.BL], [g.f58[0] + 3.0, g.HL - 3]],
         [{ p: cp(g.f41), angle: 180, label: '다트 다리' },
          { p: cp(g.fSideTop), angle: 180, label: '다트 다리' }].concat(nF.b),
-        fGuideCommon.concat([
-          L('udF', 'edge', [cp(g.f41), cp(g.f58)], '겨드랑다트 → BP'),
-          L('udF2', 'edge', [cp(g.fSideTop), cp(g.f58)], '겨드랑다트 → BP')
-        ])));
+        fGuideCommon.concat(udGuide)));
     } else {
       pieces.push(mk('front', '앞판', [
         { name: '앞목',   role: 'neck',     segs: g.fNeck },
@@ -1330,8 +1447,12 @@
         { name: '밑단',   role: 'hem',      segs: revSegs(g.fHem) },
         { name: '앞중심', role: 'center',   segs: lineSegs(g.f71, g.f72) }
       ], [[-g.f71[0] + 2.0, g.BL], [-g.f71[0] + 2.0, g.HL - 3]],
-        [{ p: cp(g.f53), angle: 90, label: '목옆점' }],
-        fGuideCf));
+        [{ p: cp(g.f53), angle: 90, label: '목옆점' },
+         { p: cp(g.f41), angle: 180, label: '다트 다리' },
+         { p: cp(g.fSideTop), angle: 180, label: '다트 다리' }],
+        fGuideCf.concat(udGuide).concat([
+          L('splitF1', 'dashed', sampleSegs(g.fSplitOut, 0.4), '절개선'),
+          L('splitF2', 'dashed', sampleSegs(g.fSplitIn, 0.4), '절개선')])));
     }
     fn('fwF', '앞품/2', '앞품/2', g.frontW / 2, 'front', [g.f46[0] - 3, g.BL / 2]);
     fn('bpF', 'BP', '(유폭/2, 유장)', g.bustLen, 'front', [g.f57[0] + 1, g.f57[1] + 1]);
@@ -1347,11 +1468,22 @@
     /* ⚠ 앞뒤가 **같은 좌표계에 겹쳐** 그려지므로(앞판은 뒤판 위에 그린다 · [20])
        point-in-polygon 만으로는 앞 안단선이 뒤판 안에도 「들어온다」. 조각 id 로 먼저
        가른다 — 이걸 빠뜨리면 뒤판에 앞 안단선이 붙는다(실제로 처음에 그렇게 나왔다). */
+    /* ★ 라벨에 **치수를 함께 적는다** — 정답지 15 는 안단선 옆에 9 · 4.5 · 6~7 · 12 · 8
+       을 숫자로 써 놓았는데 엔진은 '안단선'/'밑단 안단' 이라는 이름만 찍어서 「안단
+       치수가 숫자로 없다」는 지적을 받았다 (사용자 2026-08-14). mpB 가 이미 'MP 0.65'
+       꼴로 값을 붙이고 있어 같은 방식을 따른다 (ui.js 는 it.label 을 그대로 찍는다).
+       값은 상수가 아니라 **실제로 쓴 opt/K** 를 읽으므로 슬라이더를 움직이면 같이 바뀐다. */
+    var _fac = function (k) { return r4(num(opt[k], K[k])); };
     var FACING = [
-      { id: 'facF',    label: '안단선',    segs: g.fFacing,    side: 'front' },
-      { id: 'facB',    label: '안단선',    segs: g.bFacing,    side: 'back'  },
-      { id: 'facHemF', label: '밑단 안단', segs: g.fHemFacing, side: 'front' },
-      { id: 'facHemB', label: '밑단 안단', segs: g.bHemFacing, side: 'back'  }
+      { id: 'facF',    side: 'front',
+        label: '안단선 어깨' + _fac('facingSh') + '·앞단' + _fac('facingCf'),      segs: g.fFacing },
+      { id: 'facB',    side: 'back',
+        label: '안단선 어깨' + _fac('facingSh') + '·뒤중심' + _fac('facingBk'),    segs: g.bFacing },
+      { id: 'facHemF', side: 'front',
+        label: '밑단 안단 옆' + _fac('facingHemS') + '·앞중심' + _fac('facingHemCf')
+               + '·꼭짓점' + _fac('facingHemF'),                                   segs: g.fHemFacing },
+      { id: 'facHemB', side: 'back',
+        label: '밑단 안단 옆' + _fac('facingHemS') + '·뒤중심' + _fac('facingHemCb'), segs: g.bHemFacing }
     ];
     pieces.forEach(function (pc) {
       var add = [];

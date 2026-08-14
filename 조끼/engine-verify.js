@@ -278,8 +278,11 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['armDepthAdd',  1.5, 1.5, '[2] 4분의B더하기 1.5'],
     ['cbIn',         1.5, 1.5, '[5] 1.5씩 나간곳 7·8·9'],
     ['chestEase',    1.5, 2.0, '[7] 4분의유B 더하기 (1.5~2)'],
-    ['hipEase',      1.0, 1.5, '[8] 여유분 1.5 (도면 H/4+여유 1~1.5)'],
-    ['waistEase',    1.5, 2.0, '[9] 여유분 (1.5~2)'],
+    ['hipEase',      1.0, 1.5, '[8] 여유분 1.5 (도면 H/4+여유 1~1.5) — 앞판 [27] 의 16'],
+    /* [8] 의 여유를 **뒤판 도면이 실제로 쓴 값** — 완성이미지·9_뒤판이미지2 실측
+       14~16 = 2.41 (원문 텍스트 1.5 와 다르다). 절개선 밑단 벌어짐의 근원. */
+    ['hipEaseB',     2.3, 2.5, '[8] 뒤판 여유 — 도면 실측 2.41 (텍스트는 1.5)'],
+    ['waistEase',    1.5, 2.0, '[9] 여유분 (1.5~2) — 완성이미지 실측 2.0'],
     ['backDart',     2.0, 2.5, '[9] 다트분 (2~2.5)'],
     ['shDart',       1.5, 1.5, '[10] 20번에서 다트 1.5'],
     ['shSlope',      1.3, 1.5, '[10] 어깨기울기 1.3~1.5'],
@@ -302,8 +305,19 @@ head('2. 제도 상수 K 가 원문 범위 안인가 (리터럴 범위)');
     ['fNeckDrop',    1.0, 1.0, '[22] 50번에서 1 내려온곳'],
     ['fShScoop',     1.5, 1.5, '[23] 20번점에서 1.5'],
     ['fNeckOut',     1.5, 1.5, '[23] 51번점에서 1.5'],
-    ['bpOut',        1.5, 2.0, '[26] 57번에서 1.5~2'],
+    ['bpOut',        1.5, 2.0, '[26] 57번에서 1.5~2 (완성이미지 실측 1.25~1.3 → 하한 1.5)'],
     ['frontDart',    2.0, 3.0, '[24] 참고 「보통 앞다트가 2~3」 (기본은 남는 양이라 안 쓰인다)'],
+    /* 남는 양(56−55) 중 다트로 쓰는 몫 — 완성이미지 실측 2.88/3.60 = 0.80.
+       1.0 이면 도면보다 0.36씩 더 벌어지고 [24] 참고의 2~3 도 벗어난다(3.6). */
+    ['fDartUse',     0.75, 0.85, '완성이미지 실측 — 앞 허리 다트 2.88 = 남는 양 3.60 × 0.8'],
+    /* [28] 원문이 각을 안 준 자리 — 완성이미지 실측 21°. 다만 21° 는 「절개↔진동」
+       모서리 시접이 0.25 로 무너지고 25° 도 44호가 0.29 라(§4 실패기준 0.30)
+       봉제 하한 26° 를 지킨다. 상한은 뒤판과 같은 34.7(도면 실측). */
+    ['fSplitStartAng', 26, 34.7, '[28] 앞 절개 시작각 — 도면 실측 21° · 시접 하한 26°'],
+    ['fNeckBow1',    0.05, 0.10, '앞목선 볼록(53쪽 37%) — 완성이미지 실측 0.074'],
+    ['fNeckBow2',    0.03, 0.07, '앞목선 볼록(72쪽 75%) — 완성이미지 실측 0.050'],
+    ['bNeckMidX',    0.70, 0.90, '[18] 뒤목 통과점 x — 완성이미지 실측 (7.73,−1) = 0.80'],
+    ['bNeckMidY',    0.30, 0.50, '[18] 뒤목 통과점 y — 완성이미지 실측 0.40'],
     ['frontDrop',    2.5, 2.5, '[38] 앞처짐분량 2.5'],
     ['frontWrap',    2.0, 2.5, '[38] 앞여밈분 얇은원단 2 · 두꺼운원단 2.5'],
     ['frontArmGap',  0.5, 0.5, '[25] 49번 앞품에서 0.5'],
@@ -349,7 +363,7 @@ SIZES.forEach(function (sz) {
   var yc = (B < 90) ? 2.5 : 2.8;                                     // [11] 참고
   var sh = m.shoulderW, bw = m.backW, fw = m.frontW, cb = 1.5;       // [5] 리터럴 1.5
   var x11 = cb / 2 + bw / 2, x13 = cb / 2 + uB / 4 + K.chestEase;
-  var x16 = cb + H / 4 + K.hipEase, x28 = x11 - K.splitIn;
+  var x16 = cb + H / 4 + K.hipEaseB, x28 = x11 - K.splitIn;   // 뒤 16 은 실측 여유(hipEaseB)
   /* [15] 31·32 = (14~16)/2 씩 — **옮기는 양**이라 음수면 0 이다 (엔진과 같은 클램프).
      abs 로 감싸면 힙이 가슴보다 작을 때 절개선이 반대로 벌어진다. */
   var halfHem = Math.max(0, x16 - x13) / 2, x59 = m.bustW / 2 + K.bpOut;
@@ -363,7 +377,9 @@ SIZES.forEach(function (sz) {
      그래서 앞 다트분(56−55)은 1.5(등솔선 나간 양) + 뒤 다트분이 된다 — 엔진 값을
      베끼지 않고 여기서 따로 세운다. */
   var x19 = cb + W / 4 + K.waistEase + K.backDart, x55 = W / 4 + K.waistEase;
-  var fDart = x19 - x55;
+  /* 완성이미지 실측 — 남는 양(3.6) 을 전부 다트로 쓰지 않고 0.8 만 쓴다 (K.fDartUse).
+     나머지는 앞 허리 여유로 남는다. §9 의 완성 허리 식도 같이 움직인다. */
+  var fDart = (x19 - x55) * K.fDartUse;
   /* [38][40] 앞 밑단은 앞처짐 때문에 **기울어진 직선** 71~16 — 59·60·61·62·66 이 그 위다 */
   /* 앞 밑단 = 71(−여밈, HL+앞처짐) → **42**(x13, HL) 직선. 원문 [40] 의 「16」은
      앞판에선 42 다 — 뒤판 16(H/4+여유를 뒤중심에서 잰 것)을 쓰면 여밈분만큼
@@ -454,13 +470,47 @@ SIZES.forEach(function (sz) {
     if (e > 0.001) bad.push(r[0] + ' (' + r[1][0].toFixed(3) + ',' + r[1][1].toFixed(3) + ') ≠ (' +
       r[2][0].toFixed(3) + ',' + r[2][1].toFixed(3) + ')  ← ' + r[3]);
   });
-  /* 앞 다트분은 「정해진 치수」가 아니라 **남는 양**이라야 한다 ([24] 참고) */
+  /* 앞 다트분 = 남는 양(56−55) × fDartUse — 완성이미지 실측 (K 주석) */
   if (finiteOr(bad, '앞 다트분', g.frontDart) && Math.abs(g.frontDart - fDart) > 0.002)
-    bad.push('[24] 앞 다트분 ' + g.frontDart.toFixed(3) + ' ≠ 56−55 = ' + fDart.toFixed(3) + ' (남는 양)');
+    bad.push('[24] 앞 다트분 ' + g.frontDart.toFixed(3) + ' ≠ (56−55)×fDartUse = ' + fDart.toFixed(3));
   else if (g.frontDart < 2 || g.frontDart > 3)
     soft.push('[24] 참고 「보통 앞다트가 2~3」인데 남는 양이 ' + g.frontDart.toFixed(2) + ' 이다 (= 1.5 + 뒤다트분)');
   row(sz, bad, soft, '번호점 ' + T.length + '개 · 최대 오차 ' + f(worst, 7, 4) + (worstName ? ' (' + worstName + ')' : ''));
 });
+
+/* ══ 3-C. 정답지 대조 — 완성이미지(15)에서 딴 곡선과 직접 비교 ══════════════
+ *  docs/answer/조끼-{뒤판,앞판}.json — 색분류 픽셀을 엔진 최근접 곡선에 배정해
+ *  0.12cm 로 데시메이션한 것 (scratchpad/vest/gen_answer.js · 2026-08-14).
+ *  ★ 「검산기 0건인데 모양이 다르다」(2026-08-14 사용자 지적)를 막는 절이다 —
+ *    길이·좌표 검사(§1~3)는 곡선의 **생김새**를 못 잡는다. 하우스도르프가 잡는다.
+ *  tol 이 넓은 곡선(어깨·암홀·시작각·안단)은 정책적 괴리다 — json 의 note 와
+ *  engine.js K 주석에 사연이 있고, 실측값은 매 검산마다 아래 줄에 찍힌다. */
+console.log('\n════════════════════════════════════════════════════════════');
+console.log(' 3-C. 정답지 대조 (docs/answer/조끼-*.json · 완성이미지 실측)');
+console.log('════════════════════════════════════════════════════════════');
+(function () {
+  var AC = require('../tools/answer-check.js');
+  var m = E.measuresForSize('55호'); m.hipLen = 20;   // 정답지 축척은 엉덩이길이 20 으로 세웠다
+  var g = E.geom(m, {});
+  function lin(a, b) { return U.lineSegs(a.slice(), b.slice()); }
+  [['조끼-뒤판', {},
+    { bNeck: g.bNeck, bCb: g.bCb.concat(g.bCbLow), bArm: g.bArm, bSide: g.bSide,
+      bSplitIn: g.bSplitIn, bSplitOut: g.bSplitOut, bShoulder: lin(g.p38, g.p26),
+      bFacing: g.bFacing, bHemFacing: g.bHemFacing }],
+   ['조끼-앞판', {},
+    { fNeck: g.fNeck, fArm: g.fArm, fSide: g.fSide, fHem: g.fHem,
+      fSplitIn: g.fSplitIn, fSplitOut: g.fSplitOut, fShoulder: lin(g.f53, g.f52),
+      fFacing: g.fFacing, fHemFacing: g.fHemFacing }]
+  ].forEach(function (r) {
+    var bad = [], out = AC.run(r[0], r[1], r[2], U, bad);
+    if (out.skipped) { console.log('  · ' + pad(r[0], 12) + '정답지 없음 — 건너뜀'); return; }
+    if (bad.length) fails++; else return console.log('  ✓ ' + pad(r[0], 12) +
+      '곡선 ' + out.cn + '개 · 최대 하우스도르프 ' + f(out.cworst, 5));
+    console.log('  ✗ ' + pad(r[0], 12) + '곡선 ' + out.cn + '개 최대 ' + f(out.cworst, 5) +
+      '\n      → ' + bad.slice(0, 8).join('\n      → ') +
+      (bad.length > 8 ? '\n      → … 외 ' + (bad.length - 8) + '건' : ''));
+  });
+})();
 
 /* ══════════════════════════════════════════════════════════════════════
  * §4. 조각 구성 · 닫힘 — 통짜 2조각 · 암홀라인 절개 4조각
@@ -762,6 +812,42 @@ SIZES.forEach(function (sz) {
       });
     });
   })();
+  /* ── 필수 제도선 — **조각마다 「이 선은 반드시 있어야 한다」를 못 박는다** ─────
+     ★ 2026-08-14 사용자 지적의 직접 원인이 여기 없었던 것이다: 절개선·어깨다트·
+       겨드랑다트 다리가 **4조각(sp1)에만** 그려지고 통짜(sp0 · UI 기본값)에는
+       아예 없었는데, 그걸 보는 검사가 하나도 없어서 검산기는 0건으로 통과했다.
+       위 안단선 절만 이런 표를 갖고 있었다 — 나머지 제도선엔 존재 검사가 없었다.
+       사용자가 화면을 보고 알려 준 것을 검산기가 못 잡은 것이므로(유형 ①·⑧),
+       같은 꼴의 표를 전 제도선으로 넓힌다.
+     ⚠ 다음 사람에게 — 제도선을 옮기거나 조각 구성을 바꾸면 **이 표부터** 고쳐라.
+       표에 없는 선은 사라져도 아무도 모른다. */
+  (function () {
+    var WANTI = {
+      0: { back:      ['splitB1', 'splitB2', 'shDartB', 'mpB'],
+           front:     ['splitF1', 'splitF2', 'udF', 'udF2', 'mpF', 'bpF'] },
+      1: { back:      ['shDartB'],
+           backSide:  ['mpB'],
+           front:     ['mpF', 'bpF'],
+           frontSide: ['udF', 'udF2'] }
+    };
+    [0, 1].forEach(function (sp) {
+      var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: sp });
+      var seen = {};
+      d.pieces.forEach(function (p) {
+        var ids = (p.internal || []).map(function (it) { return it.id.replace(/_\d+$/, ''); });
+        ids.forEach(function (id) { seen[id] = 1; });
+        (WANTI[sp][p.id] || []).forEach(function (id) {
+          if (ids.indexOf(id) < 0)
+            bad.push('sp' + sp + ' ' + p.id + ' 에 제도선 ' + id + ' 이 없다 — 화면·인쇄에 안 나온다');
+        });
+      });
+      /* 양쪽 구성이 **같은 선을 다 그리는가** — 한쪽만 고치는 실수(복제 잔재)를 막는다.
+         정답지 15 는 통짜 한 장 위에 절개선을 그린 그림이라 sp0 이 기준이다. */
+      ['shDartB', 'udF', 'udF2', 'mpB', 'mpF'].forEach(function (id) {
+        if (!seen[id]) bad.push('sp' + sp + ' 어디에도 제도선 ' + id + ' 이 없다');
+      });
+    });
+  })();
   row(sz, bad, soft, '너치 최대 이탈 ' + f(worstN, 6, 3) + 'cm');
 });
 
@@ -780,18 +866,22 @@ SIZES.forEach(function (sz) {
     if (r[1] <= r[2]) bad.push('완성 ' + r[0] + ' ' + r[1] + ' ≤ 치수 ' + r[2] + ' (여유가 없다)');
     if (r[1] > r[2] + 15) bad.push('완성 ' + r[0] + ' ' + r[1] + ' 이 치수 ' + r[2] + ' 보다 15 이상 크다');
   });
-  /* 앞뒤가 같은 식이라야 한다 — 앞 다트를 「남는 양」으로 잡았는지의 검사 */
-  var wantW = m.W + 4 * K.waistEase, wantB = m['유B'] + 4 * K.chestEase;
+  /* 앞뒤가 같은 식이라야 한다 — 앞 다트를 「남는 양」기준으로 잡았는지의 검사.
+     완성이미지 실측(fDartUse 0.8)만큼 덜 접으므로 안 접은 몫이 앞 허리 여유로 남는다:
+     완성 허리 = W + 여유×4 + 2 × (1−fDartUse) × 남는양(1.5+뒤다트) */
+  var wantW = m.W + 4 * K.waistEase + 2 * (1 - K.fDartUse) * (1.5 + K.backDart);
+  var wantB = m['유B'] + 4 * K.chestEase;
   if (finiteOr(bad, '완성 허리', M.waistFinish) && Math.abs(M.waistFinish - wantW) > 0.02)
-    bad.push('완성 허리 ' + M.waistFinish + ' ≠ W + 여유×4 = ' + wantW.toFixed(2) + ' — 앞 다트를 「남는 양」으로 안 잡았다');
+    bad.push('완성 허리 ' + M.waistFinish + ' ≠ W + 여유×4 + 다트 안 접은 몫 = ' + wantW.toFixed(2) + ' — 앞 다트가 「남는 양 × fDartUse」가 아니다');
   if (finiteOr(bad, '완성 가슴', M.chestFinish) && Math.abs(M.chestFinish - wantB) > 0.02)
     bad.push('완성 가슴 ' + M.chestFinish + ' ≠ 유B + 여유×4 = ' + wantB.toFixed(2));
   /* ★ 가슴·허리에는 있는데 **엉덩이에만 없던 검사**다. 없으니까 hipFinish 의 부호가
      뒤집힌 채로 (그리고 BASE 우연 H−유B=4 에 기대어) 조용히 통과하고 있었다.
      앞뒤가 각자 자기 중심에서 H/4 + 여유 를 잡으므로 완성치수도 같은 꼴이라야 한다. */
-  var wantH = m.H + 4 * K.hipEase;
+  /* 뒤판은 실측 여유(hipEaseB) · 앞판은 원문 여유(hipEase) — K 주석 참고 */
+  var wantH = m.H + 2 * K.hipEaseB + 2 * K.hipEase;
   if (finiteOr(bad, '완성 엉덩이', M.hipFinish) && Math.abs(M.hipFinish - wantH) > 0.02)
-    bad.push('완성 엉덩이 ' + M.hipFinish + ' ≠ H + 여유×4 = ' + wantH.toFixed(2) +
+    bad.push('완성 엉덩이 ' + M.hipFinish + ' ≠ H + 뒤여유×2 + 앞여유×2 = ' + wantH.toFixed(2) +
              ' — 옆선(14·42)에서 뗀 분량이 절개선 밑단으로 안 옮겨졌거나 두 번 더해졌다');
   /* ★ 보고한 완성 엉덩이가 **실제로 그린 밑단**과 같은가.
      식으로만 계산해 두면 조각을 바꿔도 숫자가 안 따라온다 — 화면의 요약표가
