@@ -339,7 +339,12 @@ SIZES.forEach(function (sz) {
   var x19 = cb + W / 4 + K.waistEase + K.backDart, x55 = W / 4 + K.waistEase;
   var fDart = x19 - x55;
   /* [38][40] 앞 밑단은 앞처짐 때문에 **기울어진 직선** 71~16 — 59·60·61·62·66 이 그 위다 */
-  function hemY(x) { return (HL + 2.5) + (HL - (HL + 2.5)) * (x - (-K.frontWrap)) / (x16 - (-K.frontWrap)); }
+  /* 앞 밑단 = 71(−여밈, HL+앞처짐) → **42**(x13, HL) 직선. 원문 [40] 의 「16」은
+     앞판에선 42 다 — 뒤판 16(H/4+여유를 뒤중심에서 잰 것)을 쓰면 여밈분만큼
+     더 나가 완성 엉덩이가 H 보다 커진다 (2026-08-14 사용자 지적 → 엔진 수정).
+     ⚠ 엔진을 42 로 옮긴 뒤에도 **이 식이 16 을 보고 있어** 59·60·61 이 0.06
+       어긋난 채 85건이 실패했다. 검사 기대값도 같이 옮겨야 한다. */
+  function hemY(x) { return (HL + 2.5) + (HL - (HL + 2.5)) * (x - (-K.frontWrap)) / (x13 - (-K.frontWrap)); }
   var T = [
     ['[2] 4',   g.p4,  [0, BL],                          '2에서 B/4+1.5'],
     ['[3] 5',   g.p5,  [0, m.backLen],                   '2에서 등길이'],
