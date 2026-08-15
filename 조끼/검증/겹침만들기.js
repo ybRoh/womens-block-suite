@@ -342,5 +342,24 @@ var zoom = svgOpen(ZW * 1.6, ZH * 1.6, '0 0 ' + ZW + ' ' + ZH) + STYLE + DEFS +
   zs.join('\n') + '\n</svg>\n';
 fs.writeFileSync(path.join(__dirname, 'zoom.svg'), zoom);
 
+/* ★ 산출물에 **글자로 샌 undefined/NaN** 이 없는가 (사용자 요청 2026-08-15).
+   그림은 검산기가 안 보는 산출물이라 이런 오염이 조용히 나간다 — 실제로
+   사라진 상수(frontPointRise)를 읽어 「앞중심 undefined」와 NaN 30개가 찍혔다. */
+(function () {
+  var bad = 0;
+  [['overlay.svg', full], ['zoom.svg', zoom]].forEach(function (r) {
+    /* ⚠ 배경 도면은 base64 로 박혀 있다 — 그 난수열에 'NaN' 이 우연히 들어 있어
+       그대로 세면 **오탐 4건**이 난다 (2026-08-15 실제로 그랬다). 데이터를 뺀 뒤 센다. */
+    var body = r[1].replace(/xlink:href="data:[^"]*"/g, '').replace(/href="data:[^"]*"/g, '');
+    ['undefined', 'NaN', '[object'].forEach(function (w) {
+      var n = (body.split(w).length - 1);
+      /* 스타일·주석에 그 글자가 들어갈 일은 없다 — 전부 값이 샌 것이다 */
+      if (n) { console.log('  ✗ ' + r[0] + ' 에 「' + w + '」 ' + n + '군데 — 사라진 상수를 읽고 있다'); bad += n; }
+    });
+  });
+  if (bad) { console.log('  → 그림을 내보내기 전에 고칠 것'); process.exitCode = 1; }
+  else console.log('  ✓ 산출물에 undefined/NaN 없음');
+})();
+
 console.log('그림 요소 ' + art.length + ' · overlay ' + (full.length / 1048576).toFixed(2) + 'MB · zoom ' + (zoom.length / 1048576).toFixed(2) + 'MB');
 ROWS.forEach(function (r) { console.log('  ' + (r[0] + '            ').slice(0, 13) + ' 실측 ' + r[1].toFixed(3) + '  tol ' + r[2] + '  여유 ' + (r[2] - r[1]).toFixed(3)); });

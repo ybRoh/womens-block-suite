@@ -153,6 +153,23 @@ function checkPiece(p, bad) {
   var o = p.outline || [];
   if (o.length < 8) { bad.push(nm + ' outline 이 ' + o.length + '점'); return; }
 
+  /* ⓪ **글자로 새는 undefined/NaN** — 라벨은 K 값을 문자열로 이어 붙여 만든다.
+     상수 이름이 바뀌면 계산은 멀쩡한데 종이에 「안단선 어깨undefined」가 찍힌다.
+     실제로 조끼 겹침 도구가 사라진 상수를 읽어 그림에 NaN 30개를 찍었다 (2026-08-15).
+     좌표 검사(①)로는 절대 안 잡히는 자리라 따로 센다. */
+  function badTxt(t) { return typeof t === 'string' && /undefined|NaN|\[object/.test(t); }
+  (p.internal || []).forEach(function (it) {
+    if (badTxt(it.label)) bad.push(nm + ' 제도선 라벨에 「' + it.label + '」 — 사라진 상수를 읽고 있다');
+    if (badTxt(it.id)) bad.push(nm + ' 제도선 id 에 「' + it.id + '」');
+  });
+  (p.notches || []).forEach(function (n) {
+    if (badTxt(n.label)) bad.push(nm + ' 너치 라벨에 「' + n.label + '」');
+  });
+  (p.edges || []).forEach(function (e) {
+    if (badTxt(e.name)) bad.push(nm + ' 변 이름에 「' + e.name + '」');
+  });
+  if (badTxt(nm)) bad.push('조각 이름에 「' + nm + '」');
+
   /* ① 좌표가 전부 유한한가 — NaN 이 하나만 있어도 재단 파일이 깨진다 */
   for (var i = 0; i < o.length; i++)
     if (!finite(o[i])) { bad.push(nm + ' outline[' + i + '] 이 NaN/무한'); return; }
