@@ -178,6 +178,44 @@ function measure() {
   });
   return rows;
 }
+/* ── 정답지의 **표시점**(MP·다트)을 그림에 찍는다 ────────────────────
+   사용자 요청 2026-08-15 「표시점도 그림에 찍히게 해줘」.
+   도면 실측 = 속 빈 원 · 엔진 = 채운 점 · 둘을 실선으로 잇는다 —
+   차이가 있으면 그 선의 길이가 곧 오차라 눈으로 바로 읽힌다. */
+(function () {
+  var dd = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: 1 });
+  function mpOf(id) {
+    var out = [];
+    dd.pieces.forEach(function (pc) {
+      if (pc.id !== id) return;
+      (pc.notches || []).forEach(function (n) { if (n.label === 'MP') out.push(n.p); });
+    });
+    out.sort(function (a, b) { return a[1] - b[1]; });
+    return out;
+  }
+  var mpB = mpOf('backSide'), mpF = mpOf('front');
+  var ENG = { 'B': {}, 'F': {} };
+  if (mpB.length === 2) { ENG.B['MP뒤a'] = mpB[0]; ENG.B['MP뒤b'] = mpB[1]; }
+  if (mpF.length === 2) { ENG.F['MP앞a'] = mpF[0]; ENG.F['MP앞b'] = mpF[1]; }
+  ENG.F['겨드랑다트65'] = g.f65; ENG.F['겨드랑다트66'] = g.f66;
+  [['조끼-뒤판', 'B'], ['조끼-앞판', 'F']].forEach(function (r) {
+    var A = AC.load(r[0]); if (!A || !A.points) return;
+    Object.keys(A.points).forEach(function (k) {
+      var ref = A.points[k], eng = ENG[r[1]][k];
+      var q = PXY(r[1], ref);
+      art.push('<circle class="ptRef" cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="5.5"/>');
+      if (!eng) return;
+      var e = PXY(r[1], eng);
+      art.push('<circle class="ptEng" cx="' + e[0].toFixed(1) + '" cy="' + e[1].toFixed(1) + '" r="3"/>');
+      art.push('<line class="ptLink" x1="' + q[0].toFixed(1) + '" y1="' + q[1].toFixed(1) +
+               '" x2="' + e[0].toFixed(1) + '" y2="' + e[1].toFixed(1) + '"/>');
+      var d = Math.hypot(ref[0] - eng[0], ref[1] - eng[1]);
+      art.push('<text class="ptTx" x="' + (e[0] + 7).toFixed(1) + '" y="' + (e[1] - 5).toFixed(1) +
+               '">' + k + ' ' + d.toFixed(2) + '</text>');
+    });
+  });
+})();
+
 var ROWS = measure();
 
 /* ── 아래 띠: 범례 + 실측표 ────────────────────────────────── */
@@ -240,6 +278,10 @@ var STYLE = '<style>\n' +
   '.dimT{font-size:11.5px;font-weight:800;fill:#0b39ff;stroke-width:2.4}\n' +
   '.dimI{font-size:11px;fill:#222;stroke-width:2.4}\n' +
   '.callL{stroke:#111;stroke-width:1.1}\n' +
+  '.ptRef{fill:none;stroke:#ff8a00;stroke-width:2.2}\n' +
+  '.ptEng{fill:#0b39ff;stroke:none}\n' +
+  '.ptLink{stroke:#ff8a00;stroke-width:1.6}\n' +
+  '.ptTx{font-size:11px;fill:#c05000;stroke:#fff;stroke-width:3;font-weight:700}\n' +
   '.callD{fill:#111;stroke:#fff;stroke-width:1.2}\n' +
   '.callB{stroke-width:1.2;vector-effect:non-scaling-stroke}\n' +
   '.cDart{fill:#fff0f8;stroke:#e6009c}.cBase{fill:#f4f4f6;stroke:#5f6368}.cFac{fill:#eefaf8;stroke:#00857c}\n' +
