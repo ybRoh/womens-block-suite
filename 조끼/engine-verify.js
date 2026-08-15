@@ -543,11 +543,34 @@ console.log('══════════════════════�
   var m = E.measuresForSize('55호'); m.hipLen = 20;   // 정답지 축척은 엉덩이길이 20 으로 세웠다
   var g = E.geom(m, {});
   function lin(a, b) { return U.lineSegs(a.slice(), b.slice()); }
-  [['조끼-뒤판', {},
+  /* ★ 표시(MP·다트)도 대조한다 — 곡선만 재면 그 자리들이 통째로 빠진다
+     (사용자 요청 2026-08-15 「정답지에 MP·다트·너치 추가해줘」).
+     MP 두 점은 **조각의 너치**에서 가져온다 — 엔진이 실제로 종이에 찍는 그 점이라야
+     의미가 있다(계산값만 맞고 안 찍히면 종이엔 없다).
+     ⚠ 너치 자체는 정답지에 없다 — 도면에서 신뢰성 있게 못 뽑는다(정답지 note 참고).
+       그건 §5 의 짝 호길이 검사가 지킨다. */
+  var dd = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: 1 });
+  /* ⚠ id 를 **정확히** 고른다 — indexOf 로 'front' 를 고르면 frontSide·frontFacing 까지
+     걸려 4개가 되고, 그러면 「2개일 때만 대조」 조건에 막혀 조용히 건너뛴다. */
+  function mpOf(id) {
+    var out = [];
+    dd.pieces.forEach(function (pc) {
+      if (pc.id !== id) return;
+      (pc.notches || []).forEach(function (n) { if (n.label === 'MP') out.push(n.p); });
+    });
+    out.sort(function (a, b) { return a[1] - b[1]; });      // 위 → 아래
+    return out;
+  }
+  var mpB = mpOf('backSide'), mpF = mpOf('front');   // 뒤 MP 는 뒤옆판 · 앞 MP 는 앞판(중심)
+  var PB = {}, PF = {};
+  if (mpB.length === 2) { PB['MP뒤a'] = mpB[0]; PB['MP뒤b'] = mpB[1]; }
+  if (mpF.length === 2) { PF['MP앞a'] = mpF[0]; PF['MP앞b'] = mpF[1]; }
+  PF['겨드랑다트65'] = g.f65; PF['겨드랑다트66'] = g.f66;
+  [['조끼-뒤판', PB,
     { bNeck: g.bNeck, bCb: g.bCb.concat(g.bCbLow), bArm: g.bArm, bSide: g.bSide,
       bSplitIn: g.bSplitIn, bSplitOut: g.bSplitOut, bShoulder: lin(g.p38, g.p26),
       bFacing: g.bFacing, bHemFacing: g.bHemFacing }],
-   ['조끼-앞판', {},
+   ['조끼-앞판', PF,
     { fNeck: g.fNeck, fArm: g.fArm, fSide: g.fSide, fHem: g.fHem,
       fSplitIn: g.fSplitIn, fSplitOut: g.fSplitOut, fShoulder: lin(g.f53, g.f52),
       fFacing: g.fFacing, fHemFacing: g.fHemFacing }]
@@ -555,7 +578,8 @@ console.log('══════════════════════�
     var bad = [], out = AC.run(r[0], r[1], r[2], U, bad);
     if (out.skipped) { console.log('  · ' + pad(r[0], 12) + '정답지 없음 — 건너뜀'); return; }
     if (bad.length) fails++; else return console.log('  ✓ ' + pad(r[0], 12) +
-      '곡선 ' + out.cn + '개 · 최대 하우스도르프 ' + f(out.cworst, 5));
+      '곡선 ' + out.cn + '개 · 최대 하우스도르프 ' + f(out.cworst, 5) +
+      ' · 표시점 ' + out.n + '개 최대 차 ' + f(out.worst, 5) + (out.worstK ? ' (' + out.worstK + ')' : ''));
     console.log('  ✗ ' + pad(r[0], 12) + '곡선 ' + out.cn + '개 최대 ' + f(out.cworst, 5) +
       '\n      → ' + bad.slice(0, 8).join('\n      → ') +
       (bad.length > 8 ? '\n      → … 외 ' + (bad.length - 8) + '건' : ''));

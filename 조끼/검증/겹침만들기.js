@@ -21,7 +21,7 @@ var IW = 1296, IH = 1536;
 
 var m = E.measuresForSize('55호'); m.hipLen = 20;      // 정답지 축척은 엉덩이길이 20
 var g = E.geom(m, {});
-g.K_frontPointRise = E.K.frontPointRise;   // 주석에 실제 값을 찍는다
+E.K.hemUpCf = E.K.frontPointRise;   // 주석에 실제 값을 찍는다
 var d = E.draftVest(m, { seam: E.SEAM_DEFAULT, splitPanels: 0 });
 
 /* ── 좌표 변환 ─────────────────────────────────────────────── */
@@ -135,11 +135,12 @@ callout('F', [17, 24.6], [13.5, 38.5], [
   '교재  옆선 y 24.24~26.97  다트분 2.73  (픽셀 실측)',
   '→ 접으면 앞 옆선 = 뒤 옆선 (봉제 정합성 통과)'
 ], 'cDart');
-callout('F', [4.5, 58.9], [8.0, 47.0], [
-  '④ 앞자락을 사선으로 잘랐다 (2026-08-14 · 교재엔 없다)',
-  '꼭짓점  안단 세로선(앞단 6.5)이 밑단과 만나는 자리',
-  '앞중심  거기서 ' + g.K_frontPointRise.toFixed(1) + ' 올라간다 (정답지 라벨 12)',
-  '→ 교재 제도는 사각 밑단이고 V 는 안단선일 뿐이다'
+/* 2026-08-15 — 보라선이 곧 밑단이고 그 아래는 잘라냈다 (사용자 확정) */
+callout('F', [4.5, 54.4], [9.5, 44.0], [
+  '④ 보라선이 **밑단**이다 — 그 아래는 잘라냈다 (2026-08-15)',
+  '옆 ' + E.K.hemUpSide + ' · 앞중심 ' + E.K.hemUpCf + ' · V 꼭짓점 ' + E.K.hemUpPoint + ' · 뒤중심 ' + E.K.hemUpCb,
+  '앞 길이 62.0 → ' + (g.HL + 2.5 - E.K.hemUpCf).toFixed(1) + ' (허리에서 약 10cm)',
+  '→ 「밑단 안단」으로 읽었던 것이 실은 완성 밑단이었다'
 ], 'cDart');
 callout('F', [16, 8], [16.5, 3.0], [
   '② 앞품선  엔진 16.00 (원문 [21] 앞품/2)  ·  도면 16.87',
@@ -160,10 +161,10 @@ function measure() {
   var SET = {
     '조끼-뒤판': { bNeck: g.bNeck, bCb: g.bCb.concat(g.bCbLow), bArm: g.bArm, bSide: g.bSide,
       bSplitIn: g.bSplitIn, bSplitOut: g.bSplitOut, bShoulder: lin(g.p38, g.p26),
-      bFacing: g.bFacing, bHemFacing: g.bHemFacing },
+      bFacing: g.bFacing, bHem: g.bHem },
     '조끼-앞판': { fNeck: g.fNeck, fArm: g.fArm, fSide: g.fSide, fHem: g.fHem,
       fSplitIn: g.fSplitIn, fSplitOut: g.fSplitOut, fShoulder: lin(g.f53, g.f52),
-      fFacing: g.fFacing, fHemFacing: g.fHemFacing }
+      fFacing: g.fFacing }
   };
   var rows = [];
   Object.keys(SET).forEach(function (nm) {
@@ -188,7 +189,7 @@ function fTxt(x, y, s, cls, anchor) {
 foot.push('<rect x="0" y="' + IH + '" width="' + IW + '" height="' + STRIP + '" fill="#fbfbfd"/>');
 foot.push('<line x1="0" y1="' + IH + '" x2="' + IW + '" y2="' + IH + '" stroke="#333" stroke-width="1.4"/>');
 var y0 = IH + 26;
-fTxt(24, y0, '교재 15_앞뒤판완성이미지.jpg  ↔  조끼 엔진 55호 · 통짜 2조각(UI 기본 splitPanels=0) · 엉덩이길이 20', 'ftT');
+fTxt(24, y0, '교재 15_앞뒤판완성이미지.jpg  ↔  조끼 엔진 55호 · 통짜 2조각 · 엉덩이길이 20 · 2026-08-15 (밑단 잘림 · MP 이동 · 안단 조각)', 'ftT');
 var LEG = [
   ['seam', '엔진 완성선 (제도선 — 교재와 대조하는 선)'],
   ['cut', '엔진 재단선 (시접 포함 · 교재엔 없는 선)'],
