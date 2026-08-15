@@ -169,7 +169,10 @@ console.log('   잰 거리로 비교한다 — 그냥 변 시작에서 재면 �
       var na = ntOn(w[1], A), nb = ntOn(w[4], B);
       if (!na.length || !nb.length) { bad.push(w[0] + ' 너치 없음'); return; }
       function key(n) { return n.label; }
-      function solo(n) { return SOLO.indexOf(n.label) >= 0; }
+      /* ⚠ 「맞춤」은 **변 길이 30cm 규칙**으로 자동으로 붙는 보조 너치다 (2026-08-15).
+         앞뒤 옆선 길이가 다르면 한쪽에만 생기는 것이 정상이라 짝 검사에서 뺀다 —
+         짝을 맞추는 진짜 너치(허리·BP·진동선…)는 그대로 검사한다. */
+      function solo(n) { return SOLO.indexOf(n.label) >= 0 || n.label === '맞춤'; }
       /* ① 한쪽에만 있는 너치 — 봉제할 때 맞출 상대가 없다 */
       [[na, nb, w[1]], [nb, na, w[4]]].forEach(function (t) {
         var have = {};

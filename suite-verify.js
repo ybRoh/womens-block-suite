@@ -366,8 +366,12 @@ function runModule(mod) {
        그 호수에는 맞출 자리가 없는 것이다. 원형2 「뒤 1/3」이 66·77호에만 있었다
        (44·55·88호에는 아예 없었다 — 2026-08-12 QA). 「어느 곡선 위인가」로 너치를
        조각에 나누다 보니 경계에 놓인 것이 어느 쪽에도 안 잡혀 사라졌다. */
+    /* ⚠ 「맞춤」 너치는 **변 길이에 비례**해 자동으로 붙는다(30cm 규칙) — 그레이딩에서
+       변이 1~2cm 자라며 등분 수가 바뀌면 호수마다 개수가 달라지는 것이 **정상**이다.
+       그래서 개수 비교에서 뺀다. 자리 자체는 균등 분할이라 짝은 늘 맞는다. */
     var sig = (d.pieces || []).map(function (p) {
-      return (p.name || p.id) + ':' + (p.notches || []).length;
+      var cnt = (p.notches || []).filter(function (n) { return n.label !== '맞춤'; }).length;
+      return (p.name || p.id) + ':' + cnt;
     }).join(' · ');
     if (prevSig !== null && sig !== prevSig)
       bad.push('조각별 너치 개수가 호수마다 다르다\n           ' + prevSize + '  ' + prevSig + '\n           ' + sz + '  ' + sig);

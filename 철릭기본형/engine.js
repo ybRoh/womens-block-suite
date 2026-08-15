@@ -1322,6 +1322,64 @@
       pc.internal = kept;
     });
 
+    /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
+       「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
+       둘 있어 아래 63cm 구간을 맨눈으로 맞춰야 했다.
+       ★ **균등 분할**이라야 짝이 맞는다 — 앞뒤 옆선은 길이가 같으므로 같은 자리에
+         생긴다. 「30cm 마다 하나」식으로 끝에서부터 세면 짝이 어긋난다.
+       ⚠ 맞출 짝이 있는 변만 — 옆선·절개선·어깨·진동. 밑단(접는다)·중심(골선/여밈)은
+         제외한다. 기존 너치와 2cm 안쪽이면 넣지 않는다(같은 자리에 둘이 되면 헷갈린다). */
+    var NOTCH_MAX_GAP = 30;
+    pieces.forEach(function (pc) {
+      (pc.edges || []).forEach(function (e) {
+        if (!/^(side|princess|shoulder|armhole)$/.test(e.role || '')) return;
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length < 3) return;
+        var acc = [0], i;
+        for (i = 1; i < pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        var L = acc[acc.length - 1];
+        if (L <= NOTCH_MAX_GAP) return;
+        var have = [];
+        (pc.notches || []).forEach(function (n) {
+          var bd = Infinity, at = 0;
+          for (i = 0; i < pts.length; i++) {
+            var dd = V.dist(n.p, pts[i]); if (dd < bd) { bd = dd; at = acc[i]; }
+          }
+          if (bd <= 0.06) have.push(at);
+        });
+        var parts = Math.ceil(L / NOTCH_MAX_GAP);      // 구간 수 (균등)
+        for (var k = 1; k < parts; k++) {
+          var target = L * k / parts, near = false;
+          for (i = 0; i < have.length; i++) if (Math.abs(have[i] - target) < 2.0) near = true;
+          if (near) continue;
+          for (i = 1; i < acc.length; i++) if (acc[i] >= target) {
+            var f = (target - acc[i - 1]) / ((acc[i] - acc[i - 1]) || 1e-9);
+            /* ★ 각도를 **여기서** 정한다 — angle 0 으로 넣고 뒤처리에 맡기면, 보정이
+               없거나 이미 지나간 모듈에서 틱이 조각 밖으로 나간다 (2026-08-15).
+               변의 법선 중 **무게중심 쪽**이 조각 안이다. */
+            var qx = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f;
+            var qy = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+            var tx = pts[i][0] - pts[i - 1][0], ty = pts[i][1] - pts[i - 1][1];
+            var tl = Math.hypot(tx, ty) || 1, nx2 = -ty / tl, ny2 = tx / tl;
+            /* ⚠ 무게중심은 **가늘고 굽은 조각**(앞 안단)에서 조각 밖에 있다 —
+               실제로 틱이 밖으로 나갔다. 점이 안인지로 직접 판정한다 (2026-08-15). */
+            function inP(px2, py2) {
+              var c2 = false, o2 = pc.outline;
+              for (var a2 = 0, b2 = o2.length - 1; a2 < o2.length; b2 = a2++) {
+                var u = o2[a2], v = o2[b2];
+                if ((u[1] > py2) !== (v[1] > py2) &&
+                    px2 < (v[0] - u[0]) * (py2 - u[1]) / (v[1] - u[1]) + u[0]) c2 = !c2;
+              }
+              return c2;
+            }
+            if (!inP(qx + nx2 * 0.5, qy + ny2 * 0.5)) { nx2 = -nx2; ny2 = -ny2; }
+            pc.notches.push({ p: [qx, qy], angle: Math.atan2(ny2, nx2) * 180 / Math.PI, label: '맞춤' });
+            break;
+          }
+        }
+      });
+    });
+
     return {
       pieces: pieces, warnings: warnings, notes: [],
       measures: {

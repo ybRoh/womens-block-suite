@@ -869,7 +869,7 @@ function normalizePieces(draft, o, warn) {
 /* =========================================================================
  * 2. 네스팅 (shelf packing + 90° 회전)
  * =======================================================================*/
-function pack(pieces, binW, gap, allowRotate, pageH) {
+function pack(pieces, binW, gap, allowRotate, pageH, pageW) {
   /* 스카이라인(bottom-left) 배치.
      예전 선반(shelf) 방식은 한 줄의 높이를 그 줄에서 제일 큰 조각이 정해서,
      낮은 조각 아래가 통째로 비었다 (A1 롤에서 종이가 크게 낭비됐다).
@@ -887,14 +887,15 @@ function pack(pieces, binW, gap, allowRotate, pageH) {
   var sky = [{ x: 0, w: W, y: 0 }];         // 윗선 — x 오름차순, 서로 겹치지 않는다
   var placed = [], usedW = 0, usedH = 0;
 
-  function fitAt(k, w) {                    // sky[k] 왼쪽 끝에 폭 w 를 놓을 때의 y
-    var x = sky[k].x;
+  /* ★ x 를 직접 받는다 — 페이지 경계로 **민 자리**에서도 높이를 구해야 하기 때문이다
+     (예전엔 sky[k].x 에서만 쟀다 · 2026-08-15). 겹치는 윗선 중 가장 높은 것이 답이다. */
+  function fitAtX(x, w) {
     if (x + w > W + 1e-9) return null;
-    var y = sky[k].y, rest = w, j = k;
-    while (rest > 1e-9) {
-      if (j >= sky.length) return null;
+    var y = 0;
+    for (var j = 0; j < sky.length; j++) {
+      var a = sky[j].x, b = a + sky[j].w;
+      if (b <= x + 1e-9 || a >= x + w - 1e-9) continue;
       if (sky[j].y > y) y = sky[j].y;
-      rest -= sky[j].w; j++;
     }
     return y;
   }
@@ -923,16 +924,28 @@ function pack(pieces, binW, gap, allowRotate, pageH) {
     var forms = [{ w: it.w0 + gap, h: it.h0 + gap, rot: false }];
     if (allowRotate) forms.push({ w: it.h0 + gap, h: it.w0 + gap, rot: true });
     for (var f = 0; f < forms.length; f++) {
-      for (var k2 = 0; k2 < sky.length; k2++) {
-        var y = fitAt(k2, forms[f].w);
+      /* 후보 x — 윗선의 각 시작점 **＋ 페이지 세로 경계들**.
+         ★ 조각이 장 경계를 걸치면 재단할 때 외형선이 잘려 보인다
+           (사용자 지적 2026-08-15 「외형선이 잘리지 않게」). 걸칠 자리면 다음 장
+           머리로 민다 — 세로(pageH)는 원래 하던 것이고, **가로(pageW)가 빠져 있었다.**
+         ⚠ 조각이 한 장보다 크면 어차피 걸친다 — 그럴 땐 밀지 않는다. */
+      var xs = [], k3;
+      for (k3 = 0; k3 < sky.length; k3++) xs.push(sky[k3].x);
+      if (pageW > 0 && forms[f].w <= pageW + 1e-9)
+        for (k3 = 0; k3 * pageW <= W + 1e-9; k3++) xs.push(k3 * pageW);
+      for (var xi = 0; xi < xs.length; xi++) {
+        var px = xs[xi];
+        if (pageW > 0 && forms[f].w <= pageW + 1e-9) {
+          var pgx = Math.floor(px / pageW + 1e-9);
+          if (px + forms[f].w > (pgx + 1) * pageW + 1e-9) px = (pgx + 1) * pageW;
+        }
+        var y = fitAtX(px, forms[f].w);
         if (y === null) continue;
-        /* 롤을 여러 장으로 자를 때 조각이 장 경계를 걸치면 안 된다 —
-           걸치면 다음 장 머리로 내린다. 그래야 장마다 꽉 차고 장수가 준다. */
         if (pageH > 0 && forms[f].h <= pageH + 1e-9) {
           var pg = Math.floor(y / pageH + 1e-9);
           if (y + forms[f].h > (pg + 1) * pageH + 1e-9) y = (pg + 1) * pageH;
         }
-        var cand = { x: sky[k2].x, y: y, f: forms[f] };
+        var cand = { x: px, y: y, f: forms[f] };
         /* ① 놓았을 때 위쪽 끝이 가장 낮은 자리 ② 같으면 왼쪽 ③ 같으면 회전 안 한 쪽 */
         if (!best || y + forms[f].h < best.y + best.f.h - 1e-9 ||
             (Math.abs((y + forms[f].h) - (best.y + best.f.h)) < 1e-9 &&
@@ -963,7 +976,8 @@ function bestPackA4(pieces, o, worldContentW, worldContentH, worldStepX, worldSt
   for (var cols = 1; cols <= o.maxCols; cols++) {
     var binW = worldContentW + (cols - 1) * worldStepX - 2 * o.padMm;
     if (binW <= 0) continue;
-    var r = pack(pieces, binW, o.gapMm, o.allowRotate);
+    /* ★ 페이지 크기를 넘긴다 — 예전엔 안 넘겨서 **A4 모드는 경계 회피가 아예 없었다** */
+    var r = pack(pieces, binW, o.gapMm, o.allowRotate, worldStepY, worldStepX);
     var cw = r.w + 2 * o.padMm, ch = r.h + 2 * o.padMm;
     var c = Math.max(1, Math.ceil((cw - o.overlapMm) / worldStepX - 1e-9));
     var rr = Math.max(1, Math.ceil((ch - o.overlapMm) / worldStepY - 1e-9));
