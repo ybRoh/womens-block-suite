@@ -1943,6 +1943,24 @@
            thin 은 소매산 대각선·통과점 안내선이라 조각 밖으로 나가면 안 된다
            (실제로 gl15·gl19 가 1.5~2.1cm 밖에 있었다 · 2026-08-15).
            point(BP 표시)와 edge(다트 등)는 건드리지 않는다 — 자르면 뜻이 깨진다. */
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === 'point') {
+          var okPt = (it.pts || []).some(function (q) {
+            if (ptInPoly(q, pc.outline)) return true;
+            for (var i = 1; i < pc.outline.length; i++) {
+              var a = pc.outline[i - 1], b = pc.outline[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t < 0 ? 0 : t > 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) <= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         if ((it.type !== 'dashed' && it.type !== 'thin') || !it.pts || it.pts.length < 2)
           { kept.push(it); return; }
         var dense = [], q0, a0, b0, L0, n0, t0;

@@ -1163,6 +1163,47 @@
           ' (차 ' + r4(w[1] - w[2]) + ')');
     });
 
+    /* ★ 너치를 **재단선에 직각**으로 세운다 (2026-08-15 · 전 모듈 이식).
+       이 모듈은 fixNotches 가 없고 _inward() 가 곡선의 접선으로 각을 정하는데,
+       조각 **꼭짓점**(두 변이 만나는 자리)에서는 그 접선이 이웃 변과 나란해져
+       재단선에 눕는다 — 목옆점·어깨끝·겨드랑이 0.1~25° 로 누워 있었다.
+       조각이 다 만들어진 뒤 **외곽선 기준으로** 다시 세운다:
+         · 스냅된 선분의 법선 · 꼭짓점이면 두 변의 이등분선
+         · 양쪽 다 조각 밖인 퇴화 자리는 원래 각을 둔다 (밖으로 나가는 틱보다 낫다) */
+    pieces.forEach(function (pc) {
+      var o = pc && pc.outline;
+      if (!o || o.length < 4) return;
+      (pc.notches || []).forEach(function (n) {
+        if (!n || !n.p || typeof n.angle !== 'number' || !isFinite(n.angle)) return;
+        var bd = Infinity, bt = null, i;
+        for (i = 1; i < o.length; i++) {
+          var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          var e = V.dist(n.p, [a[0] + t * dx, a[1] + t * dy]);
+          if (e < bd) { bd = e; bt = L2 ? [dx / Math.sqrt(L2), dy / Math.sqrt(L2)] : null; }
+        }
+        if (!bt) return;
+        var nx = -bt[1], ny = bt[0], near = [];
+        for (i = 1; i < o.length; i++) {
+          var a2 = o[i - 1], b2 = o[i], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+          var L22 = dx2 * dx2 + dy2 * dy2;
+          var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+          t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
+          if (L22 && V.dist(n.p, [a2[0] + t2 * dx2, a2[1] + t2 * dy2]) <= 0.02)
+            near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+        }
+        if (near.length >= 2) {
+          var f2 = near[0], l2 = near[near.length - 1];
+          var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+          if (bl > 1e-6) { nx = bx / bl; ny = by / bl; }
+        }
+        if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+        if (ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o))
+          n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+      });
+    });
+
     return {
       pieces: pieces, warnings: warnings, notes: [],
       measures: {

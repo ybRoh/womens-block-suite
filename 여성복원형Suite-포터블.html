@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>여성복 원형 · 문화식 자동 제도</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.  원본: shell.html + 각 원형 폴더
-     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-15 14:32 -->
+     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-15 14:54 -->
 </head>
 <body>
 <!-- 런처 셸 — 상단 탭으로 원형별 앱을 iframe 으로 로드합니다.
@@ -19,7 +19,7 @@
     <div class="suitebrand">
       <h1>여성복 원형</h1>
       <span class="suitesub">문화식 자동 제도 · 44~88호 · 1:1 출력</span>
-      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-15 14:32</span>
+      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-15 14:54</span>
     </div>
     <nav class="suitetabs" id="suiteTabs" role="tablist" aria-label="원형 선택"><button type="button" class="suitetab is-on" role="tab" data-app="기본원형" data-ready="1" aria-selected="true">기본원형</button>
       <button type="button" class="suitetab" role="tab" data-app="숙녀복기본원형1" data-ready="1" aria-selected="false">숙녀복 기본원형1</button>
@@ -43,7 +43,7 @@
 &lt;title&gt;기본 무다트 원형 (문화식) · 55·66·77호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 기본원형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -841,7 +841,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -958,6 +958,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -6800,7 +6818,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 I · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형1/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -7635,7 +7653,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -7757,6 +7775,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -14415,7 +14451,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;언더암 다트 원형 · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 언더암다트/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 언더암다트/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 언더암다트/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -15257,7 +15293,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -15384,6 +15420,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -22160,7 +22214,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;V 네크라인 (민소매 · 자락 앞면) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -22985,7 +23039,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -23105,6 +23159,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -29359,7 +29431,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 II · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -30172,7 +30244,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -30286,6 +30358,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -37066,7 +37156,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 III · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형3/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -37876,7 +37966,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -37991,6 +38081,24 @@ td.n.n-fail{color:var(--red)}
          ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
       var kept = [];
       (p.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (inPoly(q, o)) return true;
+            for (var i = 1; i &lt; o.length; i++) {
+              var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CT = { dashed: 1, line: 1, thin: 1 };
         if (!CT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], j, a0, b0, L0, n0, t0;
@@ -43856,7 +43964,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 프린세스라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형프린세스라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -44666,7 +44774,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -45832,6 +45940,47 @@ td.n.n-fail{color:var(--red)}
       if (Math.abs(w[1] - w[2]) &gt; 0.35)
         warnings.push(w[0] + &#x27; 짝 &#x27; + r4(w[1]) + &#x27; ↔ &#x27; + r4(w[2]) +
           &#x27; (차 &#x27; + r4(w[1] - w[2]) + &#x27;)&#x27;);
+    });
+
+    /* ★ 너치를 **재단선에 직각**으로 세운다 (2026-08-15 · 전 모듈 이식).
+       이 모듈은 fixNotches 가 없고 _inward() 가 곡선의 접선으로 각을 정하는데,
+       조각 **꼭짓점**(두 변이 만나는 자리)에서는 그 접선이 이웃 변과 나란해져
+       재단선에 눕는다 — 목옆점·어깨끝·겨드랑이 0.1~25° 로 누워 있었다.
+       조각이 다 만들어진 뒤 **외곽선 기준으로** 다시 세운다:
+         · 스냅된 선분의 법선 · 꼭짓점이면 두 변의 이등분선
+         · 양쪽 다 조각 밖인 퇴화 자리는 원래 각을 둔다 (밖으로 나가는 틱보다 낫다) */
+    pieces.forEach(function (pc) {
+      var o = pc &amp;&amp; pc.outline;
+      if (!o || o.length &lt; 4) return;
+      (pc.notches || []).forEach(function (n) {
+        if (!n || !n.p || typeof n.angle !== &#x27;number&#x27; || !isFinite(n.angle)) return;
+        var bd = Infinity, bt = null, i;
+        for (i = 1; i &lt; o.length; i++) {
+          var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
+          t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+          var e = V.dist(n.p, [a[0] + t * dx, a[1] + t * dy]);
+          if (e &lt; bd) { bd = e; bt = L2 ? [dx / Math.sqrt(L2), dy / Math.sqrt(L2)] : null; }
+        }
+        if (!bt) return;
+        var nx = -bt[1], ny = bt[0], near = [];
+        for (i = 1; i &lt; o.length; i++) {
+          var a2 = o[i - 1], b2 = o[i], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+          var L22 = dx2 * dx2 + dy2 * dy2;
+          var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+          t2 = t2 &lt; 0 ? 0 : t2 &gt; 1 ? 1 : t2;
+          if (L22 &amp;&amp; V.dist(n.p, [a2[0] + t2 * dx2, a2[1] + t2 * dy2]) &lt;= 0.02)
+            near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+        }
+        if (near.length &gt;= 2) {
+          var f2 = near[0], l2 = near[near.length - 1];
+          var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+          if (bl &gt; 1e-6) { nx = bx / bl; ny = by / bl; }
+        }
+        if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+        if (ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o))
+          n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+      });
     });
 
     return {
@@ -50738,7 +50887,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 암홀라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형암홀라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -51548,7 +51697,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -52790,6 +52939,47 @@ td.n.n-fail{color:var(--red)}
       if (Math.abs(w[1] - w[2]) &gt; 0.35)
         warnings.push(w[0] + &#x27; 짝 &#x27; + r4(w[1]) + &#x27; ↔ &#x27; + r4(w[2]) +
           &#x27; (차 &#x27; + r4(w[1] - w[2]) + &#x27;)&#x27;);
+    });
+
+    /* ★ 너치를 **재단선에 직각**으로 세운다 (2026-08-15 · 전 모듈 이식).
+       이 모듈은 fixNotches 가 없고 _inward() 가 곡선의 접선으로 각을 정하는데,
+       조각 **꼭짓점**(두 변이 만나는 자리)에서는 그 접선이 이웃 변과 나란해져
+       재단선에 눕는다 — 목옆점·어깨끝·겨드랑이 0.1~25° 로 누워 있었다.
+       조각이 다 만들어진 뒤 **외곽선 기준으로** 다시 세운다:
+         · 스냅된 선분의 법선 · 꼭짓점이면 두 변의 이등분선
+         · 양쪽 다 조각 밖인 퇴화 자리는 원래 각을 둔다 (밖으로 나가는 틱보다 낫다) */
+    pieces.forEach(function (pc) {
+      var o = pc &amp;&amp; pc.outline;
+      if (!o || o.length &lt; 4) return;
+      (pc.notches || []).forEach(function (n) {
+        if (!n || !n.p || typeof n.angle !== &#x27;number&#x27; || !isFinite(n.angle)) return;
+        var bd = Infinity, bt = null, i;
+        for (i = 1; i &lt; o.length; i++) {
+          var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
+          t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+          var e = V.dist(n.p, [a[0] + t * dx, a[1] + t * dy]);
+          if (e &lt; bd) { bd = e; bt = L2 ? [dx / Math.sqrt(L2), dy / Math.sqrt(L2)] : null; }
+        }
+        if (!bt) return;
+        var nx = -bt[1], ny = bt[0], near = [];
+        for (i = 1; i &lt; o.length; i++) {
+          var a2 = o[i - 1], b2 = o[i], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+          var L22 = dx2 * dx2 + dy2 * dy2;
+          var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+          t2 = t2 &lt; 0 ? 0 : t2 &gt; 1 ? 1 : t2;
+          if (L22 &amp;&amp; V.dist(n.p, [a2[0] + t2 * dx2, a2[1] + t2 * dy2]) &lt;= 0.02)
+            near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+        }
+        if (near.length &gt;= 2) {
+          var f2 = near[0], l2 = near[near.length - 1];
+          var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+          if (bl &gt; 1e-6) { nx = bx / bl; ny = by / bl; }
+        }
+        if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+        if (ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o))
+          n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+      });
     });
 
     return {
@@ -57703,7 +57893,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;바 재킷 (더블) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -58514,7 +58704,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -59902,15 +60092,39 @@ td.n.n-fail{color:var(--red)}
          판정은 그리는 것과 같은 방식(point-in-polygon)이라야 한다. 무게중심으로
          재면 암홀처럼 오목한 변에서 통과하는데 실제 틱은 밖으로 나간다. */
       (notches || []).forEach(function (n) {
-        var o = loop.pts, best = null, bd = Infinity;
+        var o = loop.pts, best = null, bd = Infinity, bt = null;
         for (var i = 1; i &lt; o.length; i++) {
           var a2 = o[i - 1], b2 = o[i], dx = b2[0] - a2[0], dy = b2[1] - a2[1], L2 = dx * dx + dy * dy;
           var t = L2 ? ((n.p[0] - a2[0]) * dx + (n.p[1] - a2[1]) * dy) / L2 : 0;
           t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
           var q2 = [a2[0] + t * dx, a2[1] + t * dy], e2 = V.dist(n.p, q2);
-          if (e2 &lt; bd) { bd = e2; best = q2; }
+          if (e2 &lt; bd) { bd = e2; best = q2; bt = L2 ? [dx, dy] : null; }
         }
         if (bd &lt;= 3.0) n.p = best;
+        /* ★ 너치는 **재단선에 직각** (2026-08-15 · 전 모듈 이식).
+           꼭짓점은 두 변의 이등분선 · 양쪽 다 밖인 퇴화 자리는 아래 탐색으로. */
+        if (bt) {
+          var Ln = Math.hypot(bt[0], bt[1]);
+          var nx = -bt[1] / Ln, ny = bt[0] / Ln, near = [];
+          for (var k2 = 1; k2 &lt; o.length; k2++) {
+            var a3 = o[k2 - 1], b3 = o[k2], dx3 = b3[0] - a3[0], dy3 = b3[1] - a3[1];
+            var L23 = dx3 * dx3 + dy3 * dy3;
+            var t3 = L23 ? ((n.p[0] - a3[0]) * dx3 + (n.p[1] - a3[1]) * dy3) / L23 : 0;
+            t3 = t3 &lt; 0 ? 0 : t3 &gt; 1 ? 1 : t3;
+            if (L23 &amp;&amp; V.dist(n.p, [a3[0] + t3 * dx3, a3[1] + t3 * dy3]) &lt;= 0.02)
+              near.push([dx3 / Math.sqrt(L23), dy3 / Math.sqrt(L23)]);
+          }
+          if (near.length &gt;= 2) {
+            var f3 = near[0], l3 = near[near.length - 1];
+            var bx = f3[0] - l3[0], by = f3[1] - l3[1], bl = Math.hypot(bx, by);
+            if (bl &gt; 1e-6) { nx = bx / bl; ny = by / bl; }
+          }
+          if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+          if (ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) {
+            n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+            return;
+          }
+        }
         function ok(deg) {
           var r = deg * Math.PI / 180;
           return ptInPoly([n.p[0] + Math.cos(r) * NOTCH_TICK, n.p[1] + Math.sin(r) * NOTCH_TICK], o);
@@ -60509,6 +60723,24 @@ td.n.n-fail{color:var(--red)}
     pieces.forEach(function (pc) {
       var kept = [];
       (pc.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (ptInPoly(q, pc.outline)) return true;
+            for (var i = 1; i &lt; pc.outline.length; i++) {
+              var a = pc.outline[i - 1], b = pc.outline[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CLIPT = { dashed: 1, line: 1, thin: 1 };
         if (!CLIPT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], q0, a0, b0, L0, n0, t0;
@@ -66275,7 +66507,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 기본형 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭기본형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭기본형/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 철릭기본형/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -67085,7 +67317,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -68360,6 +68592,24 @@ td.n.n-fail{color:var(--red)}
     pieces.forEach(function (pc) {
       var kept = [];
       (pc.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (ptInPoly(q, pc.outline)) return true;
+            for (var i = 1; i &lt; pc.outline.length; i++) {
+              var a = pc.outline[i - 1], b = pc.outline[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CLIPT = { dashed: 1, line: 1, thin: 1 };
         if (!CLIPT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], q0, a0, b0, L0, n0, t0;
@@ -73319,7 +73569,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 프린세스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭프린세스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -74129,7 +74379,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -75481,6 +75731,24 @@ td.n.n-fail{color:var(--red)}
     pieces.forEach(function (pc) {
       var kept = [];
       (pc.internal || []).forEach(function (it) {
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (ptInPoly(q, pc.outline)) return true;
+            for (var i = 1; i &lt; pc.outline.length; i++) {
+              var a = pc.outline[i - 1], b = pc.outline[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         var CLIPT = { dashed: 1, line: 1, thin: 1 };
         if (!CLIPT[it.type] || !it.pts || it.pts.length &lt; 2) { kept.push(it); return; }
         var dense = [], q0, a0, b0, L0, n0, t0;
@@ -80440,7 +80708,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;원피스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 원피스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 원피스/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 원피스/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -81266,7 +81534,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -83214,6 +83482,24 @@ td.n.n-fail{color:var(--red)}
            thin 은 소매산 대각선·통과점 안내선이라 조각 밖으로 나가면 안 된다
            (실제로 gl15·gl19 가 1.5~2.1cm 밖에 있었다 · 2026-08-15).
            point(BP 표시)와 edge(다트 등)는 건드리지 않는다 — 자르면 뜻이 깨진다. */
+        /* ★ point(표시점 · BP·FNP·마크)는 선이 아니라 점이라 자를 수 없다 —
+           **조각 밖에 있으면 그 조각의 것이 아니므로 버린다** (2026-08-15).
+           BP 를 앞옆판에도 붙여 1.75cm 허공에 뜬 것 같은 자리다(조끼에서 겪은 유형).
+           경계 0.05 안쪽이면 남긴다. */
+        if (it.type === &#x27;point&#x27;) {
+          var okPt = (it.pts || []).some(function (q) {
+            if (ptInPoly(q, pc.outline)) return true;
+            for (var i = 1; i &lt; pc.outline.length; i++) {
+              var a = pc.outline[i - 1], b = pc.outline[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+              var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+              t = t &lt; 0 ? 0 : t &gt; 1 ? 1 : t;
+              if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) &lt;= 0.05) return true;
+            }
+            return false;
+          });
+          if (okPt) kept.push(it);
+          return;
+        }
         if ((it.type !== &#x27;dashed&#x27; &amp;&amp; it.type !== &#x27;thin&#x27;) || !it.pts || it.pts.length &lt; 2)
           { kept.push(it); return; }
         var dense = [], q0, a0, b0, L0, n0, t0;
@@ -88134,7 +88420,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;조끼 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-15 14:32 --&gt;
+     재생성: python3 조끼/build.py     생성일: 2026-08-15 14:54 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -88957,7 +89243,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:32&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
