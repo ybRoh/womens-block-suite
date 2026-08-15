@@ -52,6 +52,19 @@
       }
       return bd <= 0.5 ? best : pt;
     }
+    /* 스냅된 자리의 **선분 방향**도 같이 돌려준다 — 너치를 재단선에 직각으로 세우려면
+       그 선분이 필요하다 (2026-08-15 · 조끼→원피스→여기로 이식). */
+    function snapSeg(pt, o) {
+      var bd = Infinity, bt = null;
+      for (var i = 1; i < o.length; i++) {
+        var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+        var t = L2 ? ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / L2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        var q = [a[0] + t * dx, a[1] + t * dy], e = Math.hypot(pt[0] - q[0], pt[1] - q[1]);
+        if (e < bd) { bd = e; bt = L2 ? [dx / Math.sqrt(L2), dy / Math.sqrt(L2)] : null; }
+      }
+      return bt;
+    }
     (pieces || []).forEach(function (p) {
       var o = p && p.outline;
       if (!o || o.length < 4) return;
@@ -62,12 +75,75 @@
           return inPoly([n.p[0] + Math.cos(r) * TICK, n.p[1] + Math.sin(r) * TICK], o);
         }
         n.p = snap(n.p, o);
+        /* ★ ② 너치는 **재단선에 직각**이라야 한다. 방향만 안쪽으로 맞추면 선과 나란히
+           누워 재단선에 묻힌다. 조각 **꼭짓점**은 한쪽 변의 법선이 다른 변에 눕으므로
+           두 변의 **이등분선**으로 세운다. 양쪽 다 밖인 퇴화 자리는 아래 탐색으로. */
+        var bt = snapSeg(n.p, o);
+        if (bt) {
+          var nx = -bt[1], ny = bt[0], near = [];
+          for (var k2 = 1; k2 < o.length; k2++) {
+            var a2 = o[k2 - 1], b2 = o[k2], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+            var L22 = dx2 * dx2 + dy2 * dy2;
+            var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+            t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
+            if (L22 && Math.hypot(n.p[0] - (a2[0] + t2 * dx2), n.p[1] - (a2[1] + t2 * dy2)) <= 0.02)
+              near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+          }
+          if (near.length >= 2) {
+            var f2 = near[0], l2 = near[near.length - 1];
+            var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+            if (bl > 1e-6) { nx = bx / bl; ny = by / bl; }
+          }
+          if (!inPoly([n.p[0] + nx * TICK, n.p[1] + ny * TICK], o)) { nx = -nx; ny = -ny; }
+          if (inPoly([n.p[0] + nx * TICK, n.p[1] + ny * TICK], o)) {
+            n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+            return;
+          }
+        }
         if (ok(n.angle)) return;
         for (var s = 5; s <= 180; s += 5) {
           if (ok(n.angle + s)) { n.angle = ((n.angle + s) % 360 + 360) % 360; return; }
           if (ok(n.angle - s)) { n.angle = ((n.angle - s) % 360 + 360) % 360; return; }
         }
       });
+      /* ★ ③ 제도선은 **조각 안에 들어오는 구간만** 남긴다. 조각 밖 허공에 뜬 기준선은
+         화면에서 바로 눈에 띈다 (이 모듈들은 최대 7.4cm 나가 있었다).
+         ⚠ 자르는 것은 기준선 계열(dashed·line·thin)뿐 — edge(다트)·point(BP)는 그대로.
+         ⚠ 선을 잘게 나눠 판정하고, 경계 위의 점은 안쪽으로 친다. */
+      var kept = [];
+      (p.internal || []).forEach(function (it) {
+        var CT = { dashed: 1, line: 1, thin: 1 };
+        if (!CT[it.type] || !it.pts || it.pts.length < 2) { kept.push(it); return; }
+        var dense = [], j, a0, b0, L0, n0, t0;
+        for (j = 1; j < it.pts.length; j++) {
+          a0 = it.pts[j - 1]; b0 = it.pts[j]; L0 = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]);
+          n0 = Math.max(1, Math.ceil(L0 / 0.1));
+          for (t0 = 0; t0 < n0; t0++)
+            dense.push([a0[0] + (b0[0] - a0[0]) * t0 / n0, a0[1] + (b0[1] - a0[1]) * t0 / n0]);
+        }
+        dense.push([it.pts[it.pts.length - 1][0], it.pts[it.pts.length - 1][1]]);
+        function inside(q) {
+          if (inPoly(q, o)) return true;
+          for (var i = 1; i < o.length; i++) {
+            var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+            var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            if (Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy)) <= 0.05) return true;
+          }
+          return false;
+        }
+        var run = null, runs = [];
+        dense.forEach(function (q) {
+          if (inside(q)) { if (!run) { run = []; runs.push(run); } run.push([q[0], q[1]]); }
+          else run = null;
+        });
+        runs.forEach(function (r, i) {
+          var Lr = 0; for (var k = 1; k < r.length; k++) Lr += Math.hypot(r[k][0] - r[k-1][0], r[k][1] - r[k-1][1]);
+          if (r.length < 2 || Lr < 0.2) return;
+          kept.push({ id: it.id + (i ? '_' + (i + 1) : ''), type: it.type, pts: r, label: it.label });
+        });
+      });
+      p.internal = kept;
     });
     return pieces;
   }

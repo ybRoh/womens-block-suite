@@ -453,15 +453,41 @@
    *  판정은 그리는 것과 같은 방식(point-in-polygon)이라야 한다. */
   function fixNotches(notches, o) {
     (notches || []).forEach(function (n) {
-      var best = null, bd = Infinity;
+      var best = null, bd = Infinity, bt = null;
       for (var i = 1; i < o.length; i++) {
         var a = o[i - 1], b = o[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
         var t = L2 ? ((n.p[0] - a[0]) * dx + (n.p[1] - a[1]) * dy) / L2 : 0;
         t = t < 0 ? 0 : t > 1 ? 1 : t;
         var q = [a[0] + t * dx, a[1] + t * dy], e = V.dist(n.p, q);
-        if (e < bd) { bd = e; best = q; }
+        if (e < bd) { bd = e; best = q; bt = L2 ? [dx, dy] : null; }
       }
       if (bd <= 3.0) n.p = best;
+      /* ★ 너치는 **재단선에 직각**으로 세운다 (2026-08-15 · 조끼→원피스에서 이식).
+         방향만 안쪽으로 맞추면 선과 나란히 누워 재단선에 묻힌다.
+         조각 **꼭짓점**은 한쪽 변의 법선이 다른 변에 눕는다 → 두 변의 이등분선.
+         ⚠ 양쪽 다 조각 밖인 퇴화 자리는 아래 기존 탐색으로 내려간다. */
+      if (bt) {
+        var Ln = Math.hypot(bt[0], bt[1]);
+        var nx = -bt[1] / Ln, ny = bt[0] / Ln, near = [];
+        for (var k2 = 1; k2 < o.length; k2++) {
+          var a2 = o[k2 - 1], b2 = o[k2], dx2 = b2[0] - a2[0], dy2 = b2[1] - a2[1];
+          var L22 = dx2 * dx2 + dy2 * dy2;
+          var t2 = L22 ? ((n.p[0] - a2[0]) * dx2 + (n.p[1] - a2[1]) * dy2) / L22 : 0;
+          t2 = t2 < 0 ? 0 : t2 > 1 ? 1 : t2;
+          if (L22 && V.dist(n.p, [a2[0] + t2 * dx2, a2[1] + t2 * dy2]) <= 0.02)
+            near.push([dx2 / Math.sqrt(L22), dy2 / Math.sqrt(L22)]);
+        }
+        if (near.length >= 2) {
+          var f2 = near[0], l2 = near[near.length - 1];
+          var bx = f2[0] - l2[0], by = f2[1] - l2[1], bl = Math.hypot(bx, by);
+          if (bl > 1e-6) { nx = bx / bl; ny = by / bl; }
+        }
+        if (!ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) { nx = -nx; ny = -ny; }
+        if (ptInPoly([n.p[0] + nx * NOTCH_TICK, n.p[1] + ny * NOTCH_TICK], o)) {
+          n.angle = Math.atan2(ny, nx) * 180 / Math.PI;
+          return;
+        }
+      }
       function ok(deg) {
         var r = deg * Math.PI / 180;
         return ptInPoly([n.p[0] + Math.cos(r) * NOTCH_TICK, n.p[1] + Math.sin(r) * NOTCH_TICK], o);
@@ -1234,6 +1260,49 @@
                     ' = ' + r4(rat) + ' (0.55~1.05 이라야 한다)');
     if (Math.abs(g.shLenBack - g.shLenFront) > 0.15)
       warnings.push('어깨 짝 ' + r4(g.shLenBack) + ' ↔ ' + r4(g.shLenFront));
+
+    /* ★ 제도선은 **조각 안에 들어오는 구간만** 남긴다 (2026-08-15 · 조끼→원피스에서 이식).
+       조각 밖 허공에 뜬 기준선은 화면에서 바로 눈에 띈다.
+       ⚠ 자르는 것은 **기준선 계열(dashed·line·thin)** 뿐이다 — edge(다트·주름)와
+         point(BP 표시)를 자르면 뜻이 깨진다(조끼에서 폭 1.5 다트가 0.199 로 잘렸다).
+       ⚠ 선을 잘게 나눠 판정한다 — 점 2개짜리 기준선은 통째로 사라진다.
+       ⚠ 경계 위의 점(어깨선 위 다트 다리 등)은 안쪽으로 친다. */
+    pieces.forEach(function (pc) {
+      var kept = [];
+      (pc.internal || []).forEach(function (it) {
+        var CLIPT = { dashed: 1, line: 1, thin: 1 };
+        if (!CLIPT[it.type] || !it.pts || it.pts.length < 2) { kept.push(it); return; }
+        var dense = [], q0, a0, b0, L0, n0, t0;
+        for (q0 = 1; q0 < it.pts.length; q0++) {
+          a0 = it.pts[q0 - 1]; b0 = it.pts[q0]; L0 = V.dist(a0, b0);
+          n0 = Math.max(1, Math.ceil(L0 / 0.1));
+          for (t0 = 0; t0 < n0; t0++)
+            dense.push([a0[0] + (b0[0] - a0[0]) * t0 / n0, a0[1] + (b0[1] - a0[1]) * t0 / n0]);
+        }
+        dense.push([it.pts[it.pts.length - 1][0], it.pts[it.pts.length - 1][1]]);
+        function inside(q) {
+          if (ptInPoly(q, pc.outline)) return true;
+          for (var i = 1; i < pc.outline.length; i++) {
+            var a = pc.outline[i - 1], b = pc.outline[i];
+            var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+            var t = L2 ? ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            if (V.dist(q, [a[0] + t * dx, a[1] + t * dy]) <= 0.05) return true;
+          }
+          return false;
+        }
+        var run = null, runs = [];
+        dense.forEach(function (q) {
+          if (inside(q)) { if (!run) { run = []; runs.push(run); } run.push([q[0], q[1]]); }
+          else run = null;
+        });
+        runs.forEach(function (r, i) {
+          if (r.length < 2 || polyLen(r) < 0.2) return;
+          kept.push({ id: it.id + (i ? '_' + (i + 1) : ''), type: it.type, pts: r, label: it.label });
+        });
+      });
+      pc.internal = kept;
+    });
 
     return {
       pieces: pieces, warnings: warnings, notes: [],

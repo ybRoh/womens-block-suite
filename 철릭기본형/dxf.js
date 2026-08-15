@@ -1,5 +1,5 @@
 /* ============================================================================
- * dxf.js — 토르소 원형 프린세스라인(문화식) DXF 내보내기
+ * dxf.js — 철릭 기본형(문화식) DXF 내보내기
  * 출력팀 / SPEC.md §13
  *
  * 노출:  window.NoDartDXF.buildDXF(draft, opt)  → DXF 문자열
@@ -417,7 +417,7 @@ function build(draft, opt) {
 
   /* ── HEADER + TABLES + ENTITIES 조립 ─────────────────────────────── */
   var w = new Writer();
-  w.g(999, 'NoDartDXF v' + VERSION + ' — 토르소 원형 프린세스라인 ' + (sizeLabel || '') +
+  w.g(999, 'NoDartDXF v' + VERSION + ' — 철릭 기본형 ' + (sizeLabel || '') +
         ' / unit=' + o.unit + ' / layout=' + o.layout);
 
   /* HEADER */
@@ -509,7 +509,7 @@ function buildDXF(draft, opt) { return build(draft, opt).dxf; }
 function suggestName(draft, opt) {
   var o = opt || {};
   var sz = (draft && draft.size) ? draft.size : '원형';
-  return '토르소원형프린세스라인_' + sz + '_' + (o.unit === 'mm' ? 'mm' : 'cm') + '.dxf';
+  return '철릭기본형_' + sz + '_' + (o.unit === 'mm' ? 'mm' : 'cm') + '.dxf';
 }
 
 /** 브라우저 저장 */

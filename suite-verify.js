@@ -147,6 +147,32 @@ function edgeLen(d, pieceName, edgeName) {
   return hit === names.length ? tot : null;
 }
 
+/* ── 모듈 파일이 **남의 모듈 이름**을 들고 있지 않은가 ────────────────────
+   print.js·dxf.js 는 다른 모듈에서 복사해 만든다. 제목·파일명이 하드코딩이라
+   **복사한 채로 남으면 조끼를 뽑았는데 「토르소 원형 프린세스라인」이 찍힌다**
+   (사용자가 실제로 그렇게 인쇄했다 · 2026-08-15). DXF 파일명까지 남의 것이 된다.
+   조각·좌표는 멀쩡하므로 다른 어떤 검사도 이걸 못 잡는다. */
+function checkModuleNames(dir, bad) {
+  var others = MODULES.map(function (m) { return m.dir; })
+    .filter(function (d) { return d !== dir; });
+  function spaced(d) { return d.replace(/(원형|다트|재킷|프린세스|암홀|네크라인|기본형)/g, ' $1').trim(); }
+  ['print.js', 'dxf.js'].forEach(function (f) {
+    var fp = path.join(__dirname, dir, f), txt;
+    try { txt = fs.readFileSync(fp, 'utf8'); } catch (e) { return; }
+    /* ⚠ **자기 이름을 먼저 걷어낸다** — 「숙녀복기본원형1」 안에 「기본원형」이 부분
+       문자열로 들어 있어 그대로 세면 오탐이 난다 (검사를 넣자마자 3건 났다). */
+    txt = txt.split(dir).join('').split(spaced(dir)).join('');
+    /* 공백을 넣어 쓴 제목도 잡는다 — 「토르소 원형 프린세스라인」 */
+    others.filter(function (od) { return dir.indexOf(od) < 0; }).forEach(function (od) {
+      [od, spaced(od)].forEach(function (needle) {
+        if (needle.length < 4) return;
+        if (txt.indexOf(needle) >= 0)
+          bad.push(dir + '/' + f + ' 에 남의 모듈 이름 「' + needle + '」이 남아 있다 — 복사한 흔적');
+      });
+    });
+  });
+}
+
 /* ── 조각 하나에 거는 검사 ───────────────────────────────────────────── */
 function checkPiece(p, bad) {
   var nm = p.name || p.id || '?';
@@ -320,6 +346,7 @@ function runModule(mod) {
     try { d = draftFn(E.measuresForSize(sz), o); }
     catch (e) { console.log('   ✗ ' + pad(sz, 5) + '제도 실패: ' + e.message); fails++; return; }
     (d.pieces || []).forEach(function (p) { checkPiece(p, bad); checked++; });
+    if (sz === '55호') checkModuleNames(mod.dir, bad);   // 파일 검사라 한 호수만 보면 된다
 
     /* 호수가 커지면 주요 치수는 **반드시** 커진다 — 66호 실측 상수를 골격에 박으면
        여기서 뒤집힌다 (토르소 뒤 암홀이 44호에서 66호보다 길었다). */

@@ -1,5 +1,5 @@
 /* ============================================================================
- * dxf.js — 숙녀복 기본원형 I DXF 내보내기
+ * dxf.js — 언더암 다트 DXF 내보내기
  * 출력팀 / SPEC.md §13
  *
  * 노출:  window.NoDartDXF.buildDXF(draft, opt)  → DXF 문자열
@@ -414,7 +414,7 @@ function build(draft, opt) {
 
   /* ── HEADER + TABLES + ENTITIES 조립 ─────────────────────────────── */
   var w = new Writer();
-  w.g(999, 'NoDartDXF v' + VERSION + ' — 숙녀복 기본원형 I ' + (sizeLabel || '') +
+  w.g(999, 'NoDartDXF v' + VERSION + ' — 언더암 다트 ' + (sizeLabel || '') +
         ' / unit=' + o.unit + ' / layout=' + o.layout);
 
   /* HEADER */

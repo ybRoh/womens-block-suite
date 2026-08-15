@@ -1,5 +1,5 @@
 /* ============================================================================
- * print.js — 토르소 원형 프린세스라인(문화식) 1:1 출력 레이아웃 엔진
+ * print.js — 조끼(문화식) 1:1 출력 레이아웃 엔진
  * 출력팀 / SPEC.md §6 · §8 준수
  *
  * 노출:  window.NoDartPrint.buildPrintLayout(draft, opt)
@@ -1394,7 +1394,7 @@ function buildOverviewPage(ctx, previewInner) {
   s.push('<rect x="0" y="0" width="' + A4_W + '" height="' + A4_H + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(ML) + '" y="18" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-         '토르소 원형 프린세스라인 — 1:1 A4 분할 출력</text>');
+         '조끼 — 1:1 A4 분할 출력</text>');
   if (o.title) s.push('<text x="' + n(ML) + '" y="25" font-size="3.6" font-family="sans-serif" fill="#444">' + esc(o.title) + '</text>');
   if (o.stamp) s.push('<text x="' + n(A4_W - ML) + '" y="18" font-size="3.2" font-family="sans-serif" ' +
     'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
@@ -1478,7 +1478,7 @@ function buildRollPage(ctx, page, idx, total) {
   s.push('<rect x="0" y="0" width="' + n(W, 3) + '" height="' + n(H, 3) + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(M) + '" y="' + n(M + 6) + '" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-    '토르소 원형 프린세스라인 — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
+    '조끼 — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
     (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');

@@ -6,7 +6,7 @@
 <title>원피스 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 원피스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 원피스/build.py     생성일: 2026-08-15 11:49 -->
+     재생성: python3 원피스/build.py     생성일: 2026-08-15 14:32 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -832,7 +832,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-15 11:49'; window.ND_APP = '원피스';</script>
+<script>window.ND_BUILD = '2026-08-15 14:32'; window.ND_APP = '원피스';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -2863,7 +2863,7 @@ td.n.n-fail{color:var(--red)}
 <script>
 /* ══ print.js ══ */
 /* ============================================================================
- * print.js — 토르소 원형 프린세스라인(문화식) 1:1 출력 레이아웃 엔진
+ * print.js — 원피스(문화식) 1:1 출력 레이아웃 엔진
  * 출력팀 / SPEC.md §6 · §8 준수
  *
  * 노출:  window.NoDartPrint.buildPrintLayout(draft, opt)
@@ -4258,7 +4258,7 @@ function buildOverviewPage(ctx, previewInner) {
   s.push('<rect x="0" y="0" width="' + A4_W + '" height="' + A4_H + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(ML) + '" y="18" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-         '토르소 원형 프린세스라인 — 1:1 A4 분할 출력</text>');
+         '원피스 — 1:1 A4 분할 출력</text>');
   if (o.title) s.push('<text x="' + n(ML) + '" y="25" font-size="3.6" font-family="sans-serif" fill="#444">' + esc(o.title) + '</text>');
   if (o.stamp) s.push('<text x="' + n(A4_W - ML) + '" y="18" font-size="3.2" font-family="sans-serif" ' +
     'fill="#888" text-anchor="end">' + esc(o.stamp) + '</text>');
@@ -4342,7 +4342,7 @@ function buildRollPage(ctx, page, idx, total) {
   s.push('<rect x="0" y="0" width="' + n(W, 3) + '" height="' + n(H, 3) + '" fill="#ffffff"/>');
 
   s.push('<text x="' + n(M) + '" y="' + n(M + 6) + '" font-size="7" font-weight="700" font-family="sans-serif" fill="#000">' +
-    '토르소 원형 프린세스라인 — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
+    '원피스 — 1:1 롤지 출력 · 용지 ' + n(W, 0) + ' × ' + n(H, 0) + ' mm' +
     (total > 1 ? '  (' + (idx + 1) + '/' + total + '장)' : '') + '</text>');
   if (o.title) s.push('<text x="' + n(M) + '" y="' + n(M + 13) + '" font-size="3.6" font-family="sans-serif" fill="#444">' +
     esc(o.title) + '</text>');
@@ -4741,7 +4741,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartPrin
 <script>
 /* ══ dxf.js ══ */
 /* ============================================================================
- * dxf.js — 토르소 원형 프린세스라인(문화식) DXF 내보내기
+ * dxf.js — 원피스(문화식) DXF 내보내기
  * 출력팀 / SPEC.md §13
  *
  * 노출:  window.NoDartDXF.buildDXF(draft, opt)  → DXF 문자열
@@ -5159,7 +5159,7 @@ function build(draft, opt) {
 
   /* ── HEADER + TABLES + ENTITIES 조립 ─────────────────────────────── */
   var w = new Writer();
-  w.g(999, 'NoDartDXF v' + VERSION + ' — 토르소 원형 프린세스라인 ' + (sizeLabel || '') +
+  w.g(999, 'NoDartDXF v' + VERSION + ' — 원피스 ' + (sizeLabel || '') +
         ' / unit=' + o.unit + ' / layout=' + o.layout);
 
   /* HEADER */
@@ -5251,7 +5251,7 @@ function buildDXF(draft, opt) { return build(draft, opt).dxf; }
 function suggestName(draft, opt) {
   var o = opt || {};
   var sz = (draft && draft.size) ? draft.size : '원형';
-  return '토르소원형프린세스라인_' + sz + '_' + (o.unit === 'mm' ? 'mm' : 'cm') + '.dxf';
+  return '원피스_' + sz + '_' + (o.unit === 'mm' ? 'mm' : 'cm') + '.dxf';
 }
 
 /** 브라우저 저장 */
