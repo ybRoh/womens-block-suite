@@ -545,12 +545,16 @@ console.log('══════════════════════�
     { 2: g.p2, 9: g.p9, 10: g.p10, 11: g.p11, 12: g.p12, 15: g.p15, 17: g.p17, 18: g.p18,
       19: g.p19, 20: g.p20, 21: g.p21, 22: g.p22, 23: g.p23, 26: g.p26, 28: g.p28, 29: g.p29,
       32: g.p32, 33: g.p33, 34: g.p34, 35: g.p35, 36: g.p36, 38: g.p38, 39: g.p39, 40: g.p40, 42: g.p42 },
-    { bArm: g.bArm, bNeck: g.bNeck, bSide: g.bSide, bHem: g.bHem }],
+    /* 2026-08-15 정답지를 도면에서 확충했다 (1 → 6곡선) — 절개선·등솔선까지 대조한다.
+       스킬 pattern-drawing-diff · tools/원피스-정답지-생성.js */
+    { bArm: g.bArm, bNeck: g.bNeck, bSide: g.bSide, bHem: g.bHem,
+      cbSegs: g.cbSegs, bPrinIn: g.bPrinIn, bPrinOut: g.bPrinOut }],
    ['원피스-앞판',
     { 12: g.f12, 15: g.f15, 51: g.f51, 53: g.f53, 54: g.f54, 56: g.f56, 57: g.f57, 58: g.f58,
       59: g.f59, 60: g.f60, 64: g.f64, 67: g.f67, 68: g.f68, 69: g.f69, 70: g.f70,
       73: g.f73, 74: g.f74, 75: g.f75, 78: g.f78 },
-    { fArm: g.fArm, fNeck: g.fNeck, fSide: g.fSide, fHem: g.fHem }],
+    { fArm: g.fArm, fNeck: g.fNeck, fSide: g.fSide, fHem: g.fHem,
+      fPrinIn: g.fPrinIn, fPrinOut: g.fPrinOut }],
    ['원피스-소매',
     { 3: s.p3, 5: s.p5, 6: s.p6, 7: s.p7, 8: s.p8, 9: s.p9, 10: s.p10, 15: s.p15, 16: s.p16,
       17: s.p17, 18: s.p18, 19: s.p19, 20: s.p20, 21: s.p21, 22: s.p22, 23: s.p23, 24: s.p24, 26: s.p26 },
