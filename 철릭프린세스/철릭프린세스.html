@@ -6,7 +6,7 @@
 <title>철릭 프린세스 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭프린세스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 14:54 -->
+     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 15:03 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -816,7 +816,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-15 14:54'; window.ND_APP = '철릭프린세스';</script>
+<script>window.ND_BUILD = '2026-08-15 15:03'; window.ND_APP = '철릭프린세스';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -3441,13 +3441,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? '  ' + sizeLabel : '');
   var l2 = '재단 ' + pc.cutCount + '장';
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? ('시접  ' + seamSummary(pc.byRole, pc.rolesUsed)) : '시접 없음';
   var l4 = '1:1 실물크기' + (pc.foldRanges.length ? ' · 골선 시접 0' : '');
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li < lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i < L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px < x0 ? x0 - px : (px > x1 ? px - x1 : 0);
+          var dy = py < y0 ? y0 - py : (py > y1 ? py - y1 : 0);
+          var d = (dx === 0 && dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d < best) best = d;
+          if (best < 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) && ptInPolyMM([x1, y0], pc.outline) &&
+             ptInPolyMM([x0, y1], pc.outline) && ptInPolyMM([x1, y1], pc.outline) &&
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy <= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx <= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v > bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC && bestV >= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push('<rect x="' + n(lx - boxW / 2) + '" y="' + n(ly - 8) + '" width="' + n(boxW) +
          '" height="' + n(25) + '" fill="#ffffff" fill-opacity="0.82" stroke="none"/>');
   g.push('<text x="' + n(lx) + '" y="' + n(ly) + '" font-size="5.4" font-weight="700" font-family="sans-serif" fill="' +
@@ -3461,6 +3498,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + '" text-anchor="middle">' + esc(l4) + '</text>');
 
   return g.join('');
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+        pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + "골선 · 시접 없음".

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>여성복 원형 · 문화식 자동 제도</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.  원본: shell.html + 각 원형 폴더
-     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-15 14:54 -->
+     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-15 15:03 -->
 </head>
 <body>
 <!-- 런처 셸 — 상단 탭으로 원형별 앱을 iframe 으로 로드합니다.
@@ -19,7 +19,7 @@
     <div class="suitebrand">
       <h1>여성복 원형</h1>
       <span class="suitesub">문화식 자동 제도 · 44~88호 · 1:1 출력</span>
-      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-15 14:54</span>
+      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-15 15:03</span>
     </div>
     <nav class="suitetabs" id="suiteTabs" role="tablist" aria-label="원형 선택"><button type="button" class="suitetab is-on" role="tab" data-app="기본원형" data-ready="1" aria-selected="true">기본원형</button>
       <button type="button" class="suitetab" role="tab" data-app="숙녀복기본원형1" data-ready="1" aria-selected="false">숙녀복 기본원형1</button>
@@ -43,7 +43,7 @@
 &lt;title&gt;기본 무다트 원형 (문화식) · 55·66·77호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 기본원형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -841,7 +841,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -3251,13 +3251,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -3271,6 +3308,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -6818,7 +6866,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 I · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형1/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -7653,7 +7701,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -10745,13 +10793,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -10765,6 +10850,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -14451,7 +14547,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;언더암 다트 원형 · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 언더암다트/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 언더암다트/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 언더암다트/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -15293,7 +15389,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -18502,13 +18598,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -18522,6 +18655,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -22214,7 +22358,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;V 네크라인 (민소매 · 자락 앞면) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -23039,7 +23183,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -25716,13 +25860,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -25736,6 +25917,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -29431,7 +29623,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 II · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -30244,7 +30436,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -33473,13 +33665,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -33493,6 +33722,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -37156,7 +37396,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 III · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형3/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -37966,7 +38206,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -40272,13 +40512,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -40292,6 +40569,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -43964,7 +44252,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 프린세스라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형프린세스라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -44774,7 +45062,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -47193,13 +47481,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -47213,6 +47538,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -50887,7 +51223,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 암홀라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형암홀라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -51697,7 +52033,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -54197,13 +54533,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -54217,6 +54590,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -57893,7 +58277,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;바 재킷 (더블) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -58704,7 +59088,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -62799,13 +63183,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -62819,6 +63240,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -66507,7 +66939,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 기본형 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭기본형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭기본형/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 철릭기본형/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -67317,7 +67749,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -69865,13 +70297,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -69885,6 +70354,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -73569,7 +74049,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 프린세스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭프린세스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -74379,7 +74859,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -77004,13 +77484,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -77024,6 +77541,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -80708,7 +81236,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;원피스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 원피스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 원피스/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 원피스/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -81534,7 +82062,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -84715,13 +85243,50 @@ function renderPiece(pc, o, sizeLabel) {
 
   /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -84735,6 +85300,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
@@ -88420,7 +88996,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;조끼 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-15 14:54 --&gt;
+     재생성: python3 조끼/build.py     생성일: 2026-08-15 15:03 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -89243,7 +89819,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 14:54&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 15:03&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -92432,15 +93008,57 @@ function renderPiece(pc, o, sizeLabel) {
            BLUE + &#x27;&quot; text-anchor=&quot;middle&quot; transform=&quot;rotate(&#x27; + n(deg, 2) + &#x27; &#x27; + n(mx) + &#x27; &#x27; + n(my) + &#x27;)&quot;&gt;식서&lt;/text&gt;&#x27;);
   }
 
-  /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림) */
+  /* 조각 라벨 — 반드시 조각 안쪽 (pitfalls: 바깥에 두면 타일/네스팅에서 잘림)
+     ★ 자리를 **자동으로 고른다** (사용자 지적 2026-08-15 「선과 글씨가 겹치면 옮겨
+       주세요」). bbox 중앙 고정이면 가늘거나 기운 조각에서 제도선·외곽선 위에 앉는다
+       (앞 안단이 진동선과 겹쳐 인쇄됐다).
+     → 조각 안을 격자로 훑어 **라벨 상자 네 귀가 전부 조각 안이면서, 어떤 선과도
+       가장 멀리 떨어진** 자리를 고른다. 후보가 없으면 옛 자리(중앙)로 물러선다. */
   var bb = pc.outlineBbox;
-  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;
   var l1 = pc.name + (sizeLabel ? &#x27;  &#x27; + sizeLabel : &#x27;&#x27;);
   var l2 = &#x27;재단 &#x27; + pc.cutCount + &#x27;장&#x27;;
   /* 시접은 부위별로 다르므로 균일 표기 금지 — 종이만 보고 알 수 있어야 함 (SPEC §11-1) */
   var l3 = pc.seamline ? (&#x27;시접  &#x27; + seamSummary(pc.byRole, pc.rolesUsed)) : &#x27;시접 없음&#x27;;
+  var lx = bb.x + bb.w * 0.5, ly = bb.y + bb.h * 0.42;   // 기본값 — 아래에서 더 나은 자리를 찾는다
   var l4 = &#x27;1:1 실물크기&#x27; + (pc.foldRanges.length ? &#x27; · 골선 시접 0&#x27; : &#x27;&#x27;);
   var boxW = Math.max(l1.length * 2.9, l3.length * 1.85, 34) + 10;
+  var boxH = 25;
+  (function () {
+    var lines = [pc.outline].concat((pc.internal || []).map(function (it) { return it.pts; }));
+    if (pc.seamline) lines.push(pc.seamline);
+    function clearance(cx, cy) {                 // 라벨 상자와 모든 선의 최소 거리
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      var best = Infinity;
+      for (var li = 0; li &lt; lines.length; li++) {
+        var L = lines[li]; if (!L) continue;
+        for (var i = 0; i &lt; L.length; i++) {
+          var px = L[i][0], py = L[i][1];
+          var dx = px &lt; x0 ? x0 - px : (px &gt; x1 ? px - x1 : 0);
+          var dy = py &lt; y0 ? y0 - py : (py &gt; y1 ? py - y1 : 0);
+          var d = (dx === 0 &amp;&amp; dy === 0) ? -1 : Math.hypot(dx, dy);
+          if (d &lt; best) best = d;
+          if (best &lt; 0) return -1;               // 상자 안을 선이 지난다 — 즉시 탈락
+        }
+      }
+      return best;
+    }
+    function allIn(cx, cy) {                     // 상자 네 귀 + 중앙이 조각 안인가
+      var x0 = cx - boxW / 2, x1 = cx + boxW / 2, y0 = cy - 8, y1 = cy + boxH - 8;
+      return ptInPolyMM([x0, y0], pc.outline) &amp;&amp; ptInPolyMM([x1, y0], pc.outline) &amp;&amp;
+             ptInPolyMM([x0, y1], pc.outline) &amp;&amp; ptInPolyMM([x1, y1], pc.outline) &amp;&amp;
+             ptInPolyMM([cx, cy], pc.outline);
+    }
+    var bestC = null, bestV = -1, gx, gy;
+    for (gy = 0.12; gy &lt;= 0.88; gy += 0.04) {
+      for (gx = 0.15; gx &lt;= 0.85; gx += 0.05) {
+        var cx = bb.x + bb.w * gx, cy = bb.y + bb.h * gy;
+        if (!allIn(cx, cy)) continue;
+        var v = clearance(cx, cy);
+        if (v &gt; bestV) { bestV = v; bestC = [cx, cy]; }
+      }
+    }
+    if (bestC &amp;&amp; bestV &gt;= 0) { lx = bestC[0]; ly = bestC[1]; }
+  })();
   g.push(&#x27;&lt;rect x=&quot;&#x27; + n(lx - boxW / 2) + &#x27;&quot; y=&quot;&#x27; + n(ly - 8) + &#x27;&quot; width=&quot;&#x27; + n(boxW) +
          &#x27;&quot; height=&quot;&#x27; + n(25) + &#x27;&quot; fill=&quot;#ffffff&quot; fill-opacity=&quot;0.82&quot; stroke=&quot;none&quot;/&gt;&#x27;);
   g.push(&#x27;&lt;text x=&quot;&#x27; + n(lx) + &#x27;&quot; y=&quot;&#x27; + n(ly) + &#x27;&quot; font-size=&quot;5.4&quot; font-weight=&quot;700&quot; font-family=&quot;sans-serif&quot; fill=&quot;&#x27; +
@@ -92454,6 +93072,17 @@ function renderPiece(pc, o, sizeLabel) {
          INK_SOFT + &#x27;&quot; text-anchor=&quot;middle&quot;&gt;&#x27; + esc(l4) + &#x27;&lt;/text&gt;&#x27;);
 
   return g.join(&#x27;&#x27;);
+}
+
+/** 점이 폴리곤(mm 좌표) 안인가 — 라벨 자리 찾기에 쓴다 */
+function ptInPolyMM(pt, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i &lt; poly.length; j = i++) {
+    var a = poly[i], b = poly[j];
+    if ((a[1] &gt; pt[1]) !== (b[1] &gt; pt[1]) &amp;&amp;
+        pt[0] &lt; (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
 }
 
 /* 골선(CB·CF) 표시 — 구간 양끝을 잇는 양방향 화살표 + &quot;골선 · 시접 없음&quot;.
