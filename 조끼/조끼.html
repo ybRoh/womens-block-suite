@@ -6,7 +6,7 @@
 <title>조끼 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-16 09:17 -->
+     재생성: python3 조끼/build.py     생성일: 2026-08-16 09:39 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -829,7 +829,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-16 09:17'; window.ND_APP = '조끼';</script>
+<script>window.ND_BUILD = '2026-08-16 09:39'; window.ND_APP = '조끼';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -2954,7 +2954,11 @@ td.n.n-fail{color:var(--red)}
     var NOTCH_MAX_GAP = 30;
     pieces.forEach(function (pc) {
       (pc.edges || []).forEach(function (e) {
-        if (!/^(side|princess|shoulder|armhole)$/.test(e.role || '')) return;
+        /* ★ center 도 대상이다 — 등솔선·앞여밈은 **좌우를 꿰매는 봉제선**이라
+           너치가 필요하다 (사용자 지적 2026-08-15 「여기 너치 없잖아」 · 조끼 뒤중심 51cm).
+           제외할 것은 **골선**뿐이다 — 접는 선이라 맞출 상대가 없다(시접 0 으로 구분). */
+        if (!/^(side|princess|shoulder|armhole|center)$/.test(e.role || '')) return;
+        if (e.role === 'center' && !(e.seam > 0)) return;      // 골선은 제외
         var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
         if (pts.length < 3) return;
         var acc = [0], i;

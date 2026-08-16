@@ -1295,7 +1295,11 @@
     var NOTCH_MAX_GAP = 30;
     pieces.forEach(function (pc) {
       (pc.edges || []).forEach(function (e) {
-        if (!/^(side|princess|shoulder|armhole)$/.test(e.role || '')) return;
+        /* ★ center 도 대상이다 — 등솔선·앞여밈은 **좌우를 꿰매는 봉제선**이라
+           너치가 필요하다 (사용자 지적 2026-08-15 「여기 너치 없잖아」 · 조끼 뒤중심 51cm).
+           제외할 것은 **골선**뿐이다 — 접는 선이라 맞출 상대가 없다(시접 0 으로 구분). */
+        if (!/^(side|princess|shoulder|armhole|center)$/.test(e.role || '')) return;
+        if (e.role === 'center' && !(e.seam > 0)) return;      // 골선은 제외
         var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
         if (pts.length < 3) return;
         var acc = [0], i;
