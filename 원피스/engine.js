@@ -1995,6 +1995,128 @@
       pc.internal = kept;
     });
 
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length < 3) return null;
+        var acc = [0], i;
+        for (i = 1; i < pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t <= 0 || t >= inf.L) return null;
+        for (i = 1; i < inf.acc.length; i++) if (inf.acc[i] >= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k < pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) < 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i < inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) < V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 < o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] > py) !== (v[1] > py) && px < (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length > __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || '') || /Facing|Lining/.test(pc.id || '')) return;
+        var isSleeve = /소매/.test(pc.name || '');
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || ''), isArm = e.role === 'armhole' || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L < 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || '');
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L > armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L > armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] > inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k < 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 > 1 && put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, '소매맞춤');
+      putTry(armB, dB, '소매맞춤');
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, '소매맞춤'))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, '소매맞춤'); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || '')) return;
+          var bd = Infinity;
+          for (var i = 0; i < t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd < bd) bd = dd;
+          }
+          if (bd <= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB <= nF && tryK < 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, '소매맞춤')) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, '소매맞춤'); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, '소매맞춤');
+        putTry(c, dB + GAP2, '소매맞춤');
+      });
+    })();
+
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
        둘 있어 아래 63cm 구간을 맨눈으로 맞춰야 했다.

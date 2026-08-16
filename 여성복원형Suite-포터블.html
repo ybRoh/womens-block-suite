@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>여성복 원형 · 문화식 자동 제도</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.  원본: shell.html + 각 원형 폴더
-     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-15 19:01 -->
+     재생성: python3 build.py     포터블 — 이 파일 하나로 전부 동작     생성일: 2026-08-16 09:17 -->
 </head>
 <body>
 <!-- 런처 셸 — 상단 탭으로 원형별 앱을 iframe 으로 로드합니다.
@@ -19,7 +19,7 @@
     <div class="suitebrand">
       <h1>여성복 원형</h1>
       <span class="suitesub">문화식 자동 제도 · 44~88호 · 1:1 출력</span>
-      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-15 19:01</span>
+      <span class="suitebuild" title="스위트 빌드 시각 — 다시 빌드했는데 이 값이 그대로면 브라우저가 옛 파일을 들고 있는 것입니다">빌드 2026-08-16 09:17</span>
     </div>
     <nav class="suitetabs" id="suiteTabs" role="tablist" aria-label="원형 선택"><button type="button" class="suitetab is-on" role="tab" data-app="기본원형" data-ready="1" aria-selected="true">기본원형</button>
       <button type="button" class="suitetab" role="tab" data-app="숙녀복기본원형1" data-ready="1" aria-selected="false">숙녀복 기본원형1</button>
@@ -43,7 +43,7 @@
 &lt;title&gt;기본 무다트 원형 (문화식) · 55·66·77호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 기본원형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 기본무다트원형/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -841,7 +841,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;기본원형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -911,6 +911,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -6866,7 +6987,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 I · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형1/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 숙녀복기본원형1/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -7701,7 +7822,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;숙녀복기본원형1&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -7776,6 +7897,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -14547,7 +14789,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;언더암 다트 원형 · 44~88호 자동 제도&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 언더암다트/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 언더암다트/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 언더암다트/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -15389,7 +15631,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;언더암다트&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -15469,6 +15711,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -22358,7 +22721,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;V 네크라인 (민소매 · 자락 앞면) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -23183,7 +23546,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;V네크라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -23256,6 +23619,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -29623,7 +30107,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 II · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형2/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 숙녀복기본원형2/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -30436,7 +30920,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;숙녀복기본원형2&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -30503,6 +30987,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -37396,7 +38001,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;숙녀복 기본원형 III · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 숙녀복기본원형3/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 숙녀복기본원형3/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -38206,7 +38811,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;숙녀복기본원형3&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -38274,6 +38879,127 @@ td.n.n-fail{color:var(--red)}
       }
       return bt;
     }
+    function dstN(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + dstN(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (dstN(pc.notches[k].p, q) &lt; 1.0) return;      // 이미 그 자리에 있으면 그만
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (dstN(inf.pts[i], q) &lt; dstN(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      (pieces || []).forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
+
     (pieces || []).forEach(function (p) {
       var o = p &amp;&amp; p.outline;
       if (!o || o.length &lt; 4) return;
@@ -44252,7 +44978,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 프린세스라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형프린세스라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 토르소원형프린세스라인/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -45062,7 +45788,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;토르소원형프린세스라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -46229,6 +46955,128 @@ td.n.n-fail{color:var(--red)}
         warnings.push(w[0] + &#x27; 짝 &#x27; + r4(w[1]) + &#x27; ↔ &#x27; + r4(w[2]) +
           &#x27; (차 &#x27; + r4(w[1] - w[2]) + &#x27;)&#x27;);
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -51281,7 +52129,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;토르소 원형 암홀라인 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 토르소원형암홀라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 토르소원형암홀라인/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -52091,7 +52939,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;토르소원형암홀라인&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -53334,6 +54182,128 @@ td.n.n-fail{color:var(--red)}
         warnings.push(w[0] + &#x27; 짝 &#x27; + r4(w[1]) + &#x27; ↔ &#x27; + r4(w[2]) +
           &#x27; (차 &#x27; + r4(w[1] - w[2]) + &#x27;)&#x27;);
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -58393,7 +59363,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;바 재킷 (더블) · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 바재킷더블/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 바재킷더블/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 바재킷더블/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -59204,7 +60174,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;바재킷더블&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -61274,6 +62244,128 @@ td.n.n-fail{color:var(--red)}
       });
       pc.internal = kept;
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -67113,7 +68205,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 기본형 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭기본형/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭기본형/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 철릭기본형/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -67923,7 +69015,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;철릭기본형&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -69249,6 +70341,128 @@ td.n.n-fail{color:var(--red)}
       });
       pc.internal = kept;
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -74281,7 +75495,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;철릭 프린세스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭프린세스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -75091,7 +76305,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;철릭프린세스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -76494,6 +77708,128 @@ td.n.n-fail{color:var(--red)}
       });
       pc.internal = kept;
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -81526,7 +82862,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;원피스 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 원피스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 원피스/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 원피스/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -82352,7 +83688,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;원피스&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -84351,6 +85687,128 @@ td.n.n-fail{color:var(--red)}
       });
       pc.internal = kept;
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만
@@ -89344,7 +90802,7 @@ if (typeof module !== &#x27;undefined&#x27; &amp;&amp; module.exports) module.ex
 &lt;title&gt;조끼 · 44~88호&lt;/title&gt;
 &lt;!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 조끼/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 조끼/build.py     생성일: 2026-08-15 19:01 --&gt;
+     재생성: python3 조끼/build.py     생성일: 2026-08-16 09:17 --&gt;
 &lt;style&gt;
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -90167,7 +91625,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. --&gt;
 &lt;div id=&quot;ndp-print-area&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
 
-&lt;script&gt;window.ND_BUILD = &#x27;2026-08-15 19:01&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
+&lt;script&gt;window.ND_BUILD = &#x27;2026-08-16 09:17&#x27;; window.ND_APP = &#x27;조끼&#x27;;&lt;/script&gt;
 &lt;script&gt;
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -92159,6 +93617,128 @@ td.n.n-fail{color:var(--red)}
       });
       pc.internal = kept;
     });
+
+    /* ★ 암홀 ↔ 소매산 **맞춤 너치** — 앞 1개 · 뒤 2개 (사용자 기준 2026-08-15
+       「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의 중심과 앞뒤를 맞춰
+       소매를 연결합니다」). 개수가 곧 앞뒤 구분이다.
+       ★ 자리는 **겨드랑에서 잰 호길이**다 — 소매산은 이세 때문에 몸판 암홀보다 길지만
+         그 이세는 정수리 쪽에 배분되므로, 겨드랑 기준으로 같은 거리를 잡아야 짝이 맞는다.
+         (비율로 잡으면 이세만큼 어긋난다.)
+       ⚠ 소매가 없는 구성(민소매·조끼)에서는 몸판에만 남는다 — 그래도 안단·바이어스를
+         맞추는 자리로 쓰인다. */
+    (function () {
+      function edgeInfo(pc, e) {
+        var pts = pc.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+        if (pts.length &lt; 3) return null;
+        var acc = [0], i;
+        for (i = 1; i &lt; pts.length; i++) acc.push(acc[i - 1] + V.dist(pts[i], pts[i - 1]));
+        return { pts: pts, acc: acc, L: acc[acc.length - 1] };
+      }
+      function atArc(inf, fromEnd, d) {          // 끝(fromEnd)에서 d 만큼 들어온 점
+        var t = fromEnd ? inf.L - d : d, i;
+        if (t &lt;= 0 || t &gt;= inf.L) return null;
+        for (i = 1; i &lt; inf.acc.length; i++) if (inf.acc[i] &gt;= t) {
+          var f = (t - inf.acc[i - 1]) / ((inf.acc[i] - inf.acc[i - 1]) || 1e-9);
+          return [inf.pts[i - 1][0] + (inf.pts[i][0] - inf.pts[i - 1][0]) * f,
+                  inf.pts[i - 1][1] + (inf.pts[i][1] - inf.pts[i - 1][1]) * f];
+        }
+        return null;
+      }
+      function put(pc, inf, fromEnd, d, label) {
+        var __before = pc.notches.length;
+        var q = atArc(inf, fromEnd, d); if (!q) return false;
+        /* ⚠ 중복 방지는 **0.4cm** — 1.0 으로 두면 기존 너치(겨드랑·절개 시작) 곁이라는
+           이유로 규칙 너치가 통째로 생략돼 「앞 0개·뒤 1개」가 됐다 (2026-08-15). */
+        for (var k = 0; k &lt; pc.notches.length; k++)
+          if (V.dist(pc.notches[k].p, q) &lt; 0.4) return true;
+        var i, near = 0, tx = 0, ty = 0;
+        for (i = 1; i &lt; inf.pts.length; i++)
+          if (V.dist(inf.pts[i], q) &lt; V.dist(inf.pts[near], q)) near = i;
+        var a = inf.pts[Math.max(0, near - 1)], b = inf.pts[Math.min(inf.pts.length - 1, near + 1)];
+        tx = b[0] - a[0]; ty = b[1] - a[1];
+        var tl = Math.hypot(tx, ty) || 1, nx = -ty / tl, ny = tx / tl;
+        function inP(px, py) {
+          var c = false, o = pc.outline;
+          for (var s2 = 0, t2 = o.length - 1; s2 &lt; o.length; t2 = s2++) {
+            var u = o[s2], v = o[t2];
+            if ((u[1] &gt; py) !== (v[1] &gt; py) &amp;&amp; px &lt; (v[0] - u[0]) * (py - u[1]) / (v[1] - u[1]) + u[0]) c = !c;
+          }
+          return c;
+        }
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) { nx = -nx; ny = -ny; }
+        /* 양쪽 다 조각 밖이면 **넣지 않는다** — 틱이 허공에 뜨느니 없는 편이 낫다 */
+        if (!inP(q[0] + nx * 0.5, q[1] + ny * 0.5)) return false;
+        pc.notches.push({ p: q, angle: Math.atan2(ny, nx) * 180 / Math.PI, label: label });
+        return pc.notches.length &gt; __before;
+      }
+      /* 몸판 앞/뒤 암홀 · 소매산을 찾는다 (조각·변 이름은 모듈마다 다르다) */
+      var armF = null, armB = null, capF = [], capB = [], armBAll = [];
+      pieces.forEach(function (pc) {
+        /* ⚠ **안단·안감은 제외** — 소매를 거기 달지 않는다. V네크라인 암홀 안단에
+           소매맞춤이 들어가 몸판과 좌표가 어긋난다고 잡혔다 (2026-08-15). */
+        if (/안단|안감|facing|lining/i.test(pc.name || &#x27;&#x27;) || /Facing|Lining/.test(pc.id || &#x27;&#x27;)) return;
+        var isSleeve = /소매/.test(pc.name || &#x27;&#x27;);
+        (pc.edges || []).forEach(function (e) {
+          var nm = (e.name || &#x27;&#x27;), isArm = e.role === &#x27;armhole&#x27; || /암홀|진동|소매산/.test(nm);
+          if (!isArm) return;
+          var inf = edgeInfo(pc, e); if (!inf || inf.L &lt; 6) return;
+          var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(pc.name || &#x27;&#x27;);
+          if (isSleeve) { (isBack ? capB : capF).push({ pc: pc, inf: inf }); }
+          else if (isBack) { var cand = { pc: pc, inf: inf }; armBAll.push(cand);
+                             if (!armB || inf.L &gt; armB.inf.L) armB = cand; }
+          else { if (!armF || inf.L &gt; armF.inf.L) armF = { pc: pc, inf: inf }; }
+        });
+      });
+      /* 겨드랑 = 암홀 변의 두 끝 중 **아래쪽**(y 가 큰 쪽) */
+      function fromEndOf(inf) { return inf.pts[inf.pts.length - 1][1] &gt; inf.pts[0][1]; }
+      var dF = armF ? Math.min(armF.inf.L * 0.40, 10) : 0;
+      var dB = armB ? Math.min(armB.inf.L * 0.45, 11) : 0;
+      var GAP2 = 1.2;                                   // 뒤 두 번째 너치 간격
+      /* 한 자리가 막히면(기존 너치 곁) **조금 옮겨서 다시** 시도한다 — 규칙 개수를
+         채우는 것이 우선이다. 0.6cm 씩 최대 6번 민다. */
+      function putTry(t, base, label) {
+        if (!t) return false;
+        for (var k = 0; k &lt; 7; k++) {
+          if (put(t.pc, t.inf, fromEndOf(t.inf), base + k * 0.6, label)) return true;
+          if (base - k * 0.6 &gt; 1 &amp;&amp; put(t.pc, t.inf, fromEndOf(t.inf), base - k * 0.6, label)) return true;
+        }
+        return false;
+      }
+      putTry(armF, dF, &#x27;소매맞춤&#x27;);
+      putTry(armB, dB, &#x27;소매맞춤&#x27;);
+      /* ⚠ 암홀이 **두 조각으로 갈린** 구조(토르소·바재킷)에서는 긴 변에 둘 다 못 들어갈
+         수 있다 — 그럴 땐 다른 뒤 암홀 변에도 시도해 규칙 개수(뒤 2개)를 채운다. */
+      if (!putTry(armB, dB + GAP2, &#x27;소매맞춤&#x27;))
+        armBAll.forEach(function (t) { if (t !== armB) putTry(t, dB, &#x27;소매맞춤&#x27;); });
+      /* ★ 개수로 앞뒤를 구분해야 한다 — 모듈이 원래 갖고 있던 맞춤 너치까지 세어
+         **뒤가 앞보다 많지 않으면** 뒤에 하나 더 넣는다 (사용자 기준의 핵심).
+         토르소는 앞뒤 모두 「암홀 1/3·2/3」를 갖고 있어 3:3 이 됐다. */
+      function cntArm(t) {
+        if (!t) return 0;
+        var c = 0;
+        (t.pc.notches || []).forEach(function (n) {
+          if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || &#x27;&#x27;)) return;
+          var bd = Infinity;
+          for (var i = 0; i &lt; t.inf.pts.length; i++) {
+            var dd = V.dist(n.p, t.inf.pts[i]); if (dd &lt; bd) bd = dd;
+          }
+          if (bd &lt;= 0.06) c++;
+        });
+        return c;
+      }
+      var nF = cntArm(armF), nB = 0;
+      armBAll.forEach(function (t) { nB += cntArm(t); });
+      for (var tryK = 0; nB &lt;= nF &amp;&amp; tryK &lt; 5; tryK++) {
+        if (!putTry(armB, dB + GAP2 + (tryK + 1) * 0.8, &#x27;소매맞춤&#x27;)) break;
+        nB = 0; armBAll.forEach(function (t) { nB += cntArm(t); });
+      }
+      capF.forEach(function (c) { if (dF) putTry(c, dF, &#x27;소매맞춤&#x27;); });
+      capB.forEach(function (c) {
+        if (!dB) return;
+        putTry(c, dB, &#x27;소매맞춤&#x27;);
+        putTry(c, dB + GAP2, &#x27;소매맞춤&#x27;);
+      });
+    })();
 
     /* ★ 긴 변에는 **맞춤 너치**를 넣는다 (사용자 지정 2026-08-15
        「너치 간격이 30cm 을 넘으면 추가해줘」). 원피스 옆선 80cm 에 너치가 위쪽에만

@@ -147,6 +147,60 @@ function edgeLen(d, pieceName, edgeName) {
   return hit === names.length ? tot : null;
 }
 
+/* ── 암홀 맞춤 너치 — **앞 1개 · 뒤 2개** ──────────────────────────────
+   사용자 기준 2026-08-15 「앞판 암홀에는 1개, 뒤판 암홀에는 2개를 넣고 소매산의
+   중심과 앞뒤를 맞춰 소매를 연결합니다」. 개수가 곧 앞뒤 구분이라 뒤집혀 달리는 것을
+   막는다. 자리는 **겨드랑에서 잰 호길이**라야 짝이 맞는다(이세는 정수리 쪽에 남는다).
+   ⚠ 소매가 있는 모듈은 소매산에도 같은 수가 있어야 한다 — 몸판에만 있으면 못 맞춘다. */
+function checkArmNotches(d, bad) {
+  var armF = 0, armB = 0, capF = 0, capB = 0, hasSleeve = false, capFront = 0, capBack = 0;
+  (d.pieces || []).forEach(function (p) {
+    var isSleeve = /소매/.test(p.name || '');
+    if (isSleeve) hasSleeve = true;
+    (p.edges || []).forEach(function (e) {
+      var nm = e.name || '';
+      if (!(e.role === 'armhole' || /암홀|진동|소매산/.test(nm))) return;
+      var pts = p.outline.slice(e.start === 0 ? 0 : e.start - 1, e.end + 1);
+      if (pts.length < 3) return;
+      var cnt = 0;
+      (p.notches || []).forEach(function (n) {
+        /* ⚠ 「앞 맞춤」·「뒤 맞춤」은 모듈이 원래 갖고 있던 **같은 목적**의 너치다 —
+           라벨이 다르다고 안 세면 이미 맞출 수 있는 패턴을 결함으로 잡는다.
+           («맞춤»(30cm 규칙)은 목적이 달라 세지 않는다.) */
+        /* 모듈마다 이름이 다르다 — 토르소는 「뒤 암홀 1/3·2/3」로 이미 갖고 있다.
+           같은 목적의 너치를 라벨이 다르다고 안 세면 멀쩡한 패턴이 결함으로 잡힌다. */
+        if (!/소매맞춤|앞 맞춤|뒤 맞춤|암홀 \d\/\d/.test(n.label || '')) return;
+        var bd = Infinity;
+        for (var i = 0; i < pts.length; i++) { var dd = dist(n.p, pts[i]); if (dd < bd) bd = dd; }
+        if (bd <= 0.06) cnt++;
+      });
+      var isBack = /뒤|뒷|back/i.test(nm) || /뒤|뒷|back/i.test(p.name || '');
+      if (isSleeve) { if (isBack) { capB += cnt; capBack++; } else { capF += cnt; capFront++; } }
+      else { if (isBack) armB += cnt; else armF += cnt; }
+    });
+  });
+  var capSplit = capFront > 0 && capBack > 0;      // 소매산이 앞뒤로 갈렸는가
+  if (armF === 0 && armB === 0) return;          // 암홀이 없는 구성(치마·고름 등)
+  /* ★ **최소** 개수로 본다 — 모듈이 자기 방식으로 더 촘촘히 넣었을 수 있고(토르소
+     1/3·2/3), 그건 결함이 아니다. 지켜야 하는 것은 ① 앞에도 있고 ② 뒤가 더 많아
+     **개수로 앞뒤가 구분된다**는 것이다 (사용자 기준의 핵심). */
+  if (armF < 1) bad.push('앞 암홀 맞춤 너치가 없다 — 소매를 맞출 자리가 없다');
+  if (armB < 2) bad.push('뒤 암홀 맞춤 너치 ' + armB + '개 — 2개 이상이라야 한다 (앞 1 · 뒤 2)');
+  /* ⚠ 앞뒤 동수는 **경고**로 둔다 — 토르소처럼 자기 체계(「앞/뒤 암홀 1/3·2/3」)로
+     이미 앞뒤를 구분하는 모듈이 있다. 라벨에 앞/뒤가 박혀 있으면 재단하는 사람은
+     헷갈리지 않는다. 개수만으로 구분하려는 패턴에서만 문제다 (2026-08-15). */
+  if (armF && armB && armB <= armF)
+    warns++, console.log('        ⚠ 뒤 암홀 맞춤 ' + armB + '개 = 앞 ' + armF +
+      '개 — 개수로는 앞뒤가 구분되지 않는다 (라벨로 구분된다면 무방)');
+  /* ⚠ 소매산이 **앞뒤로 갈린 구조**에서만 개수를 요구한다. 철릭처럼 소매 진동이
+     한 변이면 그 변에 앞1·뒤2 를 나눠 넣을 수 없다 — 구조가 다른 것을 결함으로
+     잡으면 검사가 늘 빨간불이라 아무도 안 본다 (2026-08-15). */
+  if (hasSleeve && capSplit) {
+    if (capF < 1) bad.push('소매산 앞쪽에 「소매맞춤」이 없다 — 몸판 앞 1개와 맞출 상대가 없다');
+    if (capB < 2) bad.push('소매산 뒤쪽 「소매맞춤」 ' + capB + '개 — 몸판 뒤 2개와 맞춰야 한다');
+  }
+}
+
 /* ── 모듈 파일이 **남의 모듈 이름**을 들고 있지 않은가 ────────────────────
    print.js·dxf.js 는 다른 모듈에서 복사해 만든다. 제목·파일명이 하드코딩이라
    **복사한 채로 남으면 조끼를 뽑았는데 「토르소 원형 프린세스라인」이 찍힌다**
@@ -346,7 +400,8 @@ function runModule(mod) {
     try { d = draftFn(E.measuresForSize(sz), o); }
     catch (e) { console.log('   ✗ ' + pad(sz, 5) + '제도 실패: ' + e.message); fails++; return; }
     (d.pieces || []).forEach(function (p) { checkPiece(p, bad); checked++; });
-    if (sz === '55호') checkModuleNames(mod.dir, bad);   // 파일 검사라 한 호수만 보면 된다
+    if (sz === '55호') checkModuleNames(mod.dir, bad);
+    checkArmNotches(d, bad);   // 파일 검사라 한 호수만 보면 된다
 
     /* 호수가 커지면 주요 치수는 **반드시** 커진다 — 66호 실측 상수를 골격에 박으면
        여기서 뒤집힌다 (토르소 뒤 암홀이 44호에서 66호보다 길었다). */
@@ -370,7 +425,9 @@ function runModule(mod) {
        변이 1~2cm 자라며 등분 수가 바뀌면 호수마다 개수가 달라지는 것이 **정상**이다.
        그래서 개수 비교에서 뺀다. 자리 자체는 균등 분할이라 짝은 늘 맞는다. */
     var sig = (d.pieces || []).map(function (p) {
-      var cnt = (p.notches || []).filter(function (n) { return n.label !== '맞춤'; }).length;
+      var cnt = (p.notches || []).filter(function (n) {
+        return n.label !== '맞춤' && n.label !== '소매맞춤';   // 둘 다 길이·구조에 따라 자동
+      }).length;
       return (p.name || p.id) + ':' + cnt;
     }).join(' · ');
     if (prevSig !== null && sig !== prevSig)
