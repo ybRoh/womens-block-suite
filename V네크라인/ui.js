@@ -107,9 +107,9 @@
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', hem: '밑단', fold: '골선'
+    side: '옆선', hem: '밑단', fold: '골선', facing: '안단', dart: '다트'
   };
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem'];
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'facing'];
   var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, fold: 0 };
   var SEAM_PRESETS = {
     none: function () { return zeroSeam(); },

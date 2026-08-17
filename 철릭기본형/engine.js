@@ -1145,8 +1145,18 @@
        L('cfF', 'dashed', [[0, g.bTotal - 2.0], [0, g.vBot[1]]], '앞중심'),
        L('wrapF', 'dashed', [[g.q, g.fU[1]], [g.q, g.bTotal]], '여밈 시작(B/4)')]));
 
-    /* ══ ③ 긴소매 — 두리소매. 진동(오른쪽)에서 수구(왼쪽)로 ═══════════════
-       진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다 (배래). */
+    /* ══ ③ 긴소매 — 두리소매. **세워서** 낸다 (진동 위 · 수구 아래) ════════
+       제도는 교재대로 **눕혀서** 한다 — 진동이 오른쪽(x=SL) · 수구가 왼쪽(x=0),
+       진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다 (배래).
+
+       ★ 조각으로 낼 때만 −90° **강체 회전**해 세운다 (2026-08-17 사용자 지정).
+         누워 있으면 조각의 **아래 변이 「소매 아랫선」(옆선 1.5)** 이라 사람은
+         그것을 소매 밑단으로 읽는다 — 진짜 밑단(수구 · sleeveHem)은 **왼쪽 끝**에
+         있었다. 그래서 「소매 밑단 시접이 3.0 이 아니다」가 나왔다.
+       ⚠ 회전은 (x,y) → (y, SL−x). det = +1 이라 **거울이 아니다** — 거울로 뒤집으면
+         소매 앞뒤가 바뀐다. 배래 곡선은 chordBulge(현 기준)라 회전을 그대로 탄다.
+       ⚠ 너치 각은 fixNotches 가 재단선 법선에서 다시 잡는다 — **점만** 옮기면 된다.
+       ⚠ 정답지(GT)는 **눕힌** 도면 좌표다 — engine-verify 가 되돌려 대조한다. */
     (function () {
       var SL = g.sleeveLen, ah = g.sleeveAH, wide = g.sleeveWideY, cuff = g.cuffW;
       var wx = SL * num(opt.sleeveWideAt, K.sleeveWideAt);   // 가장 넓은 자리 x (수구에서)
@@ -1155,19 +1165,27 @@
       var Tw = [wx, 0], Bw = [wx, wide];                   // 가장 넓은 자리
       var cy = wide * K.cuffAt;
       var Cu = [0, cy - cuff / 2], Cl = [0, cy + cuff / 2];  // 수구
+      function up(p) { return [p[1], SL - p[0]]; }          // 눕힌 제도 → 세운 조각
+      function upS(segs) { return mapSegs(segs, up); }
+      var mid0 = [0, cy], mid1 = [SL, top0 + ah / 2];       // 소매 중심선 (수구 → 진동)
+      function onMid(t) { return [mid1[0] + (mid0[0] - mid1[0]) * t,
+                                  mid1[1] + (mid0[1] - mid1[1]) * t]; }
       pieces.push(mk('sleeve', '긴소매', [
-        { name: '소매 윗선', role: 'shoulder', segs: lineSegs(A, Tw) },
-        { name: '배래 (위)', role: 'side',     segs: armCurve(Tw, Cu, K.bareUp) },
-        { name: '수구',      role: 'sleeveHem', segs: armCurve(Cu, Cl, K.cuffB) },
-        { name: '배래 (아래)', role: 'side',   segs: armCurve(Cl, Bw, K.bareLow) },
-        { name: '소매 아랫선', role: 'side',   segs: lineSegs(Bw, Bp) },
-        { name: '진동',      role: 'armhole',  segs: lineSegs(Bp, A) }
-      ], [[SL * 0.55, wide * 0.5 - 6], [SL * 0.55, wide * 0.5 + 6]],
-        [{ p: [SL, top0 + ah / 2], angle: 180, label: '어깨 맞춤' },
-         { p: cp(Tw), angle: 270, label: '소매 넓은 자리' },
-         { p: [0, cy], angle: 0, label: '수구 중심' }],
-        [L('mid', 'dashed', [[0, cy], [SL, top0 + ah / 2]], '소매 중심선'),
-         L('wideL', 'dashed', [cp(Tw), cp(Bw)], '가장 넓은 자리')]));
+        { name: '소매 윗선', role: 'shoulder', segs: upS(lineSegs(A, Tw)) },
+        { name: '배래 (위)', role: 'side',     segs: upS(armCurve(Tw, Cu, K.bareUp)) },
+        { name: '수구',      role: 'sleeveHem', segs: upS(armCurve(Cu, Cl, K.cuffB)) },
+        { name: '배래 (아래)', role: 'side',   segs: upS(armCurve(Cl, Bw, K.bareLow)) },
+        { name: '소매 아랫선', role: 'side',   segs: upS(lineSegs(Bw, Bp)) },
+        { name: '진동',      role: 'armhole',  segs: upS(lineSegs(Bp, A)) }
+      /* 식서는 **소매길이 방향** — 소매 중심선 위에 얹는다 (숙녀복기본원형1 소매와
+         같은 규약). 눕힌 제도 좌표에서 몸판처럼 「세로선」을 그으면 소매를
+         **가로지른다** — 몸판 관용구를 그대로 베낀 자리였다. */
+      ], [up(onMid(0.06)), up(onMid(0.94))],
+        [{ p: up(mid1), angle: 180, label: '어깨 맞춤' },
+         { p: up(Tw), angle: 270, label: '소매 넓은 자리' },
+         { p: up(mid0), angle: 0, label: '수구 중심' }],
+        [L('mid', 'dashed', [up(mid0), up(mid1)], '소매 중심선'),
+         L('wideL', 'dashed', [up(Tw), up(Bw)], '가장 넓은 자리')]));
     })();
 
     /* ══ ④ 깃 — 한쪽 끝은 둥글고, 반대쪽은 동정 자리 직선 ════════════════ */
@@ -1562,7 +1580,8 @@
       FN('fpl',   '앞치마 주름', '주름분 ' + f1(K.pleatDepthF) + ' × ' + g.fPleat.n + '개 · 간격 ' + f1(K.pleatStep),
                   g.fPleat.skirtW, 'frontSkirt', [g.fPleat.skirtW * 0.5, 8.0]),
       FN('slv',   '소매',     '길이 = 소매길이 · 진동 ' + f1(K.sleeveAH) + ' · 가운데 + ' + f1(K.sleeveWide),
-                  g.sleeveLen, 'sleeve', [g.sleeveLen * 0.5, g.sleeveWideY * 0.5]),
+                  /* 소매는 세워서 낸다 — 폭이 x, 길이가 y (위 ③ 참고) */
+                  g.sleeveLen, 'sleeve', [g.sleeveWideY * 0.5, g.sleeveLen * 0.5]),
       FN('col',   '깃',       '길이 = 깃 길이 · 너비 ' + f1(K.collarW), g.collarLen, 'collar',
                   [g.collarLen * 0.35, K.collarW * 0.4]),
       FN('gorum', '고름',     '**도면에 없다 · 관례** 길이 = 총장 × ' + f1(K.gorumLongF) +

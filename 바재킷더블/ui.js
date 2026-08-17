@@ -99,12 +99,12 @@
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', princess: '절개선', center: '뒤중심', hem: '밑단', dart: '다트', fold: '골선'
+    side: '옆선', princess: '절개선', center: '뒤중심', hem: '밑단', sleeveHem: '소매 밑단', dart: '다트', fold: '골선'
   };
   /* ★ 엔진에 있는 role 을 **여기에도 넣어야** 입력란이 생긴다. 빠지면 UI 가 자기 목록만
      넘겨 그 부위 시접이 **0 으로 나간다** — 프린세스 절개선 4곳이 그렇게 시접 없이
      나갔다 (2026-08-12). 아래 renderSeam 이 엔진 SEAM_ROLES 와 대조해 경고한다. */
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'princess', 'center', 'hem', 'dart'];
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'princess', 'center', 'hem', 'sleeveHem', 'dart'];
   var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
                         center: 1.5, hem: 3.0, dart: 1.5, fold: 0 };
   var SEAM_PRESETS = {

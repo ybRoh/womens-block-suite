@@ -227,6 +227,32 @@ function checkModuleNames(dir, bad) {
   });
 }
 
+/* ── 시접 부위 이름이 **화면에 영문 키로 새지 않는가** ──────────────────
+   시접 입력칸은 `SEAM_ROLE_LABEL[k] || k` 로 라벨을 만든다. 엔진에 role 을
+   더하고 UI 라벨을 안 넣으면 **에러 없이 영문 키가 그대로 찍힌다** —
+   사용자가 시접 칸에서 「sleeveHem 2.5」를 봤다 (2026-08-17).
+   조각·좌표는 멀쩡하므로 다른 어떤 검사도 이걸 못 잡는다.
+   ⚠ 엔진 SEAM_ROLES 전부가 아니라 **그 도면이 실제로 쓰는 role** 만 본다 —
+     UI 도 usedSeamRoles() 로 걸러 안 쓰는 role 은 칸을 안 만든다. */
+function checkSeamLabels(dir, d, bad) {
+  var txt;
+  try { txt = fs.readFileSync(path.join(__dirname, dir, 'ui.js'), 'utf8'); } catch (e) { return; }
+  var m = txt.match(/var SEAM_ROLE_LABEL\s*=\s*\{[\s\S]*?\};/);
+  if (!m) { bad.push(dir + '/ui.js 에 SEAM_ROLE_LABEL 이 없다'); return; }
+  var have = {};
+  (m[0].match(/([A-Za-z][A-Za-z0-9]*)\s*:/g) || []).forEach(function (s) {
+    have[s.replace(/\s*:\s*/, '')] = 1;
+  });
+  var used = {};
+  (d.pieces || []).forEach(function (p) {
+    (p.edges || []).forEach(function (e) { if (e && e.role) used[e.role] = 1; });
+  });
+  Object.keys(used).forEach(function (r) {
+    if (!have[r]) bad.push(dir + ': 시접 부위 「' + r + '」에 한국어 라벨이 없다 — ' +
+      '화면에 영문 키가 그대로 뜬다 (ui.js SEAM_ROLE_LABEL 에 넣을 것)');
+  });
+}
+
 /* ── 조각 하나에 거는 검사 ───────────────────────────────────────────── */
 function checkPiece(p, bad) {
   var nm = p.name || p.id || '?';
@@ -400,7 +426,7 @@ function runModule(mod) {
     try { d = draftFn(E.measuresForSize(sz), o); }
     catch (e) { console.log('   ✗ ' + pad(sz, 5) + '제도 실패: ' + e.message); fails++; return; }
     (d.pieces || []).forEach(function (p) { checkPiece(p, bad); checked++; });
-    if (sz === '55호') checkModuleNames(mod.dir, bad);
+    if (sz === '55호') { checkModuleNames(mod.dir, bad); checkSeamLabels(mod.dir, d, bad); }
     checkArmNotches(d, bad);   // 파일 검사라 한 호수만 보면 된다
 
     /* 호수가 커지면 주요 치수는 **반드시** 커진다 — 66호 실측 상수를 골격에 박으면

@@ -59,7 +59,7 @@ var SEAM_DEFAULTS = {
 };
 var ROLE_KO = {
   neck: '목', shoulder: '어깨', armhole: '진동',
-  side: '옆선', hem: '밑단', sleeveHem: '소맷부리', dart: '다트', fold: '골선'
+  side: '옆선', hem: '밑단', sleeveHem: '소매 밑단', dart: '다트', fold: '골선'
 };
 var ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem', 'dart', 'fold'];
 var MITER_LIMIT = 3.0;      // 볼록 모서리 교점이 이보다 멀면 bevel

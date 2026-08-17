@@ -19,6 +19,12 @@ var fs = require('fs'), path = require('path');
 var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
 var GT = JSON.parse(fs.readFileSync(path.join(__dirname, 'cheollik-665-groundtruth.json'), 'utf8'));
 
+/* 도면에는 **눕혀** 그려져 있는데 조각은 **세워서** 내는 것들.
+   지금은 긴소매 하나다 — engine.js §6-③ 이 −90° 강체 회전을 건다.
+   대조할 때만 도로 눕힌다: (X,Y) → (−Y, X) (norm 이 평행이동을 흡수한다). */
+var LAID_IN_GT = { '긴소매': 1 };
+function layDown(pts) { return pts.map(function (q) { return [-q[1], q[0]]; }); }
+
 var fails = 0, warns = 0;
 function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
 function f(v, w, d) { var s = (+v).toFixed(d === undefined ? 2 : d); while (s.length < w) s = ' ' + s; return s; }
@@ -35,12 +41,16 @@ console.log('══════════════════════�
   var m = E.measuresForSize('66호반');
   var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), M = d.measures;
   var P = {}; d.pieces.forEach(function (p) { P[p.name] = p; });
+  /* ★ 긴소매는 **세워서** 낸다(진동 위 · 수구 아래) — 도면은 눕힌 그림이다.
+     그래서 소매만 w↔h 를 바꿔 견준다 (engine.js §6-③ 의 −90° 회전과 짝).
+     ⚠ 이 스왑을 빼면 37×46 을 46×37 과 견주게 돼 9cm 씩 틀렸다고 나온다. */
   ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
-    var p = P[k], t = GT.pieces[k];
-    var dw = p.bbox.w - t.w, dh = p.bbox.h - t.h;
+    var p = P[k], t = GT.pieces[k], laid = LAID_IN_GT[k];
+    var pw = laid ? p.bbox.h : p.bbox.w, ph = laid ? p.bbox.w : p.bbox.h;
+    var dw = pw - t.w, dh = ph - t.h;
     ok('크기 ' + k, Math.abs(dw) <= 1.2 && Math.abs(dh) <= 1.2,
-       f(p.bbox.w, 6) + '×' + f(p.bbox.h, 6) + '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) +
-       ' · 차 ' + f(dw, 5) + ' / ' + f(dh, 5));
+       f(pw, 6) + '×' + f(ph, 6) + (laid ? ' (눕혀서)' : '') +
+       '  도면 ' + f(t.w, 6) + '×' + f(t.h, 6) + ' · 차 ' + f(dw, 5) + ' / ' + f(dh, 5));
   });
   var LM = GT.landmark;
   ok('뒤 허리폭', Math.abs(M.backWaistW - LM['뒷판']['허리폭']) <= 0.05,
@@ -99,7 +109,9 @@ console.log('══════════════════════�
       return mx;
     }
     ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
-      var a = norm(P[k].outline), b = norm(GT.pieces[k].outline);
+      /* 세워서 내는 조각은 **도로 눕혀** 겹친다 — 회전은 강체라 편차가 0 이라야 한다 */
+      var mine = LAID_IN_GT[k] ? layDown(P[k].outline) : P[k].outline;
+      var a = norm(mine), b = norm(GT.pieces[k].outline);
       var e = Math.max(dev(a, b), dev(b, a));
       ok('외곽선 ' + k, e <= 0.4, '최대 편차 ' + f(e, 5) + ' cm');
     });

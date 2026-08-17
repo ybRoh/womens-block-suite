@@ -6,7 +6,7 @@
 <title>V 네크라인 (민소매 · 자락 앞면) · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: V네크라인/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 V네크라인/build.py     생성일: 2026-08-16 09:39 -->
+     재생성: python3 V네크라인/build.py     생성일: 2026-08-17 20:52 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -831,7 +831,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-16 09:39'; window.ND_APP = 'V네크라인';</script>
+<script>window.ND_BUILD = '2026-08-17 20:52'; window.ND_APP = 'V네크라인';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -5646,9 +5646,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = NoDartDXF;
   var FOLD_ROLE = 'fold';                       // 항상 0 고정, 입력란 없음
   var SEAM_ROLE_LABEL = {
     neck: '목둘레', shoulder: '어깨선', armhole: '암홀',
-    side: '옆선', hem: '밑단', fold: '골선'
+    side: '옆선', hem: '밑단', fold: '골선', facing: '안단', dart: '다트'
   };
-  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem'];
+  var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'facing'];
   var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, fold: 0 };
   var SEAM_PRESETS = {
     none: function () { return zeroSeam(); },
