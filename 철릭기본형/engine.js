@@ -382,28 +382,34 @@
     /* 여백 3.0 이면 앞뒤 모두 도면과 같은 개수가 나온다 (뒤 10 · 앞 17) */
     pleatEdge    :  3.00,  // 양끝 여백 — 주름을 두지 않는 폭
     pleatMarkH   :  5.00,  // 주름 표시 높이 (제도선)
-    /* ── 소매 (두리소매) ───────────────────────────────────────────
-       진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다. */
-    sleeveAH     : 30.22,  // 진동 높이 = 소매가 몸판에 붙는 변  [3.46~33.68]
-    sleeveWide   :  6.89,  // 소매 가장 넓은 곳 = 진동 + 이 값  [37.11]
-    /* ⚠ 가장 넓은 자리는 **수구(x=0)에서** 잰다 — 도면 14.75 / 46.48 = 0.317.
-       진동에서 재는 것으로 잘못 쓰면 소매가 좌우로 뒤집힌 모양이 된다. */
-    sleeveWideAt :  0.317, // 가장 넓은 자리 — **수구에서** 소매길이의 이 비율  [14.75]
-    /* ★ 소매 끝은 **평평한 수구가 아니라 둥근 점**이다. 제어점에 x=0 이 둘 있어
-       3.81 짜리 직선으로 오독했는데, 실제 곡선은 x=0 을 **한 번 스치고** 돌아 나간다
-       (2026-08-13 도면 대조). 두리소매의 둥근 끝이다. */
-    cuffW        :  0.60,  // 소매 끝 — 곧은 구간 (사실상 둥근 점)
-    cuffAt       :  0.5047,// 소매 끝 중심 — 소매 높이의 이 비율  [도면 18.73/37.11]
-    /* 배래(소매 옆 곡선) — 도면 점열에서 잰 **현 대비 비율** 앵커.
-       ⚠ 2점 스플라인에 장력만 주면 4.6cm 나 부푼다 (도면 대조에서 잡혔다). */
-    bareUp  : [[0.076,-0.0396],[0.192,-0.0663],[0.315,-0.0615],[0.435,-0.0264],
+    /* ── 소매 — **소매산이 위 · 수구가 아래** ───────────────────────
+       ⚠ 2026-08-17 이전에는 변 이름이 통째로 뒤바뀌어 있었다 — 굽은 끝을
+         「배래 + 수구」로, 곧은 끝을 「진동」으로 읽었다. 실측이 그걸 부순다:
+         굽은 끝 49.53 만이 몸판 진동 47.89 와 맞고(이세 3.4%), 곧은 끝 30.14 는
+         **17.75 나 모자랐다**. 두 밑선은 31.95 ↔ 31.91 로 짝이고, 소매산 높이는
+         14.74 다. 근거 전문은 docs/철릭-소매-판정.md.
+       ★ 소매폭은 상수가 아니라 **몸판 진동에서 풀어 나온다** (geom 참고).
+         30.22 를 상수로 박아 두었더니 44호 이세 +9.96(26%) · 88호 **−3.45**
+         (모자라서 붙지도 않는다) 였다 — memory `pattern-engine-techniques` ①. */
+    capEase      :  0.03501,// 소매산 이세 = 몸판 진동의 이 비율 — 66호반에서 도면 폭 37.112 / 수구 30.22 가 그대로 나오는 값이다 [1.68/47.89]
+    capHAt       :  0.317, // 소매산 높이 = 소매길이의 이 비율   [도면 14.75/46.48]
+    cuffRatio    :  0.8144,// 수구 폭 = 소매폭의 이 비율         [도면 30.22/37.11]
+    /* ★ 소매산 꼭짓점은 **평평한 변이 아니라 둥근 점**이다. 제어점에 x=0 이 둘
+       있어 3.81 짜리 직선으로 오독했는데, 실제 곡선은 x=0 을 **한 번 스치고**
+       돌아 나간다 (2026-08-13 도면 대조). */
+    capTipW      :  0.60,  // 소매산 꼭짓점 — 곧은 구간 (사실상 점)
+    capTipAt     :  0.5047,// 꼭짓점 자리 — 소매폭의 이 비율     [도면 18.73/37.11]
+    /* 소매산 두 도막 — 도면 점열에서 잰 **현 대비 비율** 앵커.
+       ⚠ 2점 스플라인에 장력만 주면 4.6cm 나 부푼다 (도면 대조에서 잡혔다).
+       뒤가 앞보다 길다 (25.02 ↔ 23.95) — 이세도 뒤가 크다(0.87 > 0.21). */
+    capBack  : [[0.076,-0.0396],[0.192,-0.0663],[0.315,-0.0615],[0.435,-0.0264],
                [0.559,0.0346],[0.682,0.0770],[0.791,0.0860],[0.880,0.0673],
-               [0.941,0.0392],[0.976,0.0175]],                  // 넓은자리 → 소매 끝
-    bareLow : [[0.085,0.0360],[0.188,0.0486],[0.327,0.0404],[0.432,0.0234],
+               [0.941,0.0392],[0.976,0.0175]],                  // 가장 넓은 자리 → 꼭짓점 (뒤)
+    capFront : [[0.085,0.0360],[0.188,0.0486],[0.327,0.0404],[0.432,0.0234],
                [0.553,-0.0038],[0.684,-0.0357],[0.792,-0.0489],[0.884,-0.0458],
-               [0.947,-0.0304],[0.966,-0.0220]],                // 소매 끝 → 넓은자리
+               [0.947,-0.0304],[0.966,-0.0220]],                // 꼭짓점 → 가장 넓은 자리 (앞)
     /* 소매 끝의 곧은 구간 — 사실상 점이라 곡률은 거의 없다 */
-    cuffB   : [[0.35, -0.004], [0.70, -0.010]],
+    capTipB : [[0.35, -0.004], [0.70, -0.010]],
     /* V 네크라인은 **곧은 직선이 아니라 살짝 굽는다** (현에서 0.02 비율 안쪽) */
     /* ★ 앞 목선은 **목옆점에서 앞중심까지 한 줄기 곡선**이다 — 도면이 그렇다.
        V 바닥에서 꺾어 「섶선」을 따로 그으면 도면에 없는 계단이 생긴다
@@ -559,10 +565,35 @@
     var bPl = pleatPlan(bWaist[0], opt, num(opt.pleatDepthB, K.pleatDepthB));  // 뒷치마
     var fPl = pleatPlan(fWaist[0], opt, num(opt.pleatDepthF, K.pleatDepthF));  // 앞치마
 
-    /* ───────── 소매 ───────── */
-    var ah   = num(opt.sleeveAH, K.sleeveAH);
-    var wide = ah + num(opt.sleeveWide, K.sleeveWide);
-    var cuff = num(opt.cuffW, K.cuffW);
+    /* ───────── 소매 — 소매산이 **몸판 진동에서 따라 나온다** ─────────
+       소매폭을 미지수로 두고 「소매산 호길이 = 몸판 진동 × (1 + 이세)」가 되는
+       값을 이분법으로 찾는다. 소매산 높이·수구 비율·곡선 앵커는 도면 그대로라
+       **66호반에서는 도면값(폭 37.11 · 수구 30.22)이 그대로 나온다.**
+       ⚠ 폭을 상수로 박으면 도면 호수에서만 맞는다 (2026-08-17 판정). */
+    var ahAll  = sLen(bArm) + sLen(fArm);
+    var capH   = sleeveLen * num(opt.capHAt, K.capHAt);      // 소매산 높이
+    var tipW   = num(opt.capTipW, K.capTipW);
+    var tipAt  = num(opt.capTipAt, K.capTipAt);
+    var capTgt = ahAll * (1 + num(opt.capEase, K.capEase));  // 목표 소매산 호길이
+    function capSegsOf(w) {
+      var cy = w * tipAt, Tw = [capH, 0], Bw = [capH, w];
+      var Cu = [0, cy - tipW / 2], Cl = [0, cy + tipW / 2];
+      return [armCurve(Tw, Cu, K.capBack), armCurve(Cu, Cl, K.capTipB),
+              armCurve(Cl, Bw, K.capFront)];
+    }
+    function capLenOf(w) {
+      var segs = capSegsOf(w), t = 0;
+      for (var ci = 0; ci < segs.length; ci++) t += sLen(segs[ci]);
+      return t;
+    }
+    /* 호길이는 폭에 대해 단조증가라 이분법 40 회면 1e-10 아래로 좁혀진다 */
+    var wLo = 5, wHi = 200;
+    for (var wI = 0; wI < 40; wI++) {
+      var wMid = (wLo + wHi) / 2;
+      if (capLenOf(wMid) < capTgt) wLo = wMid; else wHi = wMid;
+    }
+    var wide = (wLo + wHi) / 2;
+    var cuff = wide * num(opt.cuffRatio, K.cuffRatio);
 
     return {
       m: m, B: B, W: W, q: q, backLen: backLen, skirtLen: skirtLen,
@@ -573,7 +604,8 @@
       fWaistW: fWaistW, fChestW: fChestW, fSNP: fSNP, fSP: fSP, fU: fU,
       fWaist: fWaist, fCf: fCf, vBot: vBot, fCfTop: fCfTop, fArm: fArm, vNeck: vNeck,
       bPleat: bPl, fPleat: fPl, coatLen: bTotal + skirtLen,
-      sleeveAH: ah, sleeveWideY: wide, cuffW: cuff,
+      sleeveWideY: wide, cuffW: cuff, capH: capH, capTipW: tipW,
+      capTipAt: tipAt, armholeAll: ahAll, capLen: capLenOf(wide),
       shLenBack: V.dist(bSNP, bSP), shLenFront: V.dist(fSNP, fSP)
     };
   }
@@ -1145,47 +1177,46 @@
        L('cfF', 'dashed', [[0, g.bTotal - 2.0], [0, g.vBot[1]]], '앞중심'),
        L('wrapF', 'dashed', [[g.q, g.fU[1]], [g.q, g.bTotal]], '여밈 시작(B/4)')]));
 
-    /* ══ ③ 긴소매 — 두리소매. **세워서** 낸다 (진동 위 · 수구 아래) ════════
-       제도는 교재대로 **눕혀서** 한다 — 진동이 오른쪽(x=SL) · 수구가 왼쪽(x=0),
-       진동보다 소매 가운데가 넓어졌다가 수구로 좁아진다 (배래).
+    /* ══ ③ 긴소매 — **소매산이 위 · 수구가 아래** ═══════════════════
+       제도는 교재대로 **눕혀서** 한다 — 소매산 꼭짓점이 왼쪽(x=0) · 수구가
+       오른쪽(x=SL) · 소매산 높이만큼 들어온 자리(x=capH)가 가장 넓다(비셉).
 
-       ★ 조각으로 낼 때만 −90° **강체 회전**해 세운다 (2026-08-17 사용자 지정).
-         누워 있으면 조각의 **아래 변이 「소매 아랫선」(옆선 1.5)** 이라 사람은
-         그것을 소매 밑단으로 읽는다 — 진짜 밑단(수구 · sleeveHem)은 **왼쪽 끝**에
-         있었다. 그래서 「소매 밑단 시접이 3.0 이 아니다」가 나왔다.
-       ⚠ 회전은 (x,y) → (y, SL−x). det = +1 이라 **거울이 아니다** — 거울로 뒤집으면
-         소매 앞뒤가 바뀐다. 배래 곡선은 chordBulge(현 기준)라 회전을 그대로 탄다.
+       ★ 조각으로 낼 때 **+90° 강체 회전**해 세운다: (x,y) → (폭−y, x).
+         det = +1 이라 **거울이 아니다** — 거울로 뒤집으면 소매 앞뒤가 바뀐다.
+         회전 뒤 **앞이 왼쪽 · 뒤가 오른쪽**이다 (아래 변 이름과 맞춰 볼 것).
+       ⚠ 2026-08-17 이전에는 −90° 로 돌려 **거꾸로** 서 있었고, 변 이름까지
+         뒤바뀌어 있었다(굽은 끝=배래+수구 · 곧은 끝=진동). 그래서
+         「소매 밑단 시접이 3.0 이 아니다」가 나왔다 — 사용자가 화면 보고 잡았다.
+         판정 근거는 docs/철릭-소매-판정.md.
        ⚠ 너치 각은 fixNotches 가 재단선 법선에서 다시 잡는다 — **점만** 옮기면 된다.
        ⚠ 정답지(GT)는 **눕힌** 도면 좌표다 — engine-verify 가 되돌려 대조한다. */
     (function () {
-      var SL = g.sleeveLen, ah = g.sleeveAH, wide = g.sleeveWideY, cuff = g.cuffW;
-      var wx = SL * num(opt.sleeveWideAt, K.sleeveWideAt);   // 가장 넓은 자리 x (수구에서)
-      var top0 = (wide - ah) / 2;                          // 진동 위끝 y
-      var A = [SL, top0], Bp = [SL, top0 + ah];            // 진동 (오른쪽 변)
-      var Tw = [wx, 0], Bw = [wx, wide];                   // 가장 넓은 자리
-      var cy = wide * K.cuffAt;
-      var Cu = [0, cy - cuff / 2], Cl = [0, cy + cuff / 2];  // 수구
-      function up(p) { return [p[1], SL - p[0]]; }          // 눕힌 제도 → 세운 조각
+      var SL = g.sleeveLen, wide = g.sleeveWideY, cuff = g.cuffW, capH = g.capH;
+      var cy   = wide * g.capTipAt;                  // 소매산 꼭짓점 자리
+      var top0 = (wide - cuff) / 2;                  // 수구 위끝 y
+      var A = [SL, top0], Bp = [SL, top0 + cuff];    // 수구 (오른쪽 변)
+      var Tw = [capH, 0], Bw = [capH, wide];         // 가장 넓은 자리 (비셉)
+      var Cu = [0, cy - g.capTipW / 2], Cl = [0, cy + g.capTipW / 2];   // 소매산 꼭짓점
+      function up(p) { return [wide - p[1], p[0]]; } // 눕힌 제도 → 세운 조각 (+90°)
       function upS(segs) { return mapSegs(segs, up); }
-      var mid0 = [0, cy], mid1 = [SL, top0 + ah / 2];       // 소매 중심선 (수구 → 진동)
+      var mid0 = [0, cy], mid1 = [SL, top0 + cuff / 2];   // 소매 중심선 (소매산 ↔ 수구)
       function onMid(t) { return [mid1[0] + (mid0[0] - mid1[0]) * t,
                                   mid1[1] + (mid0[1] - mid1[1]) * t]; }
       pieces.push(mk('sleeve', '긴소매', [
-        { name: '소매 윗선', role: 'shoulder', segs: upS(lineSegs(A, Tw)) },
-        { name: '배래 (위)', role: 'side',     segs: upS(armCurve(Tw, Cu, K.bareUp)) },
-        { name: '수구',      role: 'sleeveHem', segs: upS(armCurve(Cu, Cl, K.cuffB)) },
-        { name: '배래 (아래)', role: 'side',   segs: upS(armCurve(Cl, Bw, K.bareLow)) },
-        { name: '소매 아랫선', role: 'side',   segs: upS(lineSegs(Bw, Bp)) },
-        { name: '진동',      role: 'armhole',  segs: upS(lineSegs(Bp, A)) }
+        { name: '뒤 밑선',     role: 'side',      segs: upS(lineSegs(A, Tw)) },
+        { name: '소매산 (뒤)', role: 'armhole',   segs: upS(armCurve(Tw, Cu, K.capBack)) },
+        { name: '소매산 꼭지', role: 'armhole',   segs: upS(armCurve(Cu, Cl, K.capTipB)) },
+        { name: '소매산 (앞)', role: 'armhole',   segs: upS(armCurve(Cl, Bw, K.capFront)) },
+        { name: '앞 밑선',     role: 'side',      segs: upS(lineSegs(Bw, Bp)) },
+        { name: '수구',        role: 'sleeveHem', segs: upS(lineSegs(Bp, A)) }
       /* 식서는 **소매길이 방향** — 소매 중심선 위에 얹는다 (숙녀복기본원형1 소매와
-         같은 규약). 눕힌 제도 좌표에서 몸판처럼 「세로선」을 그으면 소매를
-         **가로지른다** — 몸판 관용구를 그대로 베낀 자리였다. */
+         같은 규약). 눕힌 좌표에서 몸판처럼 「세로선」을 그으면 소매를 가로지른다. */
       ], [up(onMid(0.06)), up(onMid(0.94))],
-        [{ p: up(mid1), angle: 180, label: '어깨 맞춤' },
+        [{ p: up(mid1), angle: 180, label: '수구 중심' },
          { p: up(Tw), angle: 270, label: '소매 넓은 자리' },
-         { p: up(mid0), angle: 0, label: '수구 중심' }],
+         { p: up(mid0), angle: 0, label: '소매산 중심' }],
         [L('mid', 'dashed', [up(mid0), up(mid1)], '소매 중심선'),
-         L('wideL', 'dashed', [up(Tw), up(Bw)], '가장 넓은 자리')]));
+         L('wideL', 'dashed', [up(Tw), up(Bw)], '가장 넓은 자리 (비셉)')]));
     })();
 
     /* ══ ④ 깃 — 한쪽 끝은 둥글고, 반대쪽은 동정 자리 직선 ════════════════ */
@@ -1272,10 +1303,13 @@
     /* 소매 진동 ↔ 몸판 진동 — **같지 않은 것이 정상이다.** 도면에서도 소매 진동 30.22 에
        몸판 진동 합은 42 다. 한복은 소매를 진동 위쪽에만 붙이고 아래는 겨드랑(무)으로
        처리하기 때문이다. 소매가 진동보다 크거나(못 붙는다) 절반 아래면(너무 짧다) 잡는다. */
-    var ahAll = SL2(g.bArm) + SL2(g.fArm), rat = g.sleeveAH / Math.max(ahAll, 0.1);
-    if (rat > 1.05 || rat < 0.55)
-      warnings.push('소매 진동 ' + r4(g.sleeveAH) + ' / 몸판 진동 ' + r4(ahAll) +
-                    ' = ' + r4(rat) + ' (0.55~1.05 이라야 한다)');
+    /* 소매산이 몸판 진동에 붙는가 — **이세**로 본다 (0 미만이면 모자라서 못 붙는다).
+       예전엔 「곧은 끝 / 몸판 진동」 비를 0.55~1.05 로 봤는데, 그 곧은 끝은
+       진동이 아니라 수구였다 (2026-08-17 판정). */
+    var ahAll = SL2(g.bArm) + SL2(g.fArm), capEase = g.capLen - ahAll;
+    if (capEase < 0 || capEase > ahAll * 0.10)
+      warnings.push('소매산 ' + r4(g.capLen) + ' / 몸판 진동 ' + r4(ahAll) +
+                    ' — 이세 ' + r4(capEase) + ' (0 ~ 진동의 10% 여야 한다)');
     if (Math.abs(g.shLenBack - g.shLenFront) > 0.15)
       warnings.push('어깨 짝 ' + r4(g.shLenBack) + ' ↔ ' + r4(g.shLenFront));
 
@@ -1544,7 +1578,9 @@
         neckFront: r4(sLen(g.vNeck)),
         neckTotal: r4(sLen(g.bNeckCv) + sLen(g.vNeck)),
         sideBack: r4(V.dist(g.bU, g.bWaist)), sideFront: r4(V.dist(g.fU, g.fWaist)),
-        sleeveLen: r4(g.sleeveLen), sleeveAH: r4(g.sleeveAH), cuffW: r4(g.cuffW),
+        sleeveLen: r4(g.sleeveLen), sleeveWide: r4(g.sleeveWideY), cuffW: r4(g.cuffW),
+        sleeveCap: r4(g.capLen), sleeveCapH: r4(g.capH),
+        sleeveCapEase: r4(g.capLen - (SL2(g.bArm) + SL2(g.fArm))),
         collarLen: r4(g.collarLen),
         gorumLong: r4(g.coatLen * num(opt.gorumLongF, K.gorumLongF)),
         gorumShort: r4(g.coatLen * num(opt.gorumLongF, K.gorumLongF) - num(opt.gorumShortSub, K.gorumShortSub)),
@@ -1579,7 +1615,8 @@
                   g.bPleat.skirtW, 'backSkirt', [g.bPleat.skirtW * 0.5, 8.0]),
       FN('fpl',   '앞치마 주름', '주름분 ' + f1(K.pleatDepthF) + ' × ' + g.fPleat.n + '개 · 간격 ' + f1(K.pleatStep),
                   g.fPleat.skirtW, 'frontSkirt', [g.fPleat.skirtW * 0.5, 8.0]),
-      FN('slv',   '소매',     '길이 = 소매길이 · 진동 ' + f1(K.sleeveAH) + ' · 가운데 + ' + f1(K.sleeveWide),
+      FN('slv',   '소매',     '소매산 = **몸판 진동 × (1 + 이세 ' + f1(K.capEase) + ')** · ' +
+                  '산높이 = 소매길이 × ' + f1(K.capHAt) + ' · 수구 = 소매폭 × ' + f1(K.cuffRatio),
                   /* 소매는 세워서 낸다 — 폭이 x, 길이가 y (위 ③ 참고) */
                   g.sleeveLen, 'sleeve', [g.sleeveWideY * 0.5, g.sleeveLen * 0.5]),
       FN('col',   '깃',       '길이 = 깃 길이 · 너비 ' + f1(K.collarW), g.collarLen, 'collar',

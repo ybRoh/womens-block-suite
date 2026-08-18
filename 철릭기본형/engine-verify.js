@@ -20,10 +20,12 @@ var E = require('./engine.js'), U = E.util, V = U.V, K = E.K;
 var GT = JSON.parse(fs.readFileSync(path.join(__dirname, 'cheollik-665-groundtruth.json'), 'utf8'));
 
 /* 도면에는 **눕혀** 그려져 있는데 조각은 **세워서** 내는 것들.
-   지금은 긴소매 하나다 — engine.js §6-③ 이 −90° 강체 회전을 건다.
-   대조할 때만 도로 눕힌다: (X,Y) → (−Y, X) (norm 이 평행이동을 흡수한다). */
+   지금은 긴소매 하나다 — engine.js §6-③ 이 **+90°** 강체 회전을 건다
+   (소매산이 위 · 수구가 아래). 대조할 때만 도로 눕힌다.
+   회전이 (x,y) → (폭−y, x) 이므로 역은 (X,Y) → (Y, −X)
+   (평행이동은 아래 norm 이 흡수한다). */
 var LAID_IN_GT = { '긴소매': 1 };
-function layDown(pts) { return pts.map(function (q) { return [-q[1], q[0]]; }); }
+function layDown(pts) { return pts.map(function (q) { return [q[1], -q[0]]; }); }
 
 var fails = 0, warns = 0;
 function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
@@ -41,8 +43,8 @@ console.log('══════════════════════�
   var m = E.measuresForSize('66호반');
   var g = E.geom(m), d = E.draftCheollik(m, { seam: E.SEAM_DEFAULT }), M = d.measures;
   var P = {}; d.pieces.forEach(function (p) { P[p.name] = p; });
-  /* ★ 긴소매는 **세워서** 낸다(진동 위 · 수구 아래) — 도면은 눕힌 그림이다.
-     그래서 소매만 w↔h 를 바꿔 견준다 (engine.js §6-③ 의 −90° 회전과 짝).
+  /* ★ 긴소매는 **세워서** 낸다(소매산 위 · 수구 아래) — 도면은 눕힌 그림이다.
+     그래서 소매만 w↔h 를 바꿔 견준다 (engine.js §6-③ 의 +90° 회전과 짝).
      ⚠ 이 스왑을 빼면 37×46 을 46×37 과 견주게 돼 9cm 씩 틀렸다고 나온다. */
   ['뒷판', '앞판', '긴소매', '깃', '앞치마판', '뒷치마판'].forEach(function (k) {
     var p = P[k], t = GT.pieces[k], laid = LAID_IN_GT[k];
@@ -75,9 +77,23 @@ console.log('══════════════════════�
      '  도면 ' + GT.pleat.depthBack + ' / ' + GT.pleat.depthFront);
   ok('주름 간격', Math.abs(K.pleatStep - GT.pleat.step) < 1e-9,
      f(K.pleatStep, 5) + '  도면 ' + GT.pleat.step);
-  ok('소매 진동 · 수구', Math.abs(g.sleeveAH - GT.landmark['긴소매']['진동']) <= 0.05 &&
-     Math.abs(g.cuffW - GT.landmark['긴소매']['수구']) <= 0.05,
-     f(g.sleeveAH, 6) + ' / ' + f(g.cuffW, 5) + '  도면 ' + GT.landmark['긴소매']['진동'] + ' / ' + GT.landmark['긴소매']['수구']);
+  /* ★ 소매 랜드마크 — 2026-08-17 에 이름을 바로잡았다. 예전 GT 의 「진동 30.22」는
+     실은 **수구 폭**, 「수구 0.6」은 **소매산 꼭짓점**이었다 (docs/철릭-소매-판정.md).
+     좌표는 그대로 옳으니 이름만 고쳐 대조한다. */
+  var LM0 = GT.landmark['긴소매'];
+  ok('소매 수구 · 산꼭지', Math.abs(g.cuffW - LM0['수구폭']) <= 0.05 &&
+     Math.abs(g.capTipW - LM0['소매산꼭지']) <= 0.05,
+     f(g.cuffW, 6) + ' / ' + f(g.capTipW, 5) + '  도면 ' + LM0['수구폭'] + ' / ' + LM0['소매산꼭지']);
+  ok('소매폭 · 산높이', Math.abs(g.sleeveWideY - LM0['가장넓은곳']) <= 0.05 &&
+     Math.abs(g.capH - LM0['소매산높이']) <= 0.10,
+     f(g.sleeveWideY, 6) + ' / ' + f(g.capH, 5) + '  도면 ' + LM0['가장넓은곳'] + ' / ' + LM0['소매산높이']);
+  /* ★ 이 옷에서 **소매가 붙는지**를 정하는 유일한 수치 — 소매산 ↔ 몸판 진동.
+     예전 검산기에는 이 검사가 아예 없어서, 88호가 3.45 **모자란** 채로 전부
+     통과했다 (2026-08-17). 도면 호수의 이세는 1.68 이다 (진동의 3.5%).
+     ⚠ 폴리라인으로 재면 1.64 로 나온다 — 여기서는 geom 의 **곡선** 값을 쓴다. */
+  ok('소매산 이세', Math.abs((g.capLen - g.armholeAll) - 1.68) <= 0.12,
+     f(g.capLen, 6) + ' − 몸판 ' + f(g.armholeAll, 6) + ' = ' + f(g.capLen - g.armholeAll, 5) +
+     '  도면 1.68');
   ok('조각 구성', d.pieces.length === 9,
      '9장 — ' + d.pieces.map(function (p) { return p.name; }).join(' · '));
   /* ★ **외곽선 전체를 도면과 겹쳐 잰다** — bbox 만 맞고 모양이 다를 수 있다.
@@ -141,9 +157,26 @@ E.SIZES.forEach(function (sz) {
   chk(Math.abs(g.fWaist[0] - (m.B / 4 + K.frontWrap)) < 1e-6, '앞 허리폭 식이 안 맞는다');
   chk(Math.abs(g.bNeckW - (m.B / 12 + K.backNeckAdd)) < 1e-6, '뒷목너비 식이 안 맞는다');
   chk(Math.abs(g.bSP[0] - (m.shoulderW / 2 - K.shoulderSub)) < 1e-6, '어깨점 식이 안 맞는다');
-  /* 소매가 진동에 붙을 수 있는가 (한복은 아래를 겨드랑으로 처리하므로 0.55~1.05) */
-  var rat = g.sleeveAH / Math.max(M.armholeTotal, 0.1);
-  chk(rat > 0.55 && rat < 1.05, '소매 진동/몸판 진동 ' + rat.toFixed(2));
+  /* 소매가 몸판 진동에 붙는가 — **이세**로 본다. 0 미만이면 모자라서 못 붙고,
+     10% 를 넘으면 몰려서 주름이 잡힌다.
+     ⚠ 예전엔 「곧은 끝 / 몸판 진동」 비를 0.55~1.05 로 봤는데, 그 곧은 끝은
+       진동이 아니라 **수구**였다. 그래서 88호가 −3.45 인 채로 통과했다. */
+  var ease = g.capLen - M.armholeTotal;
+  chk(ease > 0 && ease < M.armholeTotal * 0.10,
+      '소매산 이세 ' + ease.toFixed(2) + ' (소매산 ' + g.capLen.toFixed(2) +
+      ' / 몸판 진동 ' + M.armholeTotal.toFixed(2) + ')');
+  /* 밑선 두 짝은 서로 꿰맨다 — 길이가 같아야 한다 */
+  var slv = null; d.pieces.forEach(function (pc) { if (pc.id === 'sleeve') slv = pc; });
+  if (slv) {
+    var eL = {};
+    slv.edges.forEach(function (e) {
+      var t = 0; for (var i = e.start + 1; i <= e.end; i++)
+        t += Math.hypot(slv.outline[i][0] - slv.outline[i - 1][0], slv.outline[i][1] - slv.outline[i - 1][1]);
+      eL[e.name] = t;
+    });
+    chk(Math.abs(eL['앞 밑선'] - eL['뒤 밑선']) < 0.10,
+        '소매 밑선 짝 ' + eL['뒤 밑선'].toFixed(2) + ' ↔ ' + eL['앞 밑선'].toFixed(2));
+  }
   /* V 네크라인이 어깨선 위로 올라가면 안 된다 */
   chk(g.vBot[1] > g.fSNP[1] + 2.0, 'V 바닥이 목옆점에 너무 가깝다');
   if (d.warnings.length) bad.push('엔진 경고 ' + d.warnings.join(' · '));

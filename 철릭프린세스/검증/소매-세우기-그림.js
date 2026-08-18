@@ -11,8 +11,8 @@ var P = d.pieces.filter(function (p) { return p.id === 'sleeve'; })[0];
 var ROLE_KO = { shoulder: '어깨선', side: '옆선', sleeveHem: '소매 밑단', armhole: '암홀' };
 var S = 9, PAD = 46;                                   // px/cm
 
-/** (X,Y) → 눕힌 옛 좌표. 세우기가 (x,y)→(y,SL−x) 였으므로 역은 (X,Y)→(−Y,X) */
-function lay(p) { return [-p[1], p[0]]; }
+/** (X,Y) → 눕힌 제도 좌표. 세우기가 (x,y)→(폭−y, x) 이므로 역은 (X,Y)→(Y,−X) */
+function lay(p) { return [p[1], -p[0]]; }
 function mapPts(pts, f) { return f ? pts.map(f) : pts; }
 function bbox(pts) {
   var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
@@ -62,8 +62,8 @@ function panel(f, ox, title, sub) {
   return { svg: t.join('\n'), w: bb.w * S, h: bb.h * S };
 }
 
-var A = panel(lay, 60, '전  ·  눕혀서 냈다', '아래 변이 「소매 아랫선」(옆선 1.5) — 이걸 소매 밑단으로 읽는다');
-var B = panel(null, 60 + A.w + 190, '후  ·  세워서 낸다', '아래 변이 진짜 밑단 「수구」(소매 밑단 2.5)');
+var A = panel(lay, 60, '제도 — 눕혀서 (교재)', '소매산 꼭짓점이 왼쪽 · 수구가 오른쪽 · 가장 넓은 자리가 비셉');
+var B = panel(null, 60 + A.w + 190, '조각 — 세워서 (+90°)', '소매산이 위 · 수구(소매 밑단)가 아래');
 var W = 60 + A.w + 190 + B.w + 200, H = PAD + 82 + Math.max(A.h, B.h) + 70;
 
 var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.ceil(W) + '" height="' + Math.ceil(H) +
@@ -87,7 +87,7 @@ var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.ceil(W) + '" 
   '<rect width="100%" height="100%" fill="#fff"/>\n' + A.svg + '\n' + B.svg + '\n' +
   '<text class="cap" x="60" y="' + (H - 26) + '">' +
   DIR + ' · 66호 · 표준 시접 — 검정 재단선 · 파란 점선 시접선 · 빨강 너치 · 초록 식서. ' +
-  '−90° 강체 회전이라 치수·곡선은 한 치도 안 변한다 (도면 대조 편차 0.32cm 로 동일).</text>\n</svg>\n';
+  '+90° 강체 회전이라 치수·곡선은 한 치도 안 변한다 (도면 대조 편차 0.32cm 로 동일).</text>\n</svg>\n';
 
 var outp = process.argv[3] || '/tmp/sleeve.svg';
 fs.writeFileSync(outp, svg);

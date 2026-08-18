@@ -48,8 +48,12 @@
     { k: 'pleatDepthF', label: '앞 주름분',    min: 2,   max: 7,   step: 0.01, hint: '앞은 뒤와 다르다 · 도면 3.9008' },
     { k: 'pleatStep',   label: '주름 간격',    min: 3,   max: 10,  step: 0.05, hint: '치마에서 주름 하나가 차지하는 폭 · 도면 5.83' },
     { k: 'collarW',     label: '깃 너비',      min: 3,   max: 8,   step: 0.1, hint: '도면 4.50' },
-    { k: 'sleeveWide',  label: '소매 넓힘',    min: 0,   max: 12,  step: 0.1, hint: '진동보다 소매 가운데가 넓어지는 양 · 도면 6.89' },
-    { k: 'sleeveWideAt',label: '넓은 자리',    min: 0.15, max: 0.6, step: 0.005, hint: '가장 넓은 자리 — **수구에서** 소매길이의 비율 · 도면 0.317' },
+    /* ★ 소매폭은 입력이 아니다 — **몸판 진동에서 풀려 나온다**(engine geom).
+       2026-08-17 이전에는 「소매 넓힘 6.89」를 상수로 받아 44호 이세 +9.96 ·
+       88호 −3.45 였다. 지금은 이세·산높이·수구비율만 고른다. */
+    { k: 'capEase',     label: '소매산 이세',  min: 0,   max: 0.10, step: 0.002, hint: '소매산이 몸판 진동보다 긴 비율 — 소매폭이 여기서 따라 나온다 · 도면 0.035' },
+    { k: 'capHAt',      label: '소매산 높이',  min: 0.15, max: 0.6, step: 0.005, hint: '소매길이에 대한 소매산 높이 비율 · 도면 0.317 (66호반 14.7cm)' },
+    { k: 'cuffRatio',   label: '수구 비율',    min: 0.4, max: 1.0, step: 0.005, hint: '수구 폭 = 소매폭 × 이 값 · 도면 0.8144 (66호반 30.2cm)' },
     { k: 'gorumW',      label: '고름 폭',      min: 3,   max: 10,  step: 0.1, hint: '완성 폭 (재단은 ×2, 반 접는다) · 관례 6.0' },
     { k: 'gorumLongF',  label: '긴고름 길이',  min: 0.6, max: 1.2, step: 0.01, hint: '총장 × 이 비율 · 관례 0.95' },
     { k: 'dongjeongW',  label: '동정 폭',      min: 1,   max: 4,   step: 0.1, hint: '완성 폭 · 관례 1.8' }
