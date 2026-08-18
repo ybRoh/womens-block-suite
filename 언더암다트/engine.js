@@ -1898,8 +1898,10 @@
   }
 
   /* ── 위치별 시접 (SPEC §11-1) ─────────────────────────────────────── */
+  /* ★ sleeveHem 3.0 — 2026-08-18 사용자 지정. 몸판 밑단(3.0)과 같게 올렸다
+     (이전 2.5). 소매 밑단도 접어 올리는 자리라 폭을 따로 둘 이유가 없다. */
   var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0,
-                       sleeveHem: 2.5, fold: 0, dart: 0 };
+                       sleeveHem: 3.0, fold: 0, dart: 0 };
   /* dart — 다트 다리에는 시접을 따로 주지 않는다(항상 0). 허리 시접이 다트 다리를
      따라 그대로 연장되는 모양이 되어, 봉제 시 시접이 다트를 통과한다. */
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);

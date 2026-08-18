@@ -55,7 +55,7 @@ var DEFAULTS = {
 /* ── 부위별 시접 (SPEC §11-1) ─────────────────────────────────────────── */
 var SEAM_DEFAULTS = {
   neck: 1.0, shoulder: 1.0, armhole: 1.0,
-  side: 1.5, hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0
+  side: 1.5, hem: 3.0, sleeveHem: 3.0, dart: 1.5, fold: 0
 };
 var ROLE_KO = {
   neck: '목', shoulder: '어깨', armhole: '진동',

@@ -379,7 +379,7 @@ console.log('node ' + process.version + '  /  ' + new Date().toISOString());
 
 /* ───────────────── 1. A4 기본 (시접 0, 보정 없음) ───────────────── */
 section('1. A4 타일 · 시접 0 · 인쇄보정 없음');
-var PER = { neck:1.0, shoulder:1.0, armhole:1.0, side:1.5, hem:3.0, sleeveHem:2.5, fold:0 };
+var PER = { neck:1.0, shoulder:1.0, armhole:1.0, side:1.5, hem:3.0, sleeveHem:3.0, fold:0 };
 var SIZE_LIST_EARLY = ['44호', '55호', '66호', '77호'];
 var d0 = mockDraft({ seam: 0 });
 var L0 = NDP.buildPrintLayout(d0, { mode: 'a4', seam: 0, overlapMm: 10 });

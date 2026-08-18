@@ -52,7 +52,7 @@
   };
   var SEAM_ROLE_ORDER = ['neck', 'shoulder', 'armhole', 'side', 'hem', 'sleeveHem'];
   var SEAM_FALLBACK = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0,
-                        sleeveHem: 2.5, fold: 0, dart: 0 };
+                        sleeveHem: 3.0, fold: 0, dart: 0 };
   /* 다트 다리도 골선처럼 시접이 항상 0 이라 입력란을 만들지 않습니다 (SPEC §19-5) */
   var ZERO_ROLES = { fold: 1, dart: 1 };
   var SEAM_PRESETS = {

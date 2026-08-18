@@ -107,7 +107,7 @@ opt.seam = { neck:1.0, shoulder:1.0, armhole:1.0,
              side:1.5, hem:3.0, sleeveHem:2.5, fold:0 }   // 부위별 (seamMode 'perRole')
 ```
 
-기본값: `neck/shoulder/armhole 1.0 · side 1.5 · hem 3.0 · sleeveHem 2.5 · fold 0`.
+기본값: `neck/shoulder/armhole 1.0 · side 1.5 · hem 3.0 · sleeveHem 3.0 · fold 0`.
 객체에서 빠진 부위는 이 기본값을 씁니다. 실제 적용값은 `info.seamByRole` 로 돌려줍니다.
 
 ### 시접선을 어디서 얻는가 — 3단계
@@ -203,7 +203,7 @@ opt.seam = { neck:1.0, shoulder:1.0, armhole:1.0,
 | 목옆점 | `neck` 1.0 | 10mm | 15mm |
 | 어깨점 | `shoulder` 1.0 | 10mm | 15mm |
 | 옆선 BL | `side` 1.5 | 15mm | **20mm** |
-| 소매 밑단 2등분 | `sleeveHem` 2.5 | 25mm | **30mm** |
+| 소매 밑단 2등분 | `sleeveHem` 3.0 | 30mm | **35mm** |
 | (시접 0일 때) | — | 0 | 5mm |
 
 ### 골선(CB·CF) — 시접 0

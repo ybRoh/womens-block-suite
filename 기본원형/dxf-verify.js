@@ -152,7 +152,7 @@ function toEngine(pts, U, off) {
 var PRESETS = {
   '시접0':   0,
   '균일1.0': 1.0,
-  '부위별':  { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, sleeveHem: 2.5, fold: 0 }
+  '부위별':  { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, hem: 3.0, sleeveHem: 3.0, fold: 0 }
 };
 var SIZES = ['44호', '55호', '66호', '77호'];
 

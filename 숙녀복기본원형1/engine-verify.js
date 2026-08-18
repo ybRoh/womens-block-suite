@@ -849,7 +849,7 @@ function sectionSizes() {
 function sectionSeam() {
   console.log('\n[7] 부위별 시접 — 골선·다트 시접 0 강제');
   var m = E.measuresForSize('66호');
-  var d = E.draftLady1(m, { seam: { neck: 1, shoulder: 1, armhole: 1, side: 1.5, hem: 3, sleeveHem: 2.5, fold: 2, dart: 2 } });
+  var d = E.draftLady1(m, { seam: { neck: 1, shoulder: 1, armhole: 1, side: 1.5, hem: 3, sleeveHem: 3.0, fold: 2, dart: 2 } });
   d.pieces.forEach(function (p) {
     ok(p.seamByRole.fold === 0, p.name + ' 골선 시접 0', '입력 2 → ' + p.seamByRole.fold);
     ok(p.seamByRole.dart === 0, p.name + ' 다트 시접 0', '입력 2 → ' + p.seamByRole.dart);

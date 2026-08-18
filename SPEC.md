@@ -439,7 +439,7 @@ function buildPrintLayout(draft, opt)
 | front | 앞중심 | `fold` | 0 |
 | sleeve | 앞 소매산 · 뒤 소매산 | `armhole` | 1.0 |
 | sleeve | 앞 밑선 · 뒤 밑선 | `side` | 1.5 |
-| sleeve | 앞 밑단 · 밑단 중앙 · 뒤 밑단 | `sleeveHem` | **2.5** |
+| sleeve | 앞 밑단 · 밑단 중앙 · 뒤 밑단 | `sleeveHem` | **3.0** |
 
 **`opt.seam` 규약 확장 (하위호환 유지):**
 ```js

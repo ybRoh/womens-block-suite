@@ -996,8 +996,10 @@
      접을 수가 없다 — 좌우 두 장을 꿰매는 자리다. role 을 fold 로 두면 시접이 0 으로
      나가 재단해도 못 꿰맨다 (2026-08-12 사용자 지적).
      앞중심은 x=0 수직 직선이라 그대로 fold 다. */
+  /* ★ sleeveHem 3.0 — 2026-08-18 사용자 지정. 몸판 밑단(3.0)과 같게 올렸다
+     (이전 2.5). 소매 밑단도 접어 올리는 자리라 폭을 따로 둘 이유가 없다. */
   var SEAM_DEFAULT = { neck: 1.0, shoulder: 1.0, armhole: 1.0, side: 1.5, princess: 1.5,
-                       center: 1.5, hem: 3.0, sleeveHem: 2.5, dart: 1.5, fold: 0 };
+                       center: 1.5, hem: 3.0, sleeveHem: 3.0, dart: 1.5, fold: 0 };
   var SEAM_ROLES = Object.keys(SEAM_DEFAULT);
 
   /** opt.seam 정규화 — 숫자면 전 부위 균일, 객체면 role 별. fold 는 항상 0 강제. */
