@@ -44,17 +44,25 @@ var gr = P.grainline;
 t.push('<line class="grain" x1="' + X(gr[0]) + '" y1="' + Y(gr[0]) + '" x2="' + X(gr[1]) + '" y2="' + Y(gr[1]) + '"/>');
 t.push('<text class="grainT" x="' + (+X(gr[0]) + 8) + '" y="' + ((+Y(gr[0]) + +Y(gr[1])) / 2) + '">식서 (소매 중심선)</text>');
 
-/* 너치 — 재단선에 직각 · 빨강. 같은 라벨이 겹치면 아래로 밀어 둔다 */
-var seen = {};
+/* 너치 — 재단선에 직각 · 빨강.
+   같은 라벨이 가까이 여러 개면(뒤 소매맞춤 2개) 글자는 **한 번만** 쓰고 ×n 을 붙인다.
+   밀어 놓기로는 안 된다 — 너치 간격(1.1cm)과 밀어낸 양이 비슷해 도로 겹친다. */
+var grp = {};
+function gkey(n) { return n.label + '|' + Math.round(n.p[0] / 3) + '|' + Math.round(n.p[1] / 3); }
+(P.notches || []).forEach(function (n) { grp[gkey(n)] = (grp[gkey(n)] || 0) + 1; });
+var drew = {};
 (P.notches || []).forEach(function (n) {
   var a = n.angle * Math.PI / 180;
   var q = [n.p[0] + Math.cos(a) * 0.7, n.p[1] + Math.sin(a) * 0.7];
   t.push('<line class="notch" x1="' + X(n.p) + '" y1="' + Y(n.p) + '" x2="' + X(q) + '" y2="' + Y(q) + '"/>');
   var lx = +X(n.p) + (n.p[0] > (mnx + mxx) / 2 ? 12 : -12);
-  var key = n.label + '|' + Math.round(n.p[0] / 4) + '|' + Math.round(n.p[1] / 4);
-  seen[key] = (seen[key] || 0) + 1;
-  t.push('<text class="ntc" text-anchor="' + (n.p[0] > (mnx + mxx) / 2 ? 'start' : 'end') +
-         '" x="' + lx + '" y="' + (+Y(n.p) + 4 + (seen[key] - 1) * 14) + '">' + n.label + '</text>');
+  var key = gkey(n);
+  if (!drew[key]) {
+    drew[key] = 1;
+    t.push('<text class="ntc" text-anchor="' + (n.p[0] > (mnx + mxx) / 2 ? 'start' : 'end') +
+           '" x="' + lx + '" y="' + (+Y(n.p) + 4) + '">' + n.label +
+           (grp[key] > 1 ? ' ×' + grp[key] : '') + '</text>');
+  }
 });
 
 /* 변 이름 + 시접 */
@@ -107,7 +115,7 @@ var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.ceil(W) + '" 
  '<marker id="dh" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#c2603a"/></marker>' +
  '</defs>\n<rect width="100%" height="100%" fill="#fff"/>\n' +
  '<text class="hd" x="40" y="42">' + DIR + ' · 긴소매 — 세워서 낸 조각</text>\n' +
- '<text class="sub" x="40" y="66">66호 · 표준 시접 · **소매산이 위 · 수구(소매 밑단)가 아래** — 검정 재단선 · 파란 점선 시접선 · 빨강 너치 · 초록 식서</text>\n' +
+ '<text class="sub" x="40" y="66">66호 · 표준 시접 · 소매산이 위 · 수구(소매 밑단)가 아래 — 검정 재단선 · 파란 점선 시접선 · 빨강 너치 · 초록 식서</text>\n' +
  t.join('\n') + '\n<text class="cap" x="40" y="' + (H - 24) + '">' +
  '재단선 ' + (cutX.hi - cutX.lo).toFixed(2) + ' × ' + (cutY.hi - cutY.lo).toFixed(2) + ' cm · 너치 ' + (P.notches || []).length + '개 · ' +
  '+90° 강체 회전이라 교재 도면과의 편차는 회전 전과 같은 0.32cm.</text>\n</svg>\n';
