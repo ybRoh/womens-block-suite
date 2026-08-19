@@ -6,7 +6,7 @@
 <title>철릭 프린세스 · 44~88호</title>
 <!-- 자동 생성 파일 — 직접 수정하지 마세요.
      원본: 철릭프린세스/{ui.html, ui.css, print.css, engine.js, print.js, dxf.js, pdf.js, ui.js}
-     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-18 09:47 -->
+     재생성: python3 철릭프린세스/build.py     생성일: 2026-08-20 05:33 -->
 <style>
 /* ══ ui.css ══ */
 /* ═══════════════════════════════════════════════════════════════
@@ -816,7 +816,7 @@ td.n.n-fail{color:var(--red)}
      print.js 의 renderTo(layout, el) 가 이 안에 .ndp-page 들을 넣습니다. -->
 <div id="ndp-print-area" aria-hidden="true"></div>
 
-<script>window.ND_BUILD = '2026-08-18 09:47'; window.ND_APP = '철릭프린세스';</script>
+<script>window.ND_BUILD = '2026-08-20 05:33'; window.ND_APP = '철릭프린세스';</script>
 <script>
 /* ══ engine.js ══ */
 /* ============================================================================
@@ -3023,16 +3023,34 @@ function wantPiece(want, p) {
   return false;
 }
 
-/** 조각에 딸린 계산식 주석 (draft.meta.formulaNotes) — cm → world mm */
-function dimsOf(draft, pieceId) {
-  var src = (draft && draft.meta && draft.meta.formulaNotes) || [], out = [];
+/** 계산식 주석 하나가 **종이에 찍을 수 있는 모양**인가.
+ *  ⚠ `if (!n.anchor)` 로는 못 거른다 — **문자열도 통과한다.**
+ *    `String.prototype.anchor` 가 레거시 메서드라 `'글자'.anchor` 가 함수이고,
+ *    그 뒤 `n.anchor[0] * 10` 이 NaN 이 되어 종이에 「undefined  undefined = 0」이
+ *    9장 찍혔다 (2026-08-18 · print-verify 의 「출력 문자열 위생」이 잡았다).
+ *    formulaNotes 를 **문자열 배열**로 넘기는 모듈이 실제로 있다. */
+function isDrawableNote(n) {
+  return !!n && typeof n === 'object' && !Array.isArray(n) &&
+         Array.isArray(n.anchor) && n.anchor.length >= 2 &&
+         isFinite(n.anchor[0]) && isFinite(n.anchor[1]);
+}
+/** 조각에 딸린 계산식 주석 (draft.meta.formulaNotes) — cm → world mm.
+ *  못 그릴 주석은 **버리고 경고**한다 — 종이에 undefined 를 찍느니 빠지는 게 낫다. */
+function dimsOf(draft, pieceId, warn) {
+  var src = (draft && draft.meta && draft.meta.formulaNotes) || [], out = [], skipped = 0;
   for (var i = 0; i < src.length; i++) {
     var n = src[i];
-    if (!n || !n.anchor) continue;
+    if (!isDrawableNote(n)) { skipped++; continue; }
     if (n.piece && n.piece !== 'both' && n.piece !== pieceId) continue;
     if (n.piece === 'both') continue;          // 조각 공통값은 하단 정보띠에 이미 나간다
     out.push({ id: n.id, label: n.label, formula: n.formula, value: n.value,
                at: [n.anchor[0] * 10, n.anchor[1] * 10] });
+  }
+  /* 조각마다 불리므로 **같은 경고를 한 번만** 남긴다 */
+  if (skipped && warn) {
+    var msg = '계산식 주석 ' + skipped + '개가 anchor 없는 모양이라 건너뜀 ' +
+      '(draft.meta.formulaNotes 는 {label, formula, value, anchor:[x,y], piece} 객체여야 합니다)';
+    if (warn.indexOf(msg) < 0) warn.push(msg);
   }
   return out;
 }
@@ -3409,7 +3427,7 @@ function normalizePieces(draft, o, warn) {
       /* 계산식 주석 — 이 Suite 의 존재 이유가 1:1 종이인데 계산식이 종이에 한 개도
          안 찍히고 있었다 (5개 모듈 공통). draft.meta.formulaNotes 에서 이 조각 것만
          골라 world mm 로 옮겨 싣는다. SPEC §8.1 의 piece/anchor 규약을 그대로 쓴다. */
-      dims: dimsOf(draft, p.id || ('piece' + i)),
+      dims: dimsOf(draft, p.id || ('piece' + i), warn),
       bbox: bb,                 // 배치용(라벨/시접 포함) world mm
       outlineBbox: bbOutline,   // 검산용 world mm
       declaredBbox: declared, bboxDelta: delta
@@ -3612,7 +3630,12 @@ function renderPiece(pc, o, sizeLabel) {
   var dms = pc.dims || [];
   for (i = 0; i < dms.length; i++) {
     var dm = dms[i];
-    var dtxt = dm.label + '  ' + dm.formula + ' = ' + n(dm.value, 2);
+    /* 빠진 조각은 **빼고** 잇는다 — 없는 값을 문자열로 이으면 종이에 undefined 가 찍힌다 */
+    var dparts = [];
+    if (dm.label) dparts.push(String(dm.label));
+    if (dm.formula) dparts.push(String(dm.formula));
+    var dtxt = dparts.join('  ') + (isFinite(dm.value) ? ' = ' + n(dm.value, 2) : '');
+    if (!dtxt) continue;
     g.push('<text x="' + n(dm.at[0]) + '" y="' + n(dm.at[1]) + '" font-size="2.6" ' +
            'font-family="sans-serif" fill="#2b6cd4" text-anchor="middle">' + esc(dtxt) + '</text>');
   }

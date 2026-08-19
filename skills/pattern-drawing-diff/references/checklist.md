@@ -81,6 +81,35 @@
       실제로 겹침 도구가 사라진 상수를 읽어 「앞중심 undefined」와 NaN 30개를 찍었다
 - [ ] ⚠ 그림 검사는 **base64 데이터를 빼고** 세라. 배경 도면이 data: URI 로 박혀 있으면
       그 난수열에 'NaN' 이 우연히 들어 있어 오탐이 난다 (넣자마자 그 검사부터 틀렸다)
+- [ ] **인쇄 출력(print.js 가 만든 SVG)까지 세라.** 조각 라벨 검사는 엔진 산출물만 본다.
+      종이에 찍히는 건 인쇄 코드가 따로 조립한 문자열이다 — 검사 없이 지나간다
+
+### ⚠ `if (!x.anchor)` 류의 가드는 **문자열을 못 거른다**
+
+JS 의 레거시 메서드 때문에 문자열이 온갖 속성 가드를 통과한다. 실제로 종이에
+「undefined  undefined = 0」이 9장 찍혔다 (2026-08-18):
+
+```js
+'글자'.anchor      // → function  (String.prototype.anchor · 레거시)
+!'글자'.anchor     // → false     ← 가드를 그냥 통과한다
+'글자'.anchor[0]   // → undefined → * 10 → NaN → 좌표까지 오염
+```
+
+`link` `sub` `sup` `big` `bold` `fixed` `italics` `blink` `strike` `small` `fontcolor`
+`fontsize` `at` `concat` `search` `match` 도 마찬가지다 — 제도 코드에서 쓰기 쉬운
+이름이 많다. **모양을 통째로 확인하라**:
+
+```js
+function isDrawableNote(n) {
+  return !!n && typeof n === 'object' && !Array.isArray(n) &&
+         Array.isArray(n.anchor) && isFinite(n.anchor[0]) && isFinite(n.anchor[1]);
+}
+```
+
+그리고 **문자열을 이어 붙일 때 없는 조각은 빼라** — `a + '  ' + b + ' = ' + v` 는
+b 가 없으면 종이에 `undefined` 를 찍는다. 있는 것만 모아 `join` 하고, 결과가
+빈 문자열이면 아예 그리지 않는다. 가드와 조립 **둘 다** 막아 두면 한쪽이 뚫려도
+종이는 깨끗하다 (실제로 한쪽만 되돌렸더니 여전히 깨끗했다).
 
 ### 검사를 넣었으면 **오염을 주입해 증명하라**
 

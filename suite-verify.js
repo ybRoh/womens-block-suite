@@ -253,6 +253,32 @@ function checkSeamLabels(dir, d, bad) {
   });
 }
 
+/* ── **인쇄물**에 undefined/NaN 이 글자로 새지 않는가 ────────────────────
+   조각 라벨은 checkPiece ⓪ 가 보지만, 종이에 찍히는 건 print.js 가 만든 SVG 다.
+   실제로 기본원형에서 「undefined  undefined = 0」이 9장 찍혔다 (2026-08-18):
+   `dimsOf` 의 가드가 `if (!n.anchor)` 였는데 **문자열도 통과한다** —
+   `String.prototype.anchor` 가 레거시 메서드라 항상 truthy 다.
+   좌표는 멀쩡하니 다른 어떤 검사도 이걸 못 잡는다.
+   ⚠ base64 `data:` URI 는 먼저 걷어낸다 — 조끼 겹침 도구에서 오탐 4건이 났다.
+   ⚠ 모듈에 print-verify 가 있는 건 기본원형 하나뿐이라 여기서 전부 건다. */
+function checkPrintHygiene(dir, E, d, bad) {
+  var P;
+  try { P = require(path.join(__dirname, dir, 'print.js')); }
+  catch (e) { return; }                       // print.js 가 없는 모듈은 넘어간다
+  if (!P || typeof P.buildPrintLayout !== 'function') return;
+  var L;
+  try { L = P.buildPrintLayout(d, { mode: 'a4', seam: E.SEAM_DEFAULT }); }
+  catch (e) { bad.push(dir + ': 인쇄 레이아웃 생성 실패 — ' + e.message); return; }
+  if (!L || !L.pagesSvg || !L.pagesSvg.length) { bad.push(dir + ': 인쇄 페이지가 0장'); return; }
+  var txt = L.pagesSvg.join('').replace(/data:[^"')\s]+/g, '');
+  var hit = txt.match(/undefined|NaN|Infinity|\[object/g);
+  if (hit) {
+    var one = (txt.match(/.{0,40}(undefined|NaN|Infinity|\[object).{0,40}/) || [''])[0];
+    bad.push(dir + ': 인쇄물 ' + L.pagesSvg.length + '장에 「undefined/NaN」 ' + hit.length +
+             '건 — 종이에 그대로 찍힌다 · 예: ' + JSON.stringify(one));
+  }
+}
+
 /* ── 조각 하나에 거는 검사 ───────────────────────────────────────────── */
 function checkPiece(p, bad) {
   var nm = p.name || p.id || '?';
@@ -426,7 +452,8 @@ function runModule(mod) {
     try { d = draftFn(E.measuresForSize(sz), o); }
     catch (e) { console.log('   ✗ ' + pad(sz, 5) + '제도 실패: ' + e.message); fails++; return; }
     (d.pieces || []).forEach(function (p) { checkPiece(p, bad); checked++; });
-    if (sz === '55호') { checkModuleNames(mod.dir, bad); checkSeamLabels(mod.dir, d, bad); }
+    if (sz === '55호') { checkModuleNames(mod.dir, bad); checkSeamLabels(mod.dir, d, bad);
+                         checkPrintHygiene(mod.dir, E, d, bad); }
     checkArmNotches(d, bad);   // 파일 검사라 한 호수만 보면 된다
 
     /* 호수가 커지면 주요 치수는 **반드시** 커진다 — 66호 실측 상수를 골격에 박으면
